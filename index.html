@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4fd6">
+<script src="config.js"></script>
+</head>
+<body>
+<title>SI Telecom Prep</title>
+<meta name="description" content="Daily spaced-repetition review for the JKSSB Sub-Inspector (Telecommunication) exam">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one centred column (max 720px) under a sticky top bar. Each screen is a <section>; only one is visible at a time. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #142036;
+  --muted: #59657a;
+  --line: #d6dce7;
+  --accent: #1d4fd6;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2e9fb;
+  --good: #11804a;
+  --good-soft: #def3e7;
+  --bad: #c42323;
+  --bad-soft: #fbe3e3;
+  --warn: #9a5800;
+  --warn-soft: #fcefd6;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1320; --surface: #151d2c; --ink: #e5eaf3; --muted: #98a4b8; --line: #263148;
+    --accent: #7da3ff; --accent-ink: #0a1222; --accent-soft: #1b294a;
+    --good: #4cc68b; --good-soft: #11301f; --bad: #f27777; --bad-soft: #3b1616;
+    --warn: #f1b45b; --warn-soft: #3a2a0f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1320; --surface: #151d2c; --ink: #e5eaf3; --muted: #98a4b8; --line: #263148;
+  --accent: #7da3ff; --accent-ink: #0a1222; --accent-soft: #1b294a;
+  --good: #4cc68b; --good-soft: #11301f; --bad: #f27777; --bad-soft: #3b1616;
+  --warn: #f1b45b; --warn-soft: #3a2a0f; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; }
+button { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.25rem; }
+p { margin: 0; }
+code { font-family: var(--f-mono); font-size: .88em; background: var(--accent-soft); padding: .05em .3em; border-radius: 4px; }
+
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar-in { max-width: 720px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; letter-spacing: .06em; text-transform: uppercase; background: none; border: 0; padding: 0; cursor: pointer; }
+.brand span { color: var(--accent); }
+.sync { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; text-align: right; }
+.sync::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.sync.cloud::before { background: var(--good); }
+
+main { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; }
+section { display: grid; gap: 20px; }
+
+.label { font-size: .75rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-mono); font-size: .8rem; }
+
+/* Countdown strip */
+.countdown { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.countdown .days { font-family: var(--f-display); font-weight: 700; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.countdown .what { font-family: var(--f-display); font-size: 1.15rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.countdown .meta { font-size: .85rem; color: var(--muted); }
+
+/* Today's review: the one thing to do */
+.today { background: var(--ink); color: var(--bg); border-radius: 14px; padding: 22px 22px 20px; display: grid; gap: 14px; }
+.today .top { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.today .big { font-family: var(--f-display); font-weight: 700; font-size: clamp(4rem, 18vw, 5.5rem); line-height: .82; font-variant-numeric: tabular-nums; }
+.today .what { display: grid; gap: 2px; }
+.today .what strong { font-family: var(--f-display); font-size: 1.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; line-height: 1; }
+.today .what span { font-size: .92rem; opacity: .78; }
+.today .split { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--f-mono); font-size: .78rem; opacity: .85; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--bg) 22%, transparent); }
+.today .go { justify-self: stretch; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 14px 18px; font-family: var(--f-display); font-size: 1.45rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.today .go:hover { filter: brightness(1.08); }
+.today.done .big { color: var(--good); }
+.today .go.soft { background: transparent; color: inherit; border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent); font-size: 1.1rem; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.stat { background: var(--surface); padding: 12px 14px; display: grid; gap: 2px; }
+.stat b { font-family: var(--f-display); font-size: 1.7rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat small { font-size: .78rem; color: var(--muted); }
+@media (max-width: 520px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 380px) { .more { grid-template-columns: 1fr; } }
+.today .row2 { display: flex; gap: 10px; flex-wrap: wrap; }
+.today .row2 .go { flex: 1 1 12rem; }
+.today .pausebtn { background: transparent; color: inherit; border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent); border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600; flex: 0 1 auto; }
+.today.paused .big { color: var(--warn); }
+
+/* Streak strip on home */
+.streak { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; cursor: pointer; text-align: left; width: 100%; }
+.streak:hover { border-color: var(--accent); }
+.streak .s-num { display: flex; align-items: baseline; gap: 8px; }
+.streak .s-num b { font-family: var(--f-display); font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.streak .s-num span { font-size: .85rem; color: var(--muted); }
+.week { display: flex; gap: 5px; }
+.week .d { display: grid; justify-items: center; gap: 3px; font-size: .68rem; color: var(--muted); }
+.week .d i { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font-style: normal; font-size: .7rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+/* Day colours, shared by the strip and the calendar */
+.d-hi { background: var(--good) !important; color: var(--surface) !important; border-color: var(--good) !important; }
+.d-mid { background: var(--accent) !important; color: var(--accent-ink) !important; border-color: var(--accent) !important; }
+.d-lo { background: var(--bad) !important; color: var(--surface) !important; border-color: var(--bad) !important; }
+.d-part { background: var(--surface) !important; border: 2px dashed var(--accent) !important; color: var(--accent) !important; }
+.d-pause { background: var(--warn-soft) !important; color: var(--warn) !important; border-color: var(--warn) !important; }
+.d-exam { background: var(--ink) !important; color: var(--bg) !important; border-color: var(--ink) !important; }
+
+/* Calendar */
+.cal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: grid; gap: 10px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-grid .wd { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: center; padding-bottom: 2px; }
+.cal-grid .c { aspect-ratio: 1; max-width: 100%; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: grid; grid-template-rows: auto 1fr; padding: 4px 5px; min-width: 0; }
+.cal-grid .c .dn { font-size: .7rem; opacity: .8; font-variant-numeric: tabular-nums; }
+.cal-grid .c .pc { align-self: center; justify-self: center; font-family: var(--f-display); font-weight: 700; font-size: clamp(.8rem, 3.6vw, 1.15rem); font-variant-numeric: tabular-nums; }
+.cal-grid .c.blank { visibility: hidden; }
+.cal-grid .c.now { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cal-grid .c.future { opacity: .45; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid var(--line); }
+.mode { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; cursor: pointer; display: grid; gap: 2px; }
+.mode:hover { border-color: var(--accent); }
+.mode strong { font-family: var(--f-display); font-size: 1.2rem; font-weight: 600; }
+.mode span { font-size: .85rem; color: var(--muted); }
+
+.badge { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.badge.bad { background: var(--bad-soft); color: var(--bad); }
+.badge.good { background: var(--good-soft); color: var(--good); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+
+.warnbox { background: var(--warn-soft); color: var(--ink); border-radius: var(--r); padding: 12px 16px; font-size: .9rem; }
+.warnbox summary { cursor: pointer; font-weight: 700; color: var(--warn); }
+.warnbox ul { margin: 8px 0 0; padding-left: 20px; }
+
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 16px; cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: none; border-color: transparent; color: var(--muted); padding-inline: 8px; }
+
+/* Lists of subjects / topics */
+.list { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.row { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; border: 0; background: none; text-align: left; cursor: pointer; width: 100%; }
+.row + .row { border-top: 1px solid var(--line); }
+.row:hover:not(:disabled) { background: var(--accent-soft); }
+.row:disabled { cursor: default; opacity: .5; }
+.row .code { font-family: var(--f-mono); font-size: .78rem; font-weight: 600; color: var(--accent); }
+.row .name { min-width: 0; }
+.row .name small { display: block; color: var(--muted); font-size: .8rem; }
+.row .n { font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--muted); text-align: right; }
+.row.topic { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* Quiz */
+.qtop { display: grid; gap: 8px; }
+.qtop .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.qtop .bar i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+.crumb { font-size: .82rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.crumb b { color: var(--ink); font-weight: 600; }
+.qmeta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.signal { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.signal i { width: 4px; background: var(--line); border-radius: 1px; }
+.signal i.on { background: var(--good); }
+.qtext { font-size: 1.22rem; font-weight: 600; line-height: 1.4; }
+.opts { display: grid; gap: 10px; }
+.opt { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 12px; align-items: center; text-align: left; background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; cursor: pointer; min-height: 52px; }
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt .key { font-family: var(--f-mono); font-weight: 600; width: 2rem; height: 2rem; border-radius: 6px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt.right { border-color: var(--good); background: var(--good-soft); }
+.opt.right .key { background: var(--good); color: var(--surface); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt.wrong .key { background: var(--bad); color: var(--surface); }
+.opt.dim { opacity: .55; }
+
+.feedback { border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.feedback .verdict { padding: 10px 16px; font-family: var(--f-display); font-size: 1.3rem; font-weight: 700; letter-spacing: .02em; }
+.feedback .verdict small { font-family: var(--f-body); font-size: .85rem; font-weight: 400; letter-spacing: 0; margin-left: 8px; }
+.feedback.ok .verdict { background: var(--good-soft); color: var(--good); }
+.feedback.no .verdict { background: var(--bad-soft); color: var(--bad); }
+.feedback.skip .verdict { background: var(--warn-soft); color: var(--warn); }
+.feedback dl { margin: 0; padding: 14px 16px; display: grid; gap: 12px; }
+.feedback dt { font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.feedback dd { margin: 2px 0 0; }
+.feedback .trap dd { color: var(--bad); }
+.qactions { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hint-keys { font-size: .78rem; color: var(--muted); align-self: center; }
+@media (hover: none) { .hint-keys { display: none; } }
+
+/* Results */
+.review { display: grid; gap: 10px; }
+.review-item { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; }
+.review-item .ans { font-size: .92rem; }
+.review-item .ans b { color: var(--good); }
+
+/* Progress table */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; white-space: normal; min-width: 11rem; }
+th { font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+tr.part td { background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+tbody tr:last-child td { border-bottom: 0; }
+.meter { display: inline-block; width: 52px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; margin-left: 6px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--good); }
+
+/* Notes */
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; }
+.note dl { margin: 0; display: grid; gap: 10px; }
+.note dt { font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.note dd { margin: 2px 0 0; }
+.note dd ul { margin: 0; padding-left: 18px; }
+.note .trap dd { color: var(--bad); }
+select { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 100%; }
+
+.login { display: grid; gap: 8px; max-width: 26rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+.login label { font-size: .85rem; font-weight: 600; }
+.login input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.login .btn { margin-top: 8px; padding-block: 11px; }
+.login .err { color: var(--bad); font-size: .88rem; min-height: 1.2em; }
+.account { font-size: .85rem; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); padding: 20px; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: .9rem; max-width: calc(100% - 32px); z-index: 10; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <button class="brand" id="brand" type="button">SI <span>Telecom</span> Prep</button>
+    <div class="sync" id="sync">Saved on this device</div>
+  </div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section id="home">
+    <div class="countdown" id="countdown"></div>
+    <div id="todayCard"></div>
+    <button class="streak" type="button" id="streak" data-mode="calendar"></button>
+    <div id="warnings"></div>
+    <div class="stats" id="stats"></div>
+    <div class="more">
+      <button class="mode" type="button" data-mode="calendar"><strong>Calendar</strong><span>Streak and daily score</span></button>
+      <button class="mode" type="button" data-mode="topic"><strong>Practice a topic</strong><span>Right after studying it</span></button>
+      <button class="mode" type="button" data-mode="notes"><strong>Revision notes</strong><span>Confusions, tricks, traps</span></button>
+      <button class="mode" type="button" data-mode="progress"><strong>Progress</strong><span>Subject by subject</span></button>
+    </div>
+    <p class="account muted" id="account" hidden>Signed in as <span id="accountEmail"></span> · <button class="btn ghost" type="button" id="signOut">Sign out</button></p>
+  </section>
+
+  <!-- SIGN IN (GitHub Pages version only) -->
+  <section id="login" hidden>
+    <h2>Sign in to sync</h2>
+    <p class="muted">Use the email and password you added in Firebase. You sign in once per device; after that your phone and laptop stay in sync.</p>
+    <form class="login" id="loginForm">
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
+      <p class="err" id="loginErr" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- SUBJECT / TOPIC PICKER -->
+  <section id="picker" hidden>
+    <div class="head-row">
+      <h2 id="pickerTitle">Choose a subject</h2>
+      <button class="btn ghost" type="button" data-back>← Back</button>
+    </div>
+    <div class="list" id="pickerList"></div>
+  </section>
+
+  <!-- QUESTION SCREEN -->
+  <section id="quiz" hidden>
+    <div class="qtop">
+      <div class="head-row">
+        <span class="label" id="qCount"></span>
+        <button class="btn ghost" type="button" id="quitBtn">Stop for now</button>
+      </div>
+      <div class="bar"><i id="qBar" style="width:0%"></i></div>
+    </div>
+    <div class="crumb" id="qCrumb"></div>
+    <div class="qmeta" id="qMeta"></div>
+    <p class="qtext" id="qText"></p>
+    <div class="opts" id="qOpts"></div>
+    <div id="qFeedback"></div>
+    <div class="qactions">
+      <button class="btn" type="button" id="skipBtn">Don't know</button>
+      <span class="hint-keys">Keys: 1–4 answer · S don't know · Enter next</span>
+      <button class="btn primary" type="button" id="nextBtn" hidden>Next →</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" hidden>
+    <div class="head-row">
+      <h2 id="rTitle">Session finished</h2>
+      <button class="btn ghost" type="button" data-back>Home</button>
+    </div>
+    <div class="stats" id="rScore"></div>
+    <p id="rNext" class="muted"></p>
+    <div class="qactions"><button class="btn primary" type="button" data-back>Back to home</button></div>
+    <div class="review" id="rReview"></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progress" hidden>
+    <div class="head-row">
+      <h2>Progress</h2>
+      <button class="btn ghost" type="button" data-back>← Back</button>
+    </div>
+    <div class="stats" id="pStats"></div>
+    <div class="table-wrap"><table id="pTable"></table></div>
+    <p class="muted" style="font-size:.85rem">Exam Qs = questions this subject carries in the real paper. Strong = remembered at level 4 or 5 (gaps of 2 weeks or more). Due = waiting in today's review.</p>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="calendar" hidden>
+    <div class="head-row">
+      <h2>Calendar</h2>
+      <button class="btn ghost" type="button" data-back>← Back</button>
+    </div>
+    <div class="stats" id="cStats"></div>
+    <div class="cal">
+      <div class="cal-head">
+        <button class="btn ghost" type="button" id="calPrev" aria-label="Previous month">←</button>
+        <h3 id="calTitle"></h3>
+        <button class="btn ghost" type="button" id="calNext" aria-label="Next month">→</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw d-hi"></i>80%+</span><span><i class="sw d-mid"></i>60–79%</span><span><i class="sw d-lo"></i>below 60%</span>
+      <span><i class="sw d-part"></i>started, not finished</span><span><i class="sw d-pause"></i>paused</span><span><i class="sw d-exam"></i>exam</span>
+    </div>
+    <p class="muted" style="font-size:.85rem">The % is how many questions you got right on the first try that day. The streak counts days you finished the review; a paused day keeps the streak but does not add to it.</p>
+  </section>
+
+  <!-- NOTES -->
+  <section id="notes" hidden>
+    <div class="head-row">
+      <h2>Revision Notes</h2>
+      <button class="btn ghost" type="button" data-back>← Back</button>
+    </div>
+    <select id="notesFilter" aria-label="Filter notes by subject"></select>
+    <div id="notesList" style="display:grid;gap:12px"></div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* =====================================================================
+   PART 1 — PURE LOGIC (no screen code here)
+   Reading Markdown, shuffling, spaced-repetition schedule, today's plan.
+   ===================================================================== */
+
+// Paths of the data files (relative to this page)
+const DATA = { syllabus: 'data/syllabus.md', mcq: c => `data/mcq/${c}.md`, notes: c => `data/notes/${c}.md` };
+
+// ---------- 1a. Markdown block parser ----------
+// Turns text like
+//   ## Q: CN-TL-001
+//   - Question: ...
+//   - Options:
+//     - TCP
+// into { id: 'CN-TL-001', line: 12, f: { question: '...', options: ['TCP', ...] } }
+// `marker` is 'Q' for MCQ files and 'N' for note files.
+function parseBlocks(text, marker) {
+  const blocks = [];
+  let cur = null, field = null;
+  const headRe = new RegExp('^##\\s+' + marker + ':\\s*(\\S+)');
+  text.split(/\r?\n/).forEach((raw, idx) => {
+    const line = raw.replace(/\s+$/, '');
+    const head = line.match(headRe);
+    if (head) { cur = { id: head[1].trim(), line: idx + 1, f: {} }; blocks.push(cur); field = null; return; }
+    if (!cur) return;
+    if (/^#{1,6}\s/.test(line)) { cur = null; field = null; return; }   // any other heading ends the block
+    if (!line.trim()) return;                                            // blank line: ignore
+    if (/^-{3,}$/.test(line.trim())) { field = null; return; }            // --- separator
+    const kv = line.match(/^[-*]\s+([A-Za-z][A-Za-z /]*?)\s*:\s*(.*)$/);
+    if (kv) { field = kv[1].toLowerCase(); cur.f[field] = kv[2].trim() || []; return; }
+    const item = line.match(/^\s+[-*]\s+(.*)$/);
+    if (item && field) {
+      if (!Array.isArray(cur.f[field])) cur.f[field] = cur.f[field] ? [cur.f[field]] : [];
+      cur.f[field].push(item[1].trim());
+      return;
+    }
+    if (field) {                                   // continuation of a long value
+      const v = cur.f[field], extra = line.trim();
+      if (Array.isArray(v)) { if (v.length) v[v.length - 1] += ' ' + extra; }
+      else cur.f[field] = (v + ' ' + extra).trim();
+    }
+  });
+  return blocks;
+}
+
+const asText = v => Array.isArray(v) ? v.join(' ') : (v || '');
+
+// ---------- 1b. Syllabus file ----------
+function parseSyllabus(text) {
+  const info = {};
+  text.split(/\r?\n/).forEach(l => {
+    const m = l.match(/^-\s+([A-Za-z ]+):\s*(.+)$/);
+    if (m) info[m[1].trim().toLowerCase()] = m[2].trim();
+  });
+  const subjects = [];
+  text.split(/\r?\n/).forEach(l => {
+    if (!l.trim().startsWith('|')) return;
+    const cells = l.split('|').slice(1, -1).map(c => c.trim());
+    if (cells.length < 4 || cells[0] === 'Code' || /^-+$/.test(cells[0])) return;
+    subjects.push({ code: cells[0], name: cells[1], part: cells[2], marks: Number(cells[3]) || 0 });
+  });
+  return {
+    exam: {
+      date: info['exam date'] || '',
+      questions: Number(info['total questions']) || 100,
+      minutes: Number(info['duration minutes']) || 120,
+      plus: Number(info['marks correct']) || 2,
+      minus: Number(info['marks wrong']) || -0.5,
+    },
+    subjects,
+  };
+}
+
+// ---------- 1c. MCQ file → question objects (with checks) ----------
+// Returns { questions, problems }. A question with a problem is left out so you never see a broken one.
+function buildQuestions(text, code, subjectName, file) {
+  const questions = [], problems = [];
+  parseBlocks(text, 'Q').forEach((b, order) => {
+    const f = b.f, where = `${file} line ${b.line} (${b.id})`;
+    if (asText(f.status).toLowerCase() === 'retired') return;
+    const options = Array.isArray(f.options) ? f.options : [];
+    const answerText = asText(f.answer).trim();
+    const question = asText(f.question).trim();
+    const answer = options.find(o => o === answerText) ?? options.find(o => o.toLowerCase() === answerText.toLowerCase());
+    let problem = null;
+    if (!question) problem = 'has no Question';
+    else if (options.length < 2) problem = 'needs at least 2 Options';
+    else if (new Set(options.map(o => o.toLowerCase())).size !== options.length) problem = 'has duplicate options';
+    else if (!answerText) problem = 'has no Answer';
+    else if (answer === undefined) problem = /^[A-Da-d]$/.test(answerText)
+      ? `Answer is the letter "${answerText}". Write the option text instead`
+      : `Answer "${answerText}" does not match any option`;
+    if (problem) { problems.push(`${where}: ${problem}`); return; }
+    questions.push({
+      id: b.id, code, subject: subjectName, order,
+      topic: asText(f.topic).trim() || 'General',
+      subtopic: asText(f.subtopic).trim(),
+      type: asText(f.type).trim(), difficulty: asText(f.difficulty).trim(),
+      added: asText(f.added).trim(),
+      question, options, answer,
+      explanation: asText(f.explanation), hint: asText(f['memory hint']),
+      concept: asText(f.concept), trap: asText(f.trap),
+    });
+  });
+  return { questions, problems };
+}
+
+// ---------- 1d. Shuffling ----------
+// Fisher–Yates: every order is equally likely. Options are reshuffled every time a question is shown.
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 1e. Spaced-repetition schedule ----------
+// Every question has a memory LEVEL from 0 to 5 and a DUE day.
+//   Correct → level goes up 1, next review is further away.
+//   Wrong or "Don't know" → level drops to 0, it comes back tomorrow
+//   (and again later in the same session).
+// Days until next review for each level:
+const SCHEDULE = {
+  gapDays: [1, 1, 3, 7, 14, 30],  // level 0..5
+  maxLevel: 5,
+  hardAfterWrongs: 3,             // a question missed 3+ times never waits more than…
+  hardMaxLevel: 3,                // …7 days
+  dueCapPerDay: 60,               // most old questions in one day's review
+  newMin: 10, newMax: 30,         // new questions introduced per day
+  finishNewDaysBeforeExam: 7,     // see every question at least once a week before the exam
+  retriesInSession: 2,            // a missed question is asked again up to 2 more times in the session
+};
+
+const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const addDays = (ms, n) => { const d = new Date(dayStart(ms)); d.setDate(d.getDate() + n); return d.getTime(); };
+const examMsFrom = date => { if (!date) return 0; const [y, m, d] = date.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+
+// state: a=answered c=correct w=wrong sk="don't know" s=streak lv=level due=next review day f=first seen t=last seen k=subject code
+// `retry` = this is a repeat inside the same session (a correct repeat does not raise the level).
+function applyResult(state, result, code, now, examMs, retry) {
+  const s = Object.assign({ a: 0, c: 0, w: 0, sk: 0, s: 0, lv: 0 }, state || {});
+  if (typeof s.lv !== 'number') s.lv = 0;
+  if (!s.f) s.f = now;
+  s.k = code; s.t = now;
+  if (result === 'correct') {
+    s.a++; s.c++; s.s++;
+    if (!retry) s.lv = Math.min(SCHEDULE.maxLevel, s.lv + 1);
+  } else {
+    if (result === 'wrong') { s.a++; s.w++; } else s.sk++;
+    s.s = 0; s.lv = 0;
+  }
+  if (s.w >= SCHEDULE.hardAfterWrongs) s.lv = Math.min(s.lv, SCHEDULE.hardMaxLevel);
+  let due = addDays(now, SCHEDULE.gapDays[s.lv]);
+  if (examMs) {                                   // never schedule past the day before the exam
+    const lastDay = addDays(examMs, -1);
+    if (due > lastDay) due = Math.max(addDays(now, 1), lastDay);
+  }
+  s.due = due;
+  return s;
+}
+
+// Builds today's review by itself: every question that is due, plus a fair share of new ones.
+function todayPlan(questions, getState, now, examMs, subjectOrder) {
+  const start = dayStart(now), tomorrow = addDays(now, 1), dayAfter = addDays(now, 2);
+  const due = [], unseen = [];
+  let doneToday = 0, newToday = 0, dueTomorrow = 0;
+  for (const q of questions) {
+    const s = getState(q.id);
+    if (!s || !s.t) { unseen.push(q); continue; }
+    if (s.t >= start) doneToday++;
+    if (s.f >= start) newToday++;
+    if ((s.due || 0) < tomorrow) due.push(q);
+    else if (s.due < dayAfter) dueTomorrow++;
+  }
+  // weakest and most overdue first
+  due.sort((x, y) => (getState(x.id).lv - getState(y.id).lv) || (getState(x.id).due - getState(y.id).due));
+  // how many new per day so every question is seen once, a week before the exam
+  const daysLeft = examMs ? Math.round((examMs - start) / 864e5) : 60;
+  const spread = Math.max(1, daysLeft - SCHEDULE.finishNewDaysBeforeExam);
+  const perDay = Math.min(SCHEDULE.newMax, Math.max(SCHEDULE.newMin, Math.ceil(unseen.length / spread)));
+  const newBudget = Math.max(0, perDay - newToday);
+  // newest material first (what you studied most recently), then syllabus order
+  const rank = c => { const i = subjectOrder.indexOf(c); return i < 0 ? 99 : i; };
+  unseen.sort((x, y) => (y.added || '').localeCompare(x.added || '') || rank(x.code) - rank(y.code) || x.order - y.order);
+  return {
+    due: due.slice(0, SCHEDULE.dueCapPerDay),
+    fresh: unseen.slice(0, newBudget),
+    unseenLeft: unseen.length, doneToday, newToday, dueTomorrow,
+    newPerDay: Math.min(perDay, unseen.length),
+  };
+}
+
+// ---------- 1f. Days and streaks ----------
+// A day key is the local date, e.g. "2026-10-09".
+const dayKey = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const keyToMs = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
+
+// days: { "2026-10-09": { n: answered, c: right first time, done: finished review, paused: true } }
+// Streak = days in a row with the review finished. A paused day does not break it (and does not add to it).
+// Today does not break it either while it is still in progress.
+function streaks(days, now) {
+  const keys = Object.keys(days).filter(k => days[k].n || days[k].paused).sort();
+  const today = dayKey(now);
+  if (!keys.length) return { current: 0, best: 0 };
+  let run = 0, best = 0;
+  for (let ms = keyToMs(keys[0]); ms <= dayStart(now); ms = addDays(ms, 1)) {
+    const k = dayKey(ms), e = days[k];
+    if (e && e.done) { run++; best = Math.max(best, run); }
+    else if ((e && e.paused) || k === today) continue;
+    else run = 0;
+  }
+  return { current: run, best };
+}
+const dayPct = e => e && e.n ? Math.round(100 * e.c / e.n) : null;
+
+// ---------- 1g. Merging the day log from two devices ----------
+// Each device counts its own answers in by[deviceId] = { n, c }; the day total is the sum,
+// so answering on the phone and the laptop on the same day adds up correctly.
+function sumDay(e) {
+  let n = 0, c = 0;
+  for (const v of Object.values(e.by || {})) { n += v.n || 0; c += v.c || 0; }
+  e.n = n; e.c = c;
+  return e;
+}
+function normDay(e) {
+  const x = { ...e };
+  x.by = e.by ? { ...e.by } : (e.n ? { old: { n: e.n, c: e.c || 0 } } : {});
+  return x;
+}
+function mergeDay(a, b) {
+  if (!a) return sumDay(normDay(b));
+  if (!b) return sumDay(normDay(a));
+  a = normDay(a); b = normDay(b);
+  const by = { ...a.by };
+  for (const [dev, v] of Object.entries(b.by)) if (!by[dev] || (v.n || 0) > (by[dev].n || 0)) by[dev] = v;
+  const m = { by, done: !!(a.done || b.done) };
+  const p = (a.pt || 0) >= (b.pt || 0) ? a : b;          // latest pause/resume wins
+  if (p.pt) { m.paused = !!p.paused; m.pt = p.pt; } else if (a.paused || b.paused) m.paused = true;
+  const l = (a.lt || 0) >= (b.lt || 0) ? a : b;          // latest "left today" wins
+  if (l.left !== undefined) { m.left = l.left; m.mins = l.mins || 0; m.lt = l.lt || 0; }
+  return sumDay(m);
+}
+// true when my copy of a day has something the other copy is missing (so it must be uploaded)
+function dayAhead(mine, theirs) {
+  if (!theirs) return true;
+  const t = normDay(theirs);
+  for (const [dev, v] of Object.entries(normDay(mine).by)) if ((v.n || 0) > ((t.by[dev] || {}).n || 0)) return true;
+  if (mine.done && !theirs.done) return true;
+  if ((mine.pt || 0) > (theirs.pt || 0)) return true;
+  if ((mine.lt || 0) > (theirs.lt || 0)) return true;
+  return false;
+}
+
+/* ===================================================================== */
+</script>
+
+<script>
+/* =====================================================================
+   PART 2 — SAVING AND SYNCING PROGRESS
+   Always saved on this device first (localStorage), so it works offline.
+   If a cloud is connected, every change is uploaded, and changes made on
+   your other device arrive live. For each question the newest record wins.
+   Cloud = Firebase (when hosted on GitHub Pages, see config.js)
+        or your Claude storage (when opened inside Claude).
+   ===================================================================== */
+
+// A random id for this browser, so phone and laptop answers are counted separately and then added up
+const DEVICE = (() => {
+  try {
+    let d = localStorage.getItem('si-telecom-device');
+    if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10); localStorage.setItem('si-telecom-device', d); }
+    return d;
+  } catch (e) { return 't' + Math.random().toString(36).slice(2, 10); }
+})();
+
+const Progress = {
+  key: 'si-telecom-progress-v2',
+  map: {},              // question id -> state
+  days: {},             // day key -> { by: {device: {n, c}}, n, c, done, paused, pt, left, mins, lt }
+  meta: { spq: 0, next: null },   // spq = your average seconds per question; next = tomorrow's forecast
+  cloud: null, unsub: null,       // the connected cloud (null = this device only)
+  dirty: new Set(), timer: null, chains: {},
+
+  get(id) { return this.map[id]; },
+
+  loadLocal() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.key) || '{}') || {};
+      if (raw.q) { this.map = raw.q; this.days = raw.days || {}; this.meta = Object.assign(this.meta, raw.meta || {}); }
+      else this.map = raw;                       // older format: question map only
+    } catch (e) { this.map = {}; }
+  },
+  saveLocal() {
+    try { localStorage.setItem(this.key, JSON.stringify({ q: this.map, days: this.days, meta: this.meta })); } catch (e) { /* storage blocked: keep in memory */ }
+  },
+  // Save on this device now, upload within about a second (several answers go up together)
+  later(code) {
+    this.saveLocal();
+    if (code) this.dirty.add(code);
+    if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.flush(); }, 1000);
+  },
+
+  record(q, result, retry) {
+    this.map[q.id] = applyResult(this.map[q.id], result, q.code, Date.now(), examMsFrom(App.exam.date), retry);
+    if (!retry) {
+      const d = this.today(), mine = d.by[DEVICE] || (d.by[DEVICE] = { n: 0, c: 0 });
+      mine.n++; if (result === 'correct') mine.c++;
+      sumDay(d);
+      this.dirty.add('_days');
+    }
+    this.later(q.code);
+  },
+
+  // ----- the day log (calendar, streak, pause, reminders) -----
+  today() {
+    const k = dayKey(Date.now());
+    if (!this.days[k]) this.days[k] = { by: {}, n: 0, c: 0 };
+    else if (!this.days[k].by) this.days[k] = normDay(this.days[k]);
+    return this.days[k];
+  },
+  setToday(fields) {
+    const d = this.today();
+    if (Object.keys(fields).every(k => d[k] === fields[k])) return;   // nothing changed: no write
+    Object.assign(d, fields);
+    if ('paused' in fields) d.pt = Date.now();
+    if ('left' in fields) d.lt = Date.now();
+    this.later('_days');
+  },
+  setNext(next) {
+    if (JSON.stringify(this.meta.next) === JSON.stringify(next)) return;
+    this.meta.next = next;
+    this.later('_days');
+  },
+  // learns how long you take per question (including reading the explanation)
+  pace(seconds) {
+    const s = Math.min(180, Math.max(5, seconds));
+    this.meta.spq = this.meta.spq ? Math.round(this.meta.spq * 0.85 + s * 0.15) : Math.round(s);
+    this.saveLocal();
+  },
+
+  // ----- cloud -----
+  // The cloud stores one document per subject { q: { id: state } } plus "_days" { d, spq, next }.
+  attach(cloud, onChange) {
+    this.detach();
+    this.cloud = cloud;
+    this.unsub = cloud.subscribe(
+      docs => { const changed = this.applyRemote(docs); if (changed) onChange(); },
+      err => { console.warn('Sync stopped', err); setSync(false); }
+    );
+  },
+  detach() {
+    if (this.unsub) { try { this.unsub(); } catch (e) {} }
+    this.unsub = null; this.cloud = null;
+  },
+  // Merge what the cloud has with what this device has. Returns true if anything on screen may change.
+  applyRemote(docs) {
+    let changed = false, remoteDays = {}, remoteNext = null, remoteSpq = 0;
+    const remote = {};
+    for (const { id, data } of docs) {
+      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; }
+      else Object.assign(remote, data.q || {});
+    }
+    for (const [id, st] of Object.entries(remote)) {
+      if (!st || typeof st.lv !== 'number') continue;          // ignore records from the first version
+      const mine = this.map[id];
+      if (!mine || (st.t || 0) > (mine.t || 0)) { this.map[id] = st; changed = true; }
+    }
+    for (const [id, st] of Object.entries(this.map)) {
+      const r = remote[id];
+      if (!r || (st.t || 0) > (r.t || 0)) this.dirty.add(st.k);
+    }
+    for (const [k, e] of Object.entries(remoteDays)) {
+      const mine = this.days[k];
+      if (!mine || dayAhead(e, mine)) { this.days[k] = mergeDay(mine, e); changed = true; }
+    }
+    for (const [k, e] of Object.entries(this.days)) if (dayAhead(e, remoteDays[k])) this.dirty.add('_days');
+    if (!this.meta.spq && remoteSpq) this.meta.spq = remoteSpq;
+    if (!this.meta.next && remoteNext) this.meta.next = remoteNext;
+    this.saveLocal();
+    if (this.dirty.size) this.later();
+    return changed;
+  },
+
+  flush() {
+    if (!this.cloud) return;                 // keep changes marked until a cloud is connected
+    const cloud = this.cloud;
+    for (const code of this.dirty) {
+      if (!code) continue;
+      // one write at a time per document; the body is built when the write runs
+      this.chains[code] = (this.chains[code] || Promise.resolve()).then(() => {
+        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, updated: Date.now() });
+        const q = {};
+        for (const [id, st] of Object.entries(this.map)) if (st.k === code) q[id] = st;
+        return cloud.save(code, { q, updated: Date.now() });
+      }).catch(e => {
+        console.warn('Save failed', e);
+        this.dirty.add(code);                // try again with the next change
+      });
+    }
+    this.dirty.clear();
+  },
+};
+
+// ----- Cloud 1: your Claude storage (when the app is opened inside Claude) -----
+async function claudeCloud() {
+  if (!window.claude || typeof window.claude.use !== 'function') return null;
+  const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+  if (!db || !user) return null;
+  const uid = await user.id();
+  if (!uid) return null;
+  const col = db.collection('data/users/' + uid);
+  return {
+    label: 'Synced to your Claude account',
+    subscribe: (onDocs, onError) => col.onSnapshot(s => onDocs(s.docs.map(d => ({ id: d.id, data: d.data() || {} }))), onError),
+    save: (id, body) => col.doc(id).set(body),
+  };
+}
+
+// ----- Cloud 2: Firebase (when hosted on GitHub Pages; settings live in config.js) -----
+const FIREBASE_VERSION = '10.12.2';
+function loadScript(src) {
+  return new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => fail(new Error('Could not load ' + src));
+    document.head.appendChild(s);
+  });
+}
+async function firebaseStart(config) {
+  for (const part of ['app', 'auth', 'firestore']) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-${part}-compat.js`);
+  firebase.initializeApp(config);
+  const fs = firebase.firestore();
+  fs.settings({ ignoreUndefinedProperties: true });
+  try { await fs.enablePersistence({ synchronizeTabs: true }); } catch (e) { /* offline cache not available in this browser */ }
+  return { auth: firebase.auth(), fs };
+}
+function firebaseCloud(fb, user) {
+  const col = fb.fs.collection('users').doc(user.uid).collection('progress');
+  return {
+    label: 'Synced · ' + user.email,
+    subscribe: (onDocs, onError) => col.onSnapshot(s => onDocs(s.docs.map(d => ({ id: d.id, data: d.data() || {} }))), onError),
+    save: (id, body) => col.doc(id).set(body),
+  };
+}
+</script>
+
+<script>
+/* =====================================================================
+   PART 3 — SCREENS
+   ===================================================================== */
+const App = { exam: {}, subjects: [], questions: [], notes: [], problems: [], session: null, pick: null, loaded: false };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Allows **bold** and `code` inside explanations
+const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+const getState = id => Progress.get(id);
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+function show(id) {
+  ['login', 'home', 'picker', 'quiz', 'result', 'progress', 'calendar', 'notes'].forEach(s => { $(s).hidden = s !== id; });
+  window.scrollTo(0, 0);
+  if (id === 'home') renderHome();
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 2800);
+}
+// label = text to show when synced, or false when saving on this device only
+function setSync(label) {
+  $('sync').className = 'sync' + (label ? ' cloud' : '');
+  $('sync').textContent = label || 'Saved on this device';
+}
+const plan = () => todayPlan(App.questions, getState, Date.now(), examMsFrom(App.exam.date), App.subjects.map(s => s.code));
+
+// ---------- Loading ----------
+async function fetchText(path) {
+  try { const r = await fetch(path, { cache: 'no-store' }); return r.ok ? await r.text() : null; } catch (e) { return null; }
+}
+async function loadAll() {
+  const sylText = await fetchText(DATA.syllabus);
+  if (!sylText) {
+    App.failed = true;
+    $('home').innerHTML = '<div class="empty">Could not load <code>data/syllabus.md</code>. Open the app from its web address (not by double-clicking the file).</div>';
+    return;
+  }
+  const syl = parseSyllabus(sylText);
+  App.exam = syl.exam; App.subjects = syl.subjects;
+  const seen = new Set();
+  await Promise.all(App.subjects.map(async s => {
+    const [mcq, notes] = await Promise.all([fetchText(DATA.mcq(s.code)), fetchText(DATA.notes(s.code))]);
+    if (mcq) {
+      const r = buildQuestions(mcq, s.code, s.name, `mcq/${s.code}.md`);
+      App.questions.push(...r.questions); App.problems.push(...r.problems);
+    }
+    if (notes) parseBlocks(notes, 'N').forEach(b => App.notes.push({ id: b.id, code: s.code, f: b.f }));
+  }));
+  // duplicate IDs would mix up progress, so keep only the first
+  App.questions = App.questions.filter(q => {
+    if (seen.has(q.id)) { App.problems.push(`Duplicate ID ${q.id} in mcq/${q.code}.md (second copy ignored)`); return false; }
+    seen.add(q.id); return true;
+  });
+  App.loaded = true;
+  renderHome();
+}
+
+// ---------- Home ----------
+function summary(pool) {
+  let seen = 0, strong = 0, c = 0, a = 0, due = 0;
+  const tomorrow = addDays(Date.now(), 1);
+  pool.forEach(q => {
+    const s = getState(q.id);
+    if (!s || !s.t) return;
+    seen++; c += s.c; a += s.a;
+    if (s.lv >= 4) strong++;
+    if ((s.due || 0) < tomorrow) due++;
+  });
+  return { total: pool.length, seen, strong, due, acc: a ? Math.round(100 * c / a) : null };
+}
+function renderHome() {
+  if (App.failed || !App.loaded) return;
+  const e = App.exam, examMs = examMsFrom(e.date);
+  if (examMs) {
+    const days = Math.round((examMs - dayStart(Date.now())) / 864e5);
+    const dateStr = new Date(examMs).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    $('countdown').innerHTML = days >= 0
+      ? `<span class="days">${days}</span><span class="what">days to exam</span><span class="meta">${esc(dateStr)} · ${e.questions} MCQs · +${e.plus} / ${e.minus}</span>`
+      : `<span class="what">Exam date passed</span>`;
+  }
+
+  const p = syncDay(), n = p.due.length + p.fresh.length, d = Progress.today();
+  const t = timeText(n), pct = dayPct(d);
+  let card;
+  if (!App.questions.length) {
+    card = `<div class="today"><div class="top"><div class="what"><strong>No questions yet</strong>
+      <span>Study a topic with Claude. Its questions will appear here by themselves.</span></div></div></div>`;
+  } else if (n && d.paused) {
+    card = `<div class="today paused"><div class="top"><span class="big">II</span>
+      <div class="what"><strong>Paused for today</strong><span>No reminders today. Your ${plural(n, 'question')} wait for tomorrow, and the pause ends by itself at midnight.</span></div></div>
+      <button class="go soft" type="button" id="resumeBtn">Resume now</button></div>`;
+  } else if (n) {
+    card = `<div class="today"><div class="top"><span class="big">${n}</span>
+      <div class="what"><strong>${d.n ? 'Left today' : 'Today’s review'}</strong><span>${t}</span></div></div>
+      <div class="split"><span>${p.due.length} to revise</span><span>${p.fresh.length} new</span>${d.n ? `<span>${d.n} done today · ${pct}% right</span>` : ''}</div>
+      <div class="row2"><button class="go" type="button" id="goBtn">${d.n ? 'Continue' : 'Start'}</button>
+      <button class="pausebtn" type="button" id="pauseBtn">Pause today</button></div></div>`;
+  } else {
+    const nx = Progress.meta.next;
+    card = `<div class="today done"><div class="top"><span class="big">${pct === null ? '✓' : pct + '%'}</span>
+      <div class="what"><strong>Done for today</strong><span>${plural(d.n || 0, 'question')} answered${pct === null ? '' : `, ${pct}% right first time`}.${nx ? ` Tomorrow: about ${plural(nx.count, 'question')}, ${nx.mins} min.` : ''}</span></div></div>
+      <button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div>`;
+  }
+  $('todayCard').innerHTML = card;
+  const go = $('goBtn'); if (go) go.onclick = () => startSession('Today’s review', shuffle([...p.due, ...p.fresh]));
+  const ex = $('extraBtn'); if (ex) ex.onclick = startExtra;
+  const pb = $('pauseBtn'); if (pb) pb.onclick = () => { Progress.setToday({ paused: true }); renderHome(); toast('Paused for today. It starts again tomorrow.'); };
+  const rb = $('resumeBtn'); if (rb) rb.onclick = () => { Progress.setToday({ paused: false }); renderHome(); };
+  renderStreak();
+
+  const o = summary(App.questions);
+  $('stats').innerHTML = `
+    <div class="stat"><b>${o.total}</b><small>Questions in bank</small></div>
+    <div class="stat"><b>${o.total ? Math.round(100 * o.seen / o.total) : 0}%</b><small>Seen at least once</small></div>
+    <div class="stat"><b>${o.strong}</b><small>Strong in memory</small></div>
+    <div class="stat"><b>${o.acc === null ? '–' : o.acc + '%'}</b><small>Accuracy</small></div>`;
+  $('warnings').innerHTML = App.problems.length ? `
+    <details class="warnbox"><summary>${plural(App.problems.length, 'question')} hidden because of data problems (tell Claude)</summary>
+    <ul>${App.problems.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '';
+}
+
+// ---------- Time estimate, day log and tomorrow's forecast ----------
+const DEFAULT_SPQ = 40;   // seconds per question until the app has learned your pace
+const minutesFor = n => Math.max(1, Math.ceil(n * (Progress.meta.spq || DEFAULT_SPQ) / 60));
+function timeText(n) {
+  const m = minutesFor(n), h = Math.floor(m / 60), mm = m % 60;
+  const dur = h ? `${h} h ${mm} min` : `${m} min`;
+  return Progress.meta.spq
+    ? `About ${dur} at your pace (${Progress.meta.spq} s per question). Stop any time; it picks up where you left.`
+    : `About ${dur} (first guess; it learns your pace as you go). Stop any time; it picks up where you left.`;
+}
+// Records today's numbers (used by the calendar and the reminders) and returns today's plan.
+function syncDay() {
+  const p = plan(), n = p.due.length + p.fresh.length, d = Progress.today();
+  const fields = { left: n, mins: n ? minutesFor(n) : 0 };
+  if (!n && d.n) fields.done = true;
+  Progress.setToday(fields);
+  // tomorrow ≈ what is left today + what falls due tomorrow + tomorrow's new questions
+  const count = Math.min(SCHEDULE.dueCapPerDay + p.newPerDay, n + p.dueTomorrow + p.newPerDay);
+  Progress.setNext({ day: dayKey(addDays(Date.now(), 1)), count, mins: count ? minutesFor(count) : 0 });
+  return p;
+}
+
+// ---------- Streak strip (home) ----------
+function dayClass(k, e, examKey) {
+  if (k === examKey) return 'd-exam';
+  if (e && e.paused && !e.done) return 'd-pause';
+  if (!e || !e.n) return '';
+  if (!e.done) return 'd-part';
+  const pct = dayPct(e);
+  return pct >= 80 ? 'd-hi' : pct >= 60 ? 'd-mid' : 'd-lo';
+}
+function renderStreak() {
+  const now = Date.now(), st = streaks(Progress.days, now);
+  let cells = '';
+  for (let i = 6; i >= 0; i--) {
+    const ms = addDays(now, -i), k = dayKey(ms), e = Progress.days[k], pct = dayPct(e);
+    const label = new Date(ms).toLocaleDateString('en-IN', { weekday: 'narrow' });
+    cells += `<span class="d"><i class="${dayClass(k, e)}">${e && e.paused && !e.done ? 'II' : pct === null ? '' : pct}</i>${label}</span>`;
+  }
+  $('streak').innerHTML = `<span class="s-num"><b>${st.current}</b><span>day streak${st.best > st.current ? ` · best ${st.best}` : ''}</span></span>
+    <span class="week" aria-label="Last 7 days">${cells}</span>`;
+}
+
+// ---------- Calendar ----------
+const Cal = { month: null };
+function renderCalendar() {
+  const now = Date.now(), today = dayKey(now), examMs = examMsFrom(App.exam.date), examKey = examMs ? dayKey(examMs) : '';
+  if (!Cal.month) { const d = new Date(now); Cal.month = new Date(d.getFullYear(), d.getMonth(), 1); }
+  const y = Cal.month.getFullYear(), m = Cal.month.getMonth();
+  $('calTitle').textContent = Cal.month.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  let html = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(w => `<span class="wd">${w.slice(0, 2)}</span>`).join('');
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;            // Monday first
+  for (let i = 0; i < lead; i++) html += `<span class="c blank"></span>`;
+  const dim = new Date(y, m + 1, 0).getDate();
+  for (let day = 1; day <= dim; day++) {
+    const k = dayKey(new Date(y, m, day).getTime()), e = Progress.days[k], pct = dayPct(e);
+    const cls = ['c', dayClass(k, e, examKey), k === today ? 'now' : '', k > today && k !== examKey ? 'future' : ''].join(' ');
+    const mid = k === examKey ? 'Exam' : e && e.paused && !e.done ? 'II' : pct === null ? '' : pct + '%';
+    const tip = e && e.n ? `${e.n} answered, ${pct}% right first time${e.done ? ', review finished' : ''}` : e && e.paused ? 'Paused' : '';
+    html += `<span class="${cls}" title="${esc(tip)}"><span class="dn">${day}</span><span class="pc">${mid}</span></span>`;
+  }
+  $('calGrid').innerHTML = html;
+  const st = streaks(Progress.days, now), studied = Object.values(Progress.days).filter(e => e.n);
+  const tn = studied.reduce((t, e) => t + e.n, 0), tc = studied.reduce((t, e) => t + (e.c || 0), 0);
+  $('cStats').innerHTML = `
+    <div class="stat"><b>${st.current}</b><small>Current streak</small></div>
+    <div class="stat"><b>${st.best}</b><small>Best streak</small></div>
+    <div class="stat"><b>${studied.length}</b><small>Days studied</small></div>
+    <div class="stat"><b>${tn ? Math.round(100 * tc / tn) + '%' : '–'}</b><small>Average score</small></div>`;
+  show('calendar');
+}
+$('calPrev').addEventListener('click', () => { Cal.month = new Date(Cal.month.getFullYear(), Cal.month.getMonth() - 1, 1); renderCalendar(); });
+$('calNext').addEventListener('click', () => { Cal.month = new Date(Cal.month.getFullYear(), Cal.month.getMonth() + 1, 1); renderCalendar(); });
+
+// Extra practice after today's review is done: the questions coming up soonest
+function startExtra() {
+  const list = App.questions.filter(q => getState(q.id)).sort((x, y) => getState(x.id).due - getState(y.id).due).slice(0, 10);
+  startSession('Extra practice', shuffle(list));
+}
+
+// ---------- Practice a topic ----------
+function openSubjectPicker() {
+  App.pick = { mode: 'subject' };
+  $('pickerTitle').textContent = 'Practice a topic: choose a subject';
+  $('pickerList').innerHTML = App.subjects.map(s => {
+    const n = App.questions.filter(q => q.code === s.code).length;
+    return `<button class="row" type="button" data-code="${esc(s.code)}" ${n ? '' : 'disabled'}>
+      <span class="code">${esc(s.code)}</span>
+      <span class="name">${esc(s.name)}<small>Part ${esc(s.part)} · ${s.marks} marks</small></span>
+      <span class="n">${n ? n + ' Qs' : 'No Qs yet'}</span></button>`;
+  }).join('');
+  show('picker');
+}
+function openTopicPicker(code) {
+  const s = App.subjects.find(x => x.code === code);
+  const pool = App.questions.filter(q => q.code === code);
+  const topics = [...new Set(pool.map(q => q.topic))].sort();
+  App.pick = { mode: 'topic', code };
+  $('pickerTitle').textContent = s.name;
+  $('pickerList').innerHTML = `<button class="row topic" type="button" data-topic="">
+      <span class="name"><b>Whole subject</b><small>All topics mixed</small></span><span class="n">${pool.length} Qs</span></button>` +
+    topics.map(t => {
+      const tq = pool.filter(q => q.topic === t), o = summary(tq);
+      const subs = [...new Set(tq.map(q => q.subtopic).filter(Boolean))];
+      return `<button class="row topic" type="button" data-topic="${esc(t)}">
+        <span class="name">${esc(t)}<small>${esc(subs.slice(0, 4).join(' · '))}${subs.length > 4 ? ' …' : ''}</small></span>
+        <span class="n">${tq.length} Qs${o.total - o.seen ? ` · <span class="badge warn">${o.total - o.seen} new</span>` : ''}</span></button>`;
+    }).join('');
+  show('picker');
+}
+$('pickerList').addEventListener('click', e => {
+  const b = e.target.closest('button.row'); if (!b || b.disabled) return;
+  if (App.pick.mode === 'subject') return openTopicPicker(b.dataset.code);
+  const t = b.dataset.topic;
+  const pool = App.questions.filter(q => q.code === App.pick.code && (!t || q.topic === t));
+  // weakest first: new and low-level questions, at most 30
+  const lv = q => { const s = getState(q.id); return s ? s.lv : -1; };
+  const list = shuffle(pool).sort((x, y) => lv(x) - lv(y)).slice(0, 30);
+  startSession(t || App.subjects.find(s => s.code === App.pick.code).name, shuffle(list));
+});
+
+// ---------- Session (one run of questions) ----------
+function startSession(title, list) {
+  if (!list.length) { toast('Nothing to practise here yet.'); return; }
+  App.session = { title, i: 0, queue: list.map(q => ({ q, retry: false })), retries: {}, first: {} };
+  show('quiz'); renderQuestion();
+}
+function levelBars(lv) {
+  return `<span class="signal" title="Memory level ${lv} of 5">${[1, 2, 3, 4, 5].map(k => `<i class="${k <= lv ? 'on' : ''}" style="height:${4 + k * 2}px"></i>`).join('')}</span>`;
+}
+function renderQuestion() {
+  const z = App.session, it = z.queue[z.i], q = it.q, s = getState(q.id);
+  it.opts = shuffle(q.options);           // new order every time it is shown
+  it.result = null;
+  it.shown = Date.now();                  // for learning your pace
+  const left = z.queue.length - z.i;
+  $('qCount').textContent = `${z.title} · ${left} left`;
+  $('qBar').style.width = (100 * z.i / z.queue.length) + '%';
+  $('qCrumb').innerHTML = [q.subject, q.topic, q.subtopic].filter(Boolean).map((x, k, a) => k === a.length - 1 ? `<b>${esc(x)}</b>` : `${esc(x)} ›`).join(' ');
+  $('qMeta').innerHTML = [
+    it.retry ? `<span class="badge bad">Again: you missed this earlier</span>` : !s ? `<span class="badge warn">New</span>` : '',
+    q.difficulty && `<span class="badge">${esc(q.difficulty)}</span>`,
+    s && `<span class="label" style="display:inline-flex;gap:6px;align-items:center">Memory ${levelBars(s.lv)}</span>`,
+  ].filter(Boolean).join('');
+  $('qText').innerHTML = rich(q.question);
+  $('qOpts').innerHTML = it.opts.map((o, k) => `
+    <button class="opt" type="button" data-k="${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
+  $('qFeedback').innerHTML = '';
+  $('skipBtn').hidden = false; $('nextBtn').hidden = true;
+}
+function answer(k) {
+  const z = App.session, it = z.queue[z.i], q = it.q;
+  if (it.result) return;
+  const chosen = k === null ? null : it.opts[k];
+  // Correctness is decided by the answer TEXT, never by the letter position
+  it.result = chosen === null ? 'skip' : chosen === q.answer ? 'correct' : 'wrong';
+  it.chosen = chosen;
+  if (!it.retry) z.first[q.id] = { q, result: it.result, chosen };
+  Progress.record(q, it.result, it.retry);
+
+  // Missed it? Ask again a few questions later, while it is fresh.
+  let again = false;
+  if (it.result !== 'correct' && (z.retries[q.id] || 0) < SCHEDULE.retriesInSession) {
+    z.retries[q.id] = (z.retries[q.id] || 0) + 1;
+    z.queue.splice(Math.min(z.queue.length, z.i + 4), 0, { q, retry: true });
+    again = true;
+  }
+
+  [...$('qOpts').children].forEach((b, idx) => {
+    b.disabled = true;
+    const o = it.opts[idx];
+    if (o === q.answer) b.classList.add('right');
+    else if (o === chosen) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const s = getState(q.id);
+  const gap = Math.round((s.due - dayStart(Date.now())) / 864e5);
+  const when = again ? 'It will come again in this session.' : `Next review in ${plural(gap, 'day')}.`;
+  const cls = { correct: 'ok', wrong: 'no', skip: 'skip' }[it.result];
+  const verdict = { correct: 'Correct', wrong: 'Wrong', skip: 'Not known yet' }[it.result];
+  const rows = [
+    it.result !== 'correct' && ['Correct answer', `<strong>${rich(q.answer)}</strong>`],
+    q.explanation && ['Explanation', rich(q.explanation)],
+    q.hint && ['Memory hint', rich(q.hint)],
+    q.trap && ['Exam trap', rich(q.trap), 'trap'],
+    q.concept && ['Concept', rich(q.concept)],
+  ].filter(Boolean);
+  $('qFeedback').innerHTML = `<div class="feedback ${cls}"><div class="verdict">${verdict}<small>${when}</small></div><dl>
+    ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}
+    <div><dd class="mono muted">${esc(q.id)}</dd></div></dl></div>`;
+  $('skipBtn').hidden = true; $('nextBtn').hidden = false;
+  $('nextBtn').textContent = z.i === z.queue.length - 1 ? 'Finish →' : 'Next →';
+  $('nextBtn').focus({ preventScroll: true });
+}
+function next() {
+  const z = App.session, it = z.queue[z.i];
+  if (it.shown) { Progress.pace((Date.now() - it.shown) / 1000); it.shown = 0; }
+  syncDay();                              // keeps "left today" and "done" up to date for reminders
+  if (z.i < z.queue.length - 1) { z.i++; renderQuestion(); window.scrollTo(0, 0); }
+  else renderResult();
+}
+$('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b && !b.disabled) answer(Number(b.dataset.k)); });
+$('skipBtn').addEventListener('click', () => answer(null));
+$('nextBtn').addEventListener('click', next);
+$('quitBtn').addEventListener('click', () => {
+  const it = App.session.queue[App.session.i];
+  if (it.result && it.shown) Progress.pace((Date.now() - it.shown) / 1000);
+  syncDay();
+  if (Object.keys(App.session.first).length) renderResult(); else show('home');
+});
+document.addEventListener('keydown', e => {
+  if ($('quiz').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  const it = App.session.queue[App.session.i];
+  if (!it.result) {
+    const k = '123456'.indexOf(e.key);
+    if (k >= 0 && k < it.opts.length) { e.preventDefault(); answer(k); }
+    else if (e.key.toLowerCase() === 's') { e.preventDefault(); answer(null); }
+  } else if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
+});
+
+// ---------- Result ----------
+function renderResult() {
+  const z = App.session, firsts = Object.values(z.first);
+  const c = firsts.filter(f => f.result === 'correct').length;
+  const missed = firsts.filter(f => f.result !== 'correct');
+  const fixed = missed.filter(f => z.queue.some(it => it.q === f.q && it.retry && it.result === 'correct')).length;
+  $('rTitle').textContent = `${z.title}: done`;
+  $('rScore').innerHTML = `
+    <div class="stat"><b>${firsts.length}</b><small>Questions</small></div>
+    <div class="stat"><b>${c}</b><small>Right first time</small></div>
+    <div class="stat"><b>${missed.length}</b><small>Missed</small></div>
+    <div class="stat"><b>${fixed}</b><small>Fixed on retry</small></div>`;
+  const p = plan(), left = p.due.length + p.fresh.length;
+  $('rNext').textContent = left
+    ? `${plural(left, 'question')} still left in today's review. Continue from Home whenever you're ready.`
+    : `Today's review is complete. Missed questions come back tomorrow; the rest wait until you're about to forget them.`;
+  $('rReview').innerHTML = missed.length
+    ? `<span class="label">Read these once more</span>` + missed.map(f => `
+      <div class="review-item">
+        <span class="mono muted">${esc(f.q.id)} · ${esc(f.q.topic)}</span>
+        <span>${rich(f.q.question)}</span>
+        <span class="ans">Answer: <b>${rich(f.q.answer)}</b></span>
+        ${f.q.hint ? `<span class="muted" style="font-size:.88rem">Hint: ${rich(f.q.hint)}</span>` : ''}
+      </div>`).join('')
+    : '';
+  show('result');
+}
+
+// ---------- Progress ----------
+function renderProgress() {
+  const all = summary(App.questions), p = plan();
+  $('pStats').innerHTML = `
+    <div class="stat"><b>${all.seen}/${all.total}</b><small>Seen at least once</small></div>
+    <div class="stat"><b>${all.strong}</b><small>Strong in memory</small></div>
+    <div class="stat"><b>${all.acc === null ? '–' : all.acc + '%'}</b><small>Accuracy</small></div>
+    <div class="stat"><b>${p.dueTomorrow}</b><small>Due tomorrow</small></div>`;
+  let rows = '', part = '';
+  App.subjects.forEach(s => {
+    if (s.part !== part) { part = s.part; rows += `<tr class="part"><td colspan="7">Part ${esc(part)}</td></tr>`; }
+    const o = summary(App.questions.filter(q => q.code === s.code));
+    const str = o.total ? Math.round(100 * o.strong / o.total) : 0;
+    rows += `<tr><td>${esc(s.name)}</td><td>${s.marks / 2}</td><td>${o.total || '–'}</td>
+      <td>${o.total ? o.seen : '–'}</td>
+      <td>${o.total ? `${o.strong}<span class="meter"><i style="width:${str}%"></i></span>` : '–'}</td>
+      <td>${o.acc === null ? '–' : o.acc + '%'}</td><td>${o.due || '–'}</td></tr>`;
+  });
+  $('pTable').innerHTML = `<thead><tr><th>Subject</th><th>Exam Qs</th><th>In bank</th><th>Seen</th><th>Strong</th><th>Accuracy</th><th>Due</th></tr></thead><tbody>${rows}</tbody>`;
+  show('progress');
+}
+
+// ---------- Notes ----------
+const NOTE_SKIP = new Set(['subject', 'topic', 'title', 'added']);
+function renderNotes() {
+  const codes = [...new Set(App.notes.map(n => n.code))];
+  const sel = $('notesFilter'), keep = sel.value;
+  sel.innerHTML = `<option value="">All subjects (${App.notes.length})</option>` + App.subjects.filter(s => codes.includes(s.code))
+    .map(s => `<option value="${esc(s.code)}">${esc(s.name)} (${App.notes.filter(n => n.code === s.code).length})</option>`).join('');
+  sel.value = keep;
+  const list = App.notes.filter(n => !sel.value || n.code === sel.value);
+  $('notesList').innerHTML = list.length ? list.map(n => {
+    const f = n.f;
+    const rows = Object.entries(f).filter(([k, v]) => !NOTE_SKIP.has(k) && (Array.isArray(v) ? v.length : v)).map(([k, v]) => `
+      <div class="${/trap/.test(k) ? 'trap' : ''}"><dt>${esc(k)}</dt><dd>${Array.isArray(v) ? `<ul>${v.map(x => `<li>${rich(x)}</li>`).join('')}</ul>` : rich(v)}</dd></div>`).join('');
+    return `<article class="note"><span class="mono muted">${esc(n.code)} · ${esc(asText(f.topic))}</span><h3>${rich(asText(f.title) || n.id)}</h3><dl>${rows}</dl></article>`;
+  }).join('') : `<div class="empty">No revision notes yet. They are added as we clear confusions while studying.</div>`;
+  show('notes');
+}
+$('notesFilter').addEventListener('change', renderNotes);
+
+// ---------- Buttons ----------
+const MODES = { topic: openSubjectPicker, notes: renderNotes, progress: renderProgress, calendar: () => { Cal.month = null; renderCalendar(); } };
+document.querySelector('.more').addEventListener('click', e => {
+  const b = e.target.closest('.mode'); if (b) MODES[b.dataset.mode]();
+});
+$('streak').addEventListener('click', MODES.calendar);
+document.addEventListener('click', e => { if (e.target.closest('[data-back]')) show('home'); });
+$('brand').addEventListener('click', () => show('home'));
+// Coming back to the app on a new day refreshes today's plan
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('home').hidden) renderHome(); });
+
+// ---------- Start ----------
+// ---------- Sign in (only for the GitHub Pages + Firebase version) ----------
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  $('loginBtn').disabled = true;
+  try { await App.fb.auth.signInWithEmailAndPassword($('loginEmail').value.trim(), $('loginPass').value); }
+  catch (err) { $('loginErr').textContent = 'Sign-in failed: check the email and password you created in Firebase.'; }
+  $('loginBtn').disabled = false;
+});
+$('signOut').addEventListener('click', () => App.fb && App.fb.auth.signOut());
+
+// ---------- Start ----------
+(async function init() {
+  Progress.loadLocal();
+  setSync(false);
+  loadAll();
+  const refresh = () => { if (!$('home').hidden) renderHome(); };
+
+  // 1. Inside Claude: use your Claude storage
+  try {
+    const cc = await claudeCloud();
+    if (cc) { Progress.attach(cc, refresh); setSync(cc.label); return; }
+  } catch (e) { /* not inside Claude */ }
+
+  // 2. On GitHub Pages: use Firebase if config.js has your settings
+  const cfg = window.APP_CONFIG && window.APP_CONFIG.firebase;
+  if (!cfg) return;                       // no cloud: progress stays on this device
+  try {
+    App.fb = await firebaseStart(cfg);
+    App.fb.auth.onAuthStateChanged(user => {
+      if (user) {
+        Progress.attach(firebaseCloud(App.fb, user), refresh);
+        setSync('Synced');
+        $('account').hidden = false;
+        $('accountEmail').textContent = user.email;
+        if (!$('login').hidden) show('home');
+      } else {
+        Progress.detach();
+        setSync(false);
+        $('account').hidden = true;
+        show('login');
+      }
+    });
+  } catch (e) {
+    console.warn(e);
+    toast('Sync could not start (no internet?). Saving on this device for now.');
+  }
+})();
+</script>
+
+</body>
+</html>
