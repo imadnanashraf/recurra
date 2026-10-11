@@ -296,12 +296,12 @@ function subjectMeta(s) {
 }
 function openSubjectPicker() {
   App.pick = { mode: 'subject' };
-  $('pickerTitle').textContent = 'Practice a topic: choose a subject';
+  $('pickerTitle').textContent = 'Practice a subject';
   $('pickerList').innerHTML = App.subjects.length ? App.subjects.map(s => {
-    const n = App.questions.filter(q => q.code === s.code).length;
+    const pool = App.questions.filter(q => q.code === s.code), n = pool.length, o = summary(pool), pct = n ? Math.round(100 * o.strong / n) : 0;
     return `<button class="row" type="button" data-code="${esc(s.code)}" ${n ? '' : 'disabled'}>
       <span class="code">${esc(s.code)}</span>
-      <span class="name">${esc(s.name)}<small>${subjectMeta(s)}</small></span>
+      <span class="name">${esc(s.name)}<small>${subjectMeta(s)}</small>${n ? `<span class="meter" aria-hidden="true"><i style="width:${pct}%"></i></span>` : ''}</span>
       <span class="n">${n ? n + ' Qs' : 'No Qs yet'}</span></button>`;
   }).join('') : `<div class="empty-state">${ART.empty}<strong>No subjects yet</strong><p>Add a syllabus or some questions first.</p></div>`;
   show('picker');
@@ -565,19 +565,50 @@ function renderProgress() {
     <div class="stat"><b>${all.strong}</b><small>Strong in memory</small></div>
     <div class="stat"><b>${all.acc === null ? '–' : all.acc + '%'}</b><small>Accuracy</small></div>
     <div class="stat"><b>${p.dueTomorrow}</b><small>Due tomorrow</small></div>`;
-  const hasMarks = App.subjects.some(s => s.marks);
-  let rows = '', part = null;
-  App.subjects.forEach(s => {
-    if (s.part && s.part !== part) { part = s.part; rows += `<tr class="part"><td colspan="${hasMarks ? 7 : 6}">Part ${esc(part)}</td></tr>`; }
-    const o = summary(App.questions.filter(q => q.code === s.code));
-    const str_ = o.total ? Math.round(100 * o.strong / o.total) : 0;
-    rows += `<tr><td>${esc(s.name)}</td>${hasMarks ? `<td>${s.marks || '–'}</td>` : ''}<td>${o.total || '–'}</td>
-      <td>${o.total ? o.seen : '–'}</td>
-      <td>${o.total ? `${o.strong}<span class="meter"><i style="width:${str_}%"></i></span>` : '–'}</td>
-      <td>${o.acc === null ? '–' : o.acc + '%'}</td><td>${o.due || '–'}</td></tr>`;
-  });
-  $('pTable').innerHTML = `<thead><tr><th>Subject</th>${hasMarks ? '<th>Marks</th>' : ''}<th>In bank</th><th>Seen</th><th>Strong</th><th>Accuracy</th><th>Due</th></tr></thead><tbody>${rows}</tbody>`;
+  renderProgressCharts();
+  // one card per subject (works as the table view of the memory chart)
+  $('pSubjects').innerHTML = App.subjects.map(s => {
+    const o = summary(App.questions.filter(q => q.code === s.code)), pct = o.total ? Math.round(100 * o.strong / o.total) : 0;
+    return `<div class="subj"><div class="subj-top"><strong>${esc(s.name)}</strong><span class="mono muted">${esc(s.code)}${s.marks ? ` · ${s.marks} marks` : ''}</span></div>
+      <div class="meter wide" role="img" aria-label="${pct}% strong"><i style="width:${pct}%"></i></div>
+      <dl class="subj-nums"><div><dt>In bank</dt><dd>${o.total || '–'}</dd></div><div><dt>Seen</dt><dd>${o.total ? o.seen : '–'}</dd></div>
+      <div><dt>Strong</dt><dd>${o.total ? o.strong : '–'}</dd></div><div><dt>Accuracy</dt><dd>${o.acc === null ? '–' : o.acc + '%'}</dd></div><div><dt>Due</dt><dd>${o.due || '–'}</dd></div></dl></div>`;
+  }).join('') || `<div class="empty-state"><strong>No subjects yet</strong><p>Add a syllabus or some questions first.</p></div>`;
 }
+function renderProgressCharts() {
+  if ($('progress').hidden) return;
+  const now = Date.now(), days = [];
+  for (let i = 29; i >= 0; i--) {
+    const ms = addDays(now, -i), k = dayKey(ms), e = Progress.days[k] || {}, d = new Date(ms);
+    const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }), long = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    days.push({ k, label, long, n: e.n || 0, c: e.c || 0, paused: !!e.paused, done: !!e.done });
+  }
+  const total = days.reduce((a, d) => a + d.n, 0), active = days.filter(d => d.n).length;
+  const tipFor = d => d.n ? `<b>${esc(d.long)}</b><br>${d.n} answered · ${Math.round(100 * d.c / d.n)}% right first try${d.done ? '<br>Review finished' : ''}` : `<b>${esc(d.long)}</b><br>${d.paused ? 'Paused' : 'No practice'}`;
+  columnChart($('chDaily'), {
+    title: 'Questions answered', sub: total ? `${total} in the last 30 days · practised on ${active} ${active === 1 ? 'day' : 'days'}` : 'Your daily practice will show here.',
+    data: days.map(d => ({ label: d.label, value: d.n, tip: tipFor(d), muted: !d.done })),
+  });
+  const pct = d => d.n ? Math.round(100 * d.c / d.n) : null;
+  const avg = list => { const n = list.reduce((a, d) => a + d.n, 0); return n ? Math.round(100 * list.reduce((a, d) => a + d.c, 0) / n) : null; };
+  const wk = avg(days.slice(-7)), prev = avg(days.slice(-14, -7));
+  lineChart($('chAcc'), {
+    title: 'Right first try', sub: wk === null ? 'Your accuracy will show here.' : `Last 7 days: <b>${wk}%</b>${prev === null ? '' : wk > prev ? ` · up from ${prev}%` : wk < prev ? ` · ${prev}% the week before` : ' · same as the week before'}`,
+    data: days.map(d => ({ label: d.label, value: pct(d), tip: tipFor(d) })),
+  });
+  const rows = App.subjects.map(s => {
+    const parts = [0, 0, 0, 0];
+    App.questions.filter(q => q.code === s.code).forEach(q => { const st = getState(q.id); parts[!st || !st.t ? 0 : st.lv >= 4 ? 3 : st.lv >= 2 ? 2 : 1]++; });
+    return { name: s.name, parts };
+  }).filter(r => r.parts.some(Boolean));
+  if (rows.length) stackChart($('chMem'), {
+    title: 'Memory strength by subject', sub: 'How firmly each question is remembered right now.',
+    keys: [{ name: 'New', cls: 'k0' }, { name: 'Learning', cls: 'k1' }, { name: 'Getting there', cls: 'k2' }, { name: 'Strong', cls: 'k3' }], rows,
+  });
+  $('chMem').hidden = !rows.length;
+}
+let chartResize = null;
+addEventListener('resize', () => { clearTimeout(chartResize); chartResize = setTimeout(renderProgressCharts, 150); });
 
 /* ---------- revision notes ---------- */
 const NOTE_LABELS = { keyDifference: 'Key difference', points: 'Points', memoryTrick: 'Memory trick', examTrap: 'Exam trap', related: 'Related' };
@@ -619,8 +650,8 @@ function renderPreps() {
   $('prepActions').hidden = !App.prep;
   if (App.prep) {
     $('prepActions').innerHTML = `<strong>${esc(App.prep.name)}</strong>
-      <div class="btns">
-        <button class="btn" type="button" data-act="export">Export (share with a friend)</button>
+      <div class="btns grid">
+        <button class="btn" type="button" data-act="export">Export to share</button>
         <button class="btn" type="button" data-act="reset">Reset progress</button>
         <button class="btn danger" type="button" data-act="delete">Delete prep</button>
       </div><div id="prepConfirm"></div>`;
@@ -955,7 +986,7 @@ $('optHaptic').addEventListener('change', () => savePrefs({ haptics: $('optHapti
 const MODES = {
   topic: openSubjectPicker,
   notes: () => { renderNotes(); show('notes'); },
-  progress: () => { renderProgress(); show('progress'); },
+  progress: () => { show('progress'); renderProgress(); },
   calendar: () => { Cal.month = null; renderCalendar(); show('calendar'); },
   import: () => openImport('active', 'mcq'),
   settings: () => { renderSettings(); show('settings'); },

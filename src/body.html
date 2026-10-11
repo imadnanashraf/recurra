@@ -85,20 +85,26 @@
       <h2 id="prepsTitle">Your preps</h2>
       <button class="btn ghost" type="button" data-back id="prepsBack"><span data-icon="back"></span>Back</button>
     </div>
-    <div class="empty-state" id="prepsIntro" hidden><span id="welcomeArt"></span><strong>Let's set up your first prep</strong><p>A prep is one exam or goal, with its own syllabus, questions, daily review and streak.</p></div>
-    <div class="list" id="prepList"></div>
-    <div class="card" id="prepActions"></div>
-    <h3>New prep</h3>
-    <form class="card form" id="newPrepForm">
-      <strong>Start from scratch</strong>
-      <label for="newPrepName">Name</label>
-      <input id="newPrepName" required maxlength="60" placeholder="e.g. Networking">
-      <label for="newPrepDate">Exam date (optional)</label>
-      <input id="newPrepDate" type="date">
-      <div class="btns"><button class="btn primary" type="submit">Create prep</button></div>
-      <p class="msg" id="newPrepMsg"></p>
-    </form>
-    <button class="mode" type="button" id="newFromFile"><strong>From a syllabus or prep file</strong><span>Paste JSON made with the AI prompt, or a prep a friend exported</span></button>
+    <div class="cols2">
+      <div class="col">
+      <div class="empty-state" id="prepsIntro" hidden><span id="welcomeArt"></span><strong>Let's set up your first prep</strong><p>A prep is one exam or goal, with its own syllabus, questions, daily review and streak.</p></div>
+      <div class="list" id="prepList"></div>
+      <div class="card" id="prepActions"></div>
+      </div>
+      <div class="col">
+      <h3>New prep</h3>
+      <form class="card form" id="newPrepForm">
+        <strong>Start from scratch</strong>
+        <label for="newPrepName">Name</label>
+        <input id="newPrepName" required maxlength="60" placeholder="e.g. Networking">
+        <label for="newPrepDate">Exam date (optional)</label>
+        <input id="newPrepDate" type="date">
+        <div class="btns"><button class="btn primary" type="submit">Create prep</button></div>
+        <p class="msg" id="newPrepMsg"></p>
+      </form>
+      <button class="mode" type="button" id="newFromFile"><strong>From a syllabus or prep file</strong><span>Paste JSON made with the AI prompt, or a prep a friend exported</span></button>
+      </div>
+    </div>
   </section>
 
   <!-- IMPORT -->
@@ -107,24 +113,30 @@
       <h2 id="impTitle">Add content</h2>
       <button class="btn ghost" type="button" id="impBack"><span data-icon="back"></span>Back</button>
     </div>
-    <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
-    <div class="card" id="impHelp"></div>
-    <div class="card soon">
-      <span class="badge warn">Coming soon</span>
-      <strong>Upload notes and get questions automatically</strong>
-      <span class="muted">Until then, use the AI prompt above with any free AI chat.</span>
-    </div>
-    <div class="card form">
-      <label for="impText">Paste the JSON here</label>
-      <textarea id="impText" spellcheck="false" placeholder='{ "type": "mcq", "questions": [ ... ] }'></textarea>
-      <div class="row-inline">
-        <label class="btn" for="impFile" style="font-size:inherit">Or choose a file</label>
-        <input id="impFile" type="file" accept=".json,.md,.txt,application/json,text/plain" hidden>
-        <button class="btn primary" type="button" id="impCheck">Check</button>
+    <div class="cols2">
+      <div class="col">
+      <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
+      <div class="card" id="impHelp"></div>
+      <div class="card soon">
+        <span class="badge warn">Coming soon</span>
+        <strong>Upload notes and get questions automatically</strong>
+        <span class="muted">Until then, use the AI prompt above with any free AI chat.</span>
       </div>
-      <p class="msg" id="impMsg" role="alert"></p>
+      </div>
+      <div class="col">
+      <div class="card form">
+        <label for="impText">Paste the JSON here</label>
+        <textarea id="impText" spellcheck="false" placeholder='{ "type": "mcq", "questions": [ ... ] }'></textarea>
+        <div class="row-inline">
+          <label class="btn" for="impFile" style="font-size:inherit">Or choose a file</label>
+          <input id="impFile" type="file" accept=".json,.md,.txt,application/json,text/plain" hidden>
+          <button class="btn primary" type="button" id="impCheck">Check</button>
+        </div>
+        <p class="msg" id="impMsg" role="alert"></p>
+      </div>
+      <div class="card preview" id="impPreview" hidden></div>
+      </div>
     </div>
-    <div class="card preview" id="impPreview" hidden></div>
   </section>
 
   <!-- SETTINGS -->
@@ -133,59 +145,61 @@
       <h2>Settings</h2>
       <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
-    <div class="card form profile">
-      <h3>Profile</h3>
-      <div class="profile-top">
-        <div class="avatar big" id="profAvatar"></div>
-        <div class="btns">
-          <label class="btn" for="photoFile">Change photo</label>
-          <input id="photoFile" type="file" accept="image/*" hidden>
-          <button class="btn ghost" type="button" id="photoRemove">Remove photo</button>
+    <div class="masonry">
+      <div class="card form profile">
+        <h3>Profile</h3>
+        <div class="profile-top">
+          <div class="avatar big" id="profAvatar"></div>
+          <div class="btns">
+            <label class="btn" for="photoFile">Change photo</label>
+            <input id="photoFile" type="file" accept="image/*" hidden>
+            <button class="btn ghost" type="button" id="photoRemove">Remove photo</button>
+          </div>
+        </div>
+        <label for="profName">Name</label>
+        <div class="row-inline"><input id="profName" maxlength="40" autocomplete="name"><button class="btn" type="button" id="profSave">Save</button></div>
+        <p class="small">Email: <strong id="accEmail"></strong> <span id="accVerified"></span></p>
+        <p class="msg" id="profMsg"></p>
+      </div>
+      <div class="card form">
+        <h3>Daily reminders</h3>
+        <label class="toggle"><input type="checkbox" id="remOn"><span>Remind me on days my review is not finished<small id="remWhere"></small></span></label>
+        <div id="remBox">
+          <p class="label" style="margin-bottom:6px">At these hours (your time)</p>
+          <div class="hours" id="remHours" role="group" aria-label="Reminder hours"></div>
+        </div>
+        <div class="btns"><button class="btn" type="button" id="remTest">Send a test</button></div>
+        <p class="msg" id="remMsg"></p>
+      </div>
+      <div class="card form">
+        <h3>Study</h3>
+        <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
+        <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
+      </div>
+      <div class="card form">
+        <h3>Appearance</h3>
+        <div class="chips" id="themeChips" role="group" aria-label="Theme">
+          <button class="chip" type="button" data-theme-set="auto">Match device</button>
+          <button class="chip" type="button" data-theme-set="light">Light</button>
+          <button class="chip" type="button" data-theme-set="dark">Night</button>
         </div>
       </div>
-      <label for="profName">Name</label>
-      <div class="row-inline"><input id="profName" maxlength="40" autocomplete="name"><button class="btn" type="button" id="profSave">Save</button></div>
-      <p class="small">Email: <strong id="accEmail"></strong> <span id="accVerified"></span></p>
-      <p class="msg" id="profMsg"></p>
-    </div>
-    <div class="card form">
-      <h3>Daily reminders</h3>
-      <label class="toggle"><input type="checkbox" id="remOn"><span>Remind me on days my review is not finished<small id="remWhere"></small></span></label>
-      <div id="remBox">
-        <p class="label" style="margin-bottom:6px">At these hours (your time)</p>
-        <div class="hours" id="remHours" role="group" aria-label="Reminder hours"></div>
+      <div class="card install" id="installCard" hidden>
+        {{LOGO}}
+        <div style="display:grid;gap:6px;flex:1"><strong>Install Recurra</strong><span class="muted small">Open it from your home screen or desktop like any app, even offline.</span></div>
+        <button class="btn primary" type="button" id="installBtn"><span data-icon="install"></span>Install</button>
       </div>
-      <div class="btns"><button class="btn" type="button" id="remTest">Send a test</button></div>
-      <p class="msg" id="remMsg"></p>
-    </div>
-    <div class="card form">
-      <h3>Study</h3>
-      <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
-      <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
-      <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
-    </div>
-    <div class="card form">
-      <h3>Appearance</h3>
-      <div class="chips" id="themeChips" role="group" aria-label="Theme">
-        <button class="chip" type="button" data-theme-set="auto">Match device</button>
-        <button class="chip" type="button" data-theme-set="light">Light</button>
-        <button class="chip" type="button" data-theme-set="dark">Night (low glare)</button>
+      <div class="card">
+        <h3>Account</h3>
+        <div class="btns grid">
+          <button class="btn" type="button" id="pwReset">Change password</button>
+          <button class="btn" type="button" id="signOut">Sign out</button>
+          <button class="btn danger" type="button" id="accDelete">Delete account</button>
+        </div>
+        <div id="accConfirm"></div>
+        <p class="msg" id="accMsg"></p>
       </div>
-    </div>
-    <div class="card install" id="installCard" hidden>
-      {{LOGO}}
-      <div style="display:grid;gap:6px;flex:1"><strong>Install Recurra</strong><span class="muted small">Open it from your home screen or desktop like any app, even offline.</span></div>
-      <button class="btn primary" type="button" id="installBtn"><span data-icon="install"></span>Install</button>
-    </div>
-    <div class="card">
-      <h3>Account</h3>
-      <div class="btns">
-        <button class="btn" type="button" id="pwReset">Change password</button>
-        <button class="btn" type="button" id="signOut">Sign out</button>
-        <button class="btn danger" type="button" id="accDelete">Delete account</button>
-      </div>
-      <div id="accConfirm"></div>
-      <p class="msg" id="accMsg"></p>
     </div>
   </section>
 
@@ -267,8 +281,14 @@
       <button class="btn" type="button" data-mode="calendar">Calendar</button>
     </div>
     <div class="stats" id="pStats"></div>
-    <div class="table-wrap"><table id="pTable"></table></div>
-    <p class="muted" style="font-size:.85rem">Strong = remembered at level 4 or 5 (gaps of 2 weeks or more). Due = waiting in today's review.</p>
+    <div class="cols2">
+      <div class="card chart-card" id="chDaily"></div>
+      <div class="card chart-card" id="chAcc"></div>
+    </div>
+    <div class="card chart-card" id="chMem"></div>
+    <h3 class="sec-title">By subject</h3>
+    <div class="subj-grid" id="pSubjects"></div>
+    <p class="muted small">Strong = remembered at level 4 or 5 (gaps of 2 weeks or more). Due = waiting in today's review.</p>
   </section>
 
   <!-- CALENDAR -->
@@ -300,7 +320,7 @@
       <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
     <select id="notesFilter" aria-label="Filter notes by subject"></select>
-    <div id="notesList" style="display:grid;gap:12px"></div>
+    <div id="notesList" class="masonry"></div>
   </section>
 </main>
 <div class="toast" id="toast" hidden></div>

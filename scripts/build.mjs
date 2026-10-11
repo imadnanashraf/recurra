@@ -17,7 +17,7 @@ const html = [
   '<style>\n', src('styles.css'), '</style>\n</head>\n<body>\n',
   src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
-  src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'),
+  src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'), src('charts.js'),
   '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('app.js'),
   '</script>\n</body>\n</html>\n',
 ].join('');
@@ -40,6 +40,12 @@ const cfg = existsSync(join(root, 'config.js')) ? 'config.js' : 'config.example.
 copyFileSync(join(root, cfg), join(out, 'config.js'));
 writeFileSync(join(out, '.nojekyll'), '');
 console.log(`Built www/ (version ${pkg.version}, settings from ${cfg})`);
+
+// Server jobs (test-account seeding) use exactly the same import and scheduling rules as the app
+writeFileSync(join(root, 'reminder', 'applib.mjs'),
+  '// Generated from src/mdparse.js, src/core.js and src/import.js by scripts/build.mjs. Edit those files, not this one.\n' +
+  src('mdparse.js') + src('core.js') + src('import.js') +
+  '\nexport { cleanSyllabus, cleanQuestions, cleanNotes, applyResult, dayKey, addDays, dayStart, sumDay, SCHEDULE };\n');
 
 // The reminder job (reminder/remind.mjs) uses exactly the same wording rules as the app
 writeFileSync(join(root, 'reminder', 'decide.mjs'),

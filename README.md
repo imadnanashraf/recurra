@@ -16,6 +16,12 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 3. Every day: open the app and press **Start**. The app decides what to ask.
 4. Settings → **Daily reminders**: pick your hours. On Android the phone schedules them itself. In a laptop browser they arrive as browser notifications.
 
+## Test account
+
+`adnan.ashraf19+test@gmail.com` holds a demo prep (4 subjects, 32 questions, 6 notes) and a month of study history, so every screen has data.
+The password is random and never stored anywhere: sign in once with **Forgot password?** (the email arrives in the normal Gmail inbox, because Gmail delivers "+test" addresses to the same mailbox) and set your own.
+To reset the demo to fresh, edit `samples/demo-prep.json` or run the **Test account** job again.
+
 ## Installing the Android app (you and friends)
 
 1. On the phone, open the APK link above and download `recurra.apk`.
@@ -29,7 +35,7 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 | `src/` | The app (HTML, CSS, JavaScript). `scripts/build.mjs` joins it into `www/`. |
 | `assets/` | App icons. |
 | `samples/` | Example syllabus files you can paste in with **From a syllabus or prep file**. Not shown in the app. |
-| `reminder/` | The hourly reminder job for browser notifications. |
+| `reminder/` | Server jobs: the hourly reminder for browser notifications, and the test-account seeding (`seed-demo.mjs`). |
 | `config.js` | Your Firebase settings (public by design; data is protected by `firestore.rules`). |
 | `.github/workflows/web.yml` | Publishes the website on every change. |
 | `.github/workflows/android.yml` | Builds the signed APK and publishes it to the fixed download link. |

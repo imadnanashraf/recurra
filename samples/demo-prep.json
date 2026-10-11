@@ -1,0 +1,724 @@
+{
+ "type": "prep",
+ "name": "Demo: Telecom basics",
+ "examDate": "2026-12-30",
+ "marking": {
+  "correct": 2,
+  "wrong": -0.5,
+  "totalQuestions": 100,
+  "minutes": 120
+ },
+ "subjects": [
+  {
+   "code": "CN",
+   "name": "Computer Networks",
+   "marks": 20,
+   "part": "B"
+  },
+  {
+   "code": "DE",
+   "name": "Digital Electronics",
+   "marks": 20,
+   "part": "B"
+  },
+  {
+   "code": "COM",
+   "name": "Communication Systems",
+   "marks": 20,
+   "part": "B"
+  },
+  {
+   "code": "EDC",
+   "name": "Electronic Devices & Circuits",
+   "marks": 20,
+   "part": "B"
+  }
+ ],
+ "questions": [
+  {
+   "subject": "CN",
+   "topic": "Transport Layer",
+   "subtopic": "TCP vs UDP",
+   "type": "Confusion",
+   "difficulty": "Easy",
+   "question": "Which protocol is connection-oriented?",
+   "options": [
+    "TCP",
+    "UDP",
+    "IP",
+    "ICMP"
+   ],
+   "answer": "TCP",
+   "explanation": "TCP sets up a connection with a three-way handshake before sending data. UDP, IP and ICMP are connectionless.",
+   "hint": "TCP = Telephone call (connect first). UDP = posting a letter.",
+   "trap": "IP is part of TCP/IP, but IP itself is connectionless.",
+   "concept": "Connection-oriented vs connectionless"
+  },
+  {
+   "subject": "CN",
+   "topic": "Application Layer",
+   "subtopic": "Port numbers",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "What is the default port number of HTTPS?",
+   "options": [
+    "443",
+    "80",
+    "21",
+    "8080"
+   ],
+   "answer": "443",
+   "explanation": "HTTPS uses TCP port 443. Plain HTTP uses port 80.",
+   "hint": "\"4-4-3, secure for me.\"",
+   "trap": "80 is HTTP (not secure); 8080 is only a common alternative for HTTP.",
+   "concept": "Well-known ports"
+  },
+  {
+   "subject": "CN",
+   "topic": "OSI Model",
+   "subtopic": "Layer functions",
+   "type": "Conceptual",
+   "difficulty": "Easy",
+   "question": "Which OSI layer decides the route between different networks?",
+   "options": [
+    "Network layer",
+    "Data link layer",
+    "Transport layer",
+    "Session layer"
+   ],
+   "answer": "Network layer",
+   "explanation": "The network layer (layer 3) handles logical (IP) addressing and routing. Routers work here.",
+   "hint": "Routers live on layer 3: Network.",
+   "trap": "The data link layer moves frames only within one network, using MAC addresses.",
+   "concept": "OSI layers"
+  },
+  {
+   "subject": "CN",
+   "topic": "Application Layer",
+   "subtopic": "DNS",
+   "type": "Trap",
+   "difficulty": "Medium",
+   "question": "DNS queries normally travel over which transport protocol?",
+   "options": [
+    "UDP",
+    "TCP",
+    "ICMP",
+    "ARP"
+   ],
+   "answer": "UDP",
+   "explanation": "Normal DNS lookups use UDP port 53 because they are small and fast. TCP port 53 is used for zone transfers and very large replies.",
+   "hint": "DNS asks a quick question: UDP.",
+   "trap": "Many pick TCP because DNS \"can\" use TCP; the normal query is UDP.",
+   "concept": "DNS transport"
+  },
+  {
+   "subject": "CN",
+   "topic": "IP Addressing",
+   "subtopic": "Subnetting",
+   "type": "Application",
+   "difficulty": "Medium",
+   "question": "How many usable host addresses does a /24 IPv4 subnet have?",
+   "options": [
+    "254",
+    "256",
+    "255",
+    "252"
+   ],
+   "answer": "254",
+   "explanation": "A /24 leaves 8 host bits: 2^8 = 256 addresses. Two are reserved (network and broadcast), so 254 are usable.",
+   "hint": "Hosts = 2^(host bits) - 2.",
+   "trap": "256 counts the network and broadcast addresses too.",
+   "concept": "Usable hosts formula"
+  },
+  {
+   "subject": "CN",
+   "topic": "Data Link Layer",
+   "subtopic": "ARP",
+   "type": "Conceptual",
+   "difficulty": "Easy",
+   "question": "What does ARP find?",
+   "options": [
+    "The MAC address for a known IP address",
+    "The IP address for a known MAC address",
+    "The IP address of a domain name",
+    "The process using a port"
+   ],
+   "answer": "The MAC address for a known IP address",
+   "explanation": "ARP (Address Resolution Protocol) asks the local network \"who has this IP?\" and gets back the MAC address.",
+   "hint": "ARP: Address → Real Physical address.",
+   "trap": "Finding the IP from a MAC was RARP, the reverse. Domain to IP is DNS.",
+   "concept": "Address resolution"
+  },
+  {
+   "subject": "CN",
+   "topic": "Network Devices",
+   "subtopic": "Switch vs hub vs router",
+   "type": "Comparison",
+   "difficulty": "Easy",
+   "question": "Which device forwards frames using MAC addresses?",
+   "options": [
+    "Switch",
+    "Hub",
+    "Router",
+    "Repeater"
+   ],
+   "answer": "Switch",
+   "explanation": "A switch works at the data link layer and sends each frame only to the port with the matching MAC address.",
+   "hint": "Switch = smart, sends to one port. Hub = shouts to all.",
+   "trap": "A router uses IP addresses (layer 3), not MAC addresses.",
+   "concept": "Layer 2 devices"
+  },
+  {
+   "subject": "CN",
+   "topic": "IP Addressing",
+   "subtopic": "IPv6",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "How long is an IPv6 address?",
+   "options": [
+    "128 bits",
+    "32 bits",
+    "64 bits",
+    "48 bits"
+   ],
+   "answer": "128 bits",
+   "explanation": "IPv6 addresses are 128 bits, written as 8 groups of 4 hex digits. IPv4 is 32 bits.",
+   "hint": "IPv6 = 4 × IPv4 length (4 × 32 = 128).",
+   "trap": "48 bits is the length of a MAC address.",
+   "concept": "Address sizes"
+  },
+  {
+   "subject": "CN",
+   "topic": "Network Topology",
+   "subtopic": "Topologies",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "In which topology is every device connected to one central device?",
+   "options": [
+    "Star",
+    "Bus",
+    "Ring",
+    "Mesh"
+   ],
+   "answer": "Star",
+   "explanation": "In a star topology each node has its own cable to a central hub or switch. If the centre fails, the whole network stops.",
+   "hint": "A star has a centre.",
+   "trap": "Mesh connects devices to each other, not to one centre.",
+   "concept": "Topologies"
+  },
+  {
+   "subject": "CN",
+   "topic": "Application Layer",
+   "subtopic": "Email protocols",
+   "type": "Comparison",
+   "difficulty": "Medium",
+   "question": "Which protocol sends email from one mail server to another?",
+   "options": [
+    "SMTP",
+    "POP3",
+    "IMAP",
+    "SNMP"
+   ],
+   "answer": "SMTP",
+   "explanation": "SMTP sends (pushes) mail. POP3 and IMAP are used by your app to read (pull) mail from the server.",
+   "hint": "SMTP = Send Mail To People.",
+   "trap": "SNMP manages network devices; it has nothing to do with email.",
+   "concept": "Push vs pull mail protocols"
+  },
+  {
+   "subject": "DE",
+   "topic": "Logic Gates",
+   "subtopic": "Universal gates",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "Which gates are called universal gates?",
+   "options": [
+    "NAND and NOR",
+    "AND and OR",
+    "XOR and XNOR",
+    "NOT and AND"
+   ],
+   "answer": "NAND and NOR",
+   "explanation": "Any logic circuit can be built using only NAND gates, or only NOR gates.",
+   "hint": "NAND and NOR: the \"N\" gates can do aNything.",
+   "trap": "XOR and XNOR are special-purpose gates, not universal.",
+   "concept": "Universal gates"
+  },
+  {
+   "subject": "DE",
+   "topic": "Number Systems",
+   "subtopic": "Binary to decimal",
+   "type": "Application",
+   "difficulty": "Easy",
+   "question": "What is binary 1011 in decimal?",
+   "options": [
+    "11",
+    "13",
+    "9",
+    "10"
+   ],
+   "answer": "11",
+   "explanation": "1011 = 8 + 0 + 2 + 1 = 11.",
+   "hint": "Place values from the right: 1, 2, 4, 8.",
+   "trap": "13 is 1101: same digits in a different order.",
+   "concept": "Place value"
+  },
+  {
+   "subject": "DE",
+   "topic": "Sequential Circuits",
+   "subtopic": "Flip-flops",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "How many bits can one flip-flop store?",
+   "options": [
+    "1",
+    "2",
+    "4",
+    "8"
+   ],
+   "answer": "1",
+   "explanation": "A flip-flop is the basic 1-bit memory cell: its output is either 0 or 1.",
+   "hint": "One flip-flop, one bit.",
+   "trap": "A register of 8 flip-flops stores 8 bits.",
+   "concept": "Memory element"
+  },
+  {
+   "subject": "DE",
+   "topic": "Number Systems",
+   "subtopic": "2's complement",
+   "type": "Application",
+   "difficulty": "Medium",
+   "question": "What is the 2's complement of 0101 (4 bits)?",
+   "options": [
+    "1011",
+    "1010",
+    "0110",
+    "1101"
+   ],
+   "answer": "1011",
+   "explanation": "Invert every bit (0101 → 1010), then add 1: 1010 + 1 = 1011.",
+   "hint": "Flip the bits, then add one.",
+   "trap": "1010 is only the 1's complement.",
+   "concept": "Negative numbers in binary"
+  },
+  {
+   "subject": "DE",
+   "topic": "Logic Gates",
+   "subtopic": "XOR",
+   "type": "Conceptual",
+   "difficulty": "Easy",
+   "question": "When is the output of a 2-input XOR gate 1?",
+   "options": [
+    "When the inputs are different",
+    "When the inputs are the same",
+    "Only when both inputs are 1",
+    "Only when both inputs are 0"
+   ],
+   "answer": "When the inputs are different",
+   "explanation": "XOR is the \"odd one out\" gate: output 1 when exactly one input is 1.",
+   "hint": "XOR = eXclusive: one or the other, not both.",
+   "trap": "\"Inputs the same\" describes XNOR.",
+   "concept": "XOR truth table"
+  },
+  {
+   "subject": "DE",
+   "topic": "Microprocessors",
+   "subtopic": "8085",
+   "type": "Factual",
+   "difficulty": "Medium",
+   "question": "How many address lines does the 8085 microprocessor have?",
+   "options": [
+    "16",
+    "8",
+    "20",
+    "32"
+   ],
+   "answer": "16",
+   "explanation": "The 8085 has 16 address lines, so it can address 2^16 = 64 KB of memory. Its data bus is 8 bits.",
+   "hint": "8085: 8-bit data, 16-bit address.",
+   "trap": "20 address lines belongs to the 8086 (1 MB).",
+   "concept": "Address bus size"
+  },
+  {
+   "subject": "DE",
+   "topic": "Combinational Circuits",
+   "subtopic": "Multiplexer",
+   "type": "Application",
+   "difficulty": "Easy",
+   "question": "How many select lines does an 8-to-1 multiplexer need?",
+   "options": [
+    "3",
+    "2",
+    "4",
+    "8"
+   ],
+   "answer": "3",
+   "explanation": "Select lines n satisfy 2^n = number of inputs. 2^3 = 8, so 3 select lines.",
+   "hint": "Select lines = log2(inputs).",
+   "trap": "8 is the number of data inputs, not select lines.",
+   "concept": "MUX select lines"
+  },
+  {
+   "subject": "DE",
+   "topic": "Sequential Circuits",
+   "subtopic": "JK flip-flop",
+   "type": "Trap",
+   "difficulty": "Medium",
+   "question": "Which flip-flop toggles its output when both of its inputs are 1?",
+   "options": [
+    "JK flip-flop",
+    "SR flip-flop",
+    "D flip-flop",
+    "Gated D latch"
+   ],
+   "answer": "JK flip-flop",
+   "explanation": "In a JK flip-flop, J = K = 1 makes the output toggle. In an SR flip-flop, S = R = 1 is not allowed.",
+   "hint": "JK = \"Just Keep toggling\" at 11.",
+   "trap": "The T flip-flop also toggles, but it has only one input (T).",
+   "concept": "Flip-flop types"
+  },
+  {
+   "subject": "COM",
+   "topic": "Analog Modulation",
+   "subtopic": "AM",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "In amplitude modulation (AM), the message changes which property of the carrier?",
+   "options": [
+    "Amplitude",
+    "Frequency",
+    "Phase",
+    "Wavelength"
+   ],
+   "answer": "Amplitude",
+   "explanation": "In AM the carrier's amplitude follows the message signal; its frequency stays constant.",
+   "hint": "AM = Amplitude Moves.",
+   "trap": "Frequency change is FM; phase change is PM.",
+   "concept": "Types of modulation"
+  },
+  {
+   "subject": "COM",
+   "topic": "Sampling",
+   "subtopic": "Nyquist rate",
+   "type": "Application",
+   "difficulty": "Easy",
+   "question": "What is the Nyquist rate for a signal whose highest frequency is 4 kHz?",
+   "options": [
+    "8 kHz",
+    "4 kHz",
+    "2 kHz",
+    "16 kHz"
+   ],
+   "answer": "8 kHz",
+   "explanation": "Nyquist rate = 2 × highest frequency = 2 × 4 kHz = 8 kHz.",
+   "hint": "Sample at least twice the top frequency.",
+   "trap": "4 kHz is the signal frequency itself; sampling at that rate causes aliasing.",
+   "concept": "Sampling theorem"
+  },
+  {
+   "subject": "COM",
+   "topic": "Analog Modulation",
+   "subtopic": "AM bandwidth",
+   "type": "Conceptual",
+   "difficulty": "Medium",
+   "question": "What is the bandwidth of standard AM (DSB-FC) for a message of bandwidth fm?",
+   "options": [
+    "2fm",
+    "fm",
+    "4fm",
+    "fm/2"
+   ],
+   "answer": "2fm",
+   "explanation": "AM produces an upper and a lower sideband, each fm wide, so total bandwidth = 2fm.",
+   "hint": "Two sidebands, so double.",
+   "trap": "fm is the bandwidth of SSB, which keeps only one sideband.",
+   "concept": "Sidebands"
+  },
+  {
+   "subject": "COM",
+   "topic": "Analog Modulation",
+   "subtopic": "AM vs FM",
+   "type": "Comparison",
+   "difficulty": "Medium",
+   "question": "Which modulation is better at rejecting amplitude noise?",
+   "options": [
+    "FM",
+    "AM",
+    "DSB-SC",
+    "SSB"
+   ],
+   "answer": "FM",
+   "explanation": "Noise mostly changes amplitude. FM carries the message in frequency, so the receiver can clip amplitude changes away.",
+   "hint": "FM = Free from Mess (amplitude noise).",
+   "trap": "DSB-SC and SSB are still amplitude modulation, so they suffer like AM.",
+   "concept": "Noise performance"
+  },
+  {
+   "subject": "COM",
+   "topic": "Optical Communication",
+   "subtopic": "Optical fibre",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "Light travels along an optical fibre by:",
+   "options": [
+    "Total internal reflection",
+    "Refraction only",
+    "Diffraction",
+    "Scattering"
+   ],
+   "answer": "Total internal reflection",
+   "explanation": "Light hits the core-cladding boundary above the critical angle and is totally reflected back into the core.",
+   "hint": "TIR keeps light inside.",
+   "trap": "Refraction happens when light enters the fibre, but it is not what guides it.",
+   "concept": "Fibre principle"
+  },
+  {
+   "subject": "COM",
+   "topic": "Mobile Communication",
+   "subtopic": "Frequency bands",
+   "type": "Factual",
+   "difficulty": "Medium",
+   "question": "GSM 900 operates in which frequency band?",
+   "options": [
+    "UHF",
+    "VHF",
+    "HF",
+    "SHF"
+   ],
+   "answer": "UHF",
+   "explanation": "UHF covers 300 MHz to 3 GHz, which includes 900 MHz.",
+   "hint": "Ultra High: 300 MHz to 3 GHz.",
+   "trap": "VHF ends at 300 MHz; SHF starts at 3 GHz.",
+   "concept": "Frequency bands"
+  },
+  {
+   "subject": "COM",
+   "topic": "Information Theory",
+   "subtopic": "Shannon capacity",
+   "type": "Factual",
+   "difficulty": "Medium",
+   "question": "What is the Shannon channel capacity formula?",
+   "options": [
+    "C = B log2(1 + S/N)",
+    "C = 2B log2(1 + S/N)",
+    "C = B log10(1 + S/N)",
+    "C = B (1 + S/N)"
+   ],
+   "answer": "C = B log2(1 + S/N)",
+   "explanation": "Shannon: C = B log2(1 + S/N) bits per second, with B in Hz and S/N as a plain ratio (not dB).",
+   "hint": "Shannon has 1 + S/N; Nyquist has 2B.",
+   "trap": "The \"2B\" belongs to Nyquist's noiseless formula C = 2B log2 M.",
+   "concept": "Channel capacity"
+  },
+  {
+   "subject": "COM",
+   "topic": "Digital Modulation",
+   "subtopic": "PCM",
+   "type": "Trap",
+   "difficulty": "Hard",
+   "question": "In PCM, adding one more bit per sample improves the signal-to-quantisation noise ratio by about:",
+   "options": [
+    "6 dB",
+    "3 dB",
+    "10 dB",
+    "20 dB"
+   ],
+   "answer": "6 dB",
+   "explanation": "SQNR ≈ 1.76 + 6.02n dB, so each extra bit adds about 6 dB.",
+   "hint": "One bit, six dB.",
+   "trap": "3 dB means doubling power, which is a different rule.",
+   "concept": "Quantisation noise"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Diodes",
+   "subtopic": "Cut-in voltage",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "What is the cut-in (knee) voltage of a silicon diode?",
+   "options": [
+    "0.7 V",
+    "0.3 V",
+    "1.2 V",
+    "0.1 V"
+   ],
+   "answer": "0.7 V",
+   "explanation": "A silicon diode starts conducting at about 0.7 V. A germanium diode needs about 0.3 V.",
+   "hint": "Silicon 7, Germanium 3.",
+   "trap": "0.3 V is germanium, a common swap in exams.",
+   "concept": "Diode forward bias"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Network Theory",
+   "subtopic": "Ohm's law",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "Which equation is Ohm's law?",
+   "options": [
+    "V = IR",
+    "V = I/R",
+    "I = VR",
+    "R = VI"
+   ],
+   "answer": "V = IR",
+   "explanation": "Voltage across a resistor equals current times resistance.",
+   "hint": "\"VIR\": Virat is Royal. V = I × R.",
+   "trap": "I = V/R is the same law rearranged, but I = VR is wrong.",
+   "concept": "Ohm's law"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Transistors",
+   "subtopic": "Configurations",
+   "type": "Comparison",
+   "difficulty": "Medium",
+   "question": "Which BJT configuration gives the highest power gain?",
+   "options": [
+    "Common emitter",
+    "Common base",
+    "Common collector",
+    "Common drain"
+   ],
+   "answer": "Common emitter",
+   "explanation": "Common emitter has good current gain and voltage gain together, so its power gain is the highest.",
+   "hint": "CE = Champion of gain.",
+   "trap": "Common collector (emitter follower) has voltage gain of about 1. Common drain is a FET circuit.",
+   "concept": "Amplifier configurations"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Network Theory",
+   "subtopic": "Parallel resistors",
+   "type": "Application",
+   "difficulty": "Easy",
+   "question": "Two 10 Ω resistors are connected in parallel. What is the total resistance?",
+   "options": [
+    "5 Ω",
+    "20 Ω",
+    "10 Ω",
+    "2.5 Ω"
+   ],
+   "answer": "5 Ω",
+   "explanation": "For two equal resistors in parallel, total = R/2 = 10/2 = 5 Ω.",
+   "hint": "Equal resistors in parallel: divide by how many.",
+   "trap": "20 Ω is the series total.",
+   "concept": "Series vs parallel"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Diodes",
+   "subtopic": "Zener diode",
+   "type": "Conceptual",
+   "difficulty": "Easy",
+   "question": "A Zener diode is mainly used as a:",
+   "options": [
+    "Voltage regulator",
+    "Rectifier",
+    "Amplifier",
+    "Oscillator"
+   ],
+   "answer": "Voltage regulator",
+   "explanation": "In reverse breakdown, a Zener keeps a nearly constant voltage across it, so it regulates voltage.",
+   "hint": "Zener holds the voltage steady.",
+   "trap": "An ordinary PN diode is the rectifier.",
+   "concept": "Zener breakdown"
+  },
+  {
+   "subject": "EDC",
+   "topic": "Op-amps",
+   "subtopic": "Ideal op-amp",
+   "type": "Factual",
+   "difficulty": "Easy",
+   "question": "What is the input impedance of an ideal op-amp?",
+   "options": [
+    "Infinite",
+    "Zero",
+    "1 kΩ",
+    "50 Ω"
+   ],
+   "answer": "Infinite",
+   "explanation": "An ideal op-amp draws no input current, so its input impedance is infinite. Its output impedance is zero.",
+   "hint": "Input: infinite. Output: zero.",
+   "trap": "Zero is the ideal OUTPUT impedance.",
+   "concept": "Ideal op-amp"
+  }
+ ],
+ "notes": [
+  {
+   "subject": "CN",
+   "topic": "Transport Layer",
+   "title": "TCP vs UDP",
+   "keyDifference": "TCP is connection-oriented and reliable; UDP is connectionless and fast.",
+   "points": [
+    "TCP: handshake, acknowledgements, resends lost data, keeps order. Header 20–60 bytes.",
+    "UDP: no handshake, no acknowledgements. Header 8 bytes.",
+    "TCP for web, email, file transfer. UDP for DNS, live video, games."
+   ],
+   "memoryTrick": "TCP = Telephone call. UDP = posting letters.",
+   "examTrap": "DNS normally uses UDP port 53, but TCP 53 for zone transfers."
+  },
+  {
+   "subject": "CN",
+   "topic": "Network Devices",
+   "title": "Hub vs switch vs router",
+   "keyDifference": "Hub repeats to all ports (layer 1), switch uses MAC (layer 2), router uses IP (layer 3).",
+   "points": [
+    "Hub: one collision domain, dumb repeater.",
+    "Switch: each port is its own collision domain.",
+    "Router: joins different networks and separates broadcast domains."
+   ],
+   "memoryTrick": "Hub shouts, switch whispers, router gives directions.",
+   "examTrap": "A switch does NOT separate broadcast domains; a router does."
+  },
+  {
+   "subject": "DE",
+   "topic": "Logic Gates",
+   "title": "Universal gates",
+   "keyDifference": "NAND and NOR can build every other gate.",
+   "points": [
+    "NOT from NAND: tie both inputs together.",
+    "AND from NAND: NAND followed by NAND-as-NOT.",
+    "XOR needs 4 NAND gates."
+   ],
+   "memoryTrick": "The \"N\" gates can do aNything.",
+   "examTrap": "XOR/XNOR are not universal."
+  },
+  {
+   "subject": "DE",
+   "topic": "Number Systems",
+   "title": "1's vs 2's complement",
+   "keyDifference": "1's complement flips bits; 2's complement flips bits and adds 1.",
+   "points": [
+    "2's complement has only one zero; 1's complement has +0 and -0.",
+    "Range of n-bit 2's complement: -2^(n-1) to 2^(n-1) - 1."
+   ],
+   "memoryTrick": "Two = flip + one.",
+   "examTrap": "For 4 bits the range is -8 to +7, not -7 to +7."
+  },
+  {
+   "subject": "COM",
+   "topic": "Sampling",
+   "title": "Nyquist rate vs Nyquist interval",
+   "keyDifference": "Nyquist rate = 2fm (samples per second); Nyquist interval = 1/(2fm) (time between samples).",
+   "points": [
+    "Sampling below 2fm causes aliasing.",
+    "Example: fm = 4 kHz gives rate 8 kHz and interval 125 µs."
+   ],
+   "memoryTrick": "Rate is a frequency, interval is a time.",
+   "examTrap": "Questions ask for the interval in µs to catch you giving the rate."
+  },
+  {
+   "subject": "EDC",
+   "topic": "Diodes",
+   "title": "Silicon vs germanium diode",
+   "keyDifference": "Silicon cut-in ≈ 0.7 V, germanium ≈ 0.3 V.",
+   "points": [
+    "Silicon has much lower leakage current and works at higher temperatures.",
+    "Germanium is used where a small forward drop matters."
+   ],
+   "memoryTrick": "Silicon 7, Germanium 3.",
+   "examTrap": "Leakage (reverse saturation) current is higher in germanium, not silicon."
+  }
+ ]
+}

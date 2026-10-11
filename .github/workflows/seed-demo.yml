@@ -1,0 +1,25 @@
+name: Test account
+
+# Creates or refreshes the test account (demo prep, questions, notes, a month of history).
+# Runs when the demo content or this job changes. Running it again resets the demo prep to fresh.
+on:
+  push:
+    branches: [main]
+    paths: ['samples/demo-prep.json', 'reminder/seed-demo.mjs', '.github/workflows/seed-demo.yml']
+  workflow_dispatch: {}
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reminder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node seed-demo.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

@@ -785,3 +785,91 @@ body.focus { background: var(--bg); }
 @keyframes rtCoin { 0%, 61.5% { opacity: 1; transform: none; } 64% { opacity: 1; transform: translateY(-5px) scale(1.4); } 68%, 99.9% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: none; } }
 .retro .rt-plus { opacity: 0; animation: rtPlus 4s ease-out infinite; }
 @keyframes rtPlus { 0%, 62% { opacity: 0; transform: none; } 65% { opacity: 1; } 80% { opacity: 1; transform: translateY(-5px); } 86%, 100% { opacity: 0; transform: translateY(-6px); } }
+
+/* =====================================================================
+   Layout polish: titles never push buttons onto their own line, button
+   groups line up, and wide screens use two columns where it helps.
+   ===================================================================== */
+.head-row { flex-wrap: nowrap; align-items: flex-start; }
+.head-row > h2, .head-row > .label { flex: 1 1 auto; min-width: 0; }
+.head-row > h2 { line-height: 1.25; padding-top: 6px; }
+.head-row > .btn { flex: none; }
+.qtop .head-row { align-items: center; }
+.qtop .head-row > .label { padding-top: 0; }
+.cols2, .col { display: grid; gap: 18px; align-content: start; min-width: 0; }
+.masonry { display: grid; gap: 18px; }
+.sec-title { margin: 4px 0 -6px; }
+/* equal-width button groups; a lone last button (usually the danger one) spans the row */
+.btns.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.btns.grid > .btn { width: 100%; }
+.btns.grid > .btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+#themeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+#themeChips .chip { padding-inline: 6px; }
+.profile-top .btns { flex: 1 1 auto; }
+/* subject rows: a thin strength meter under the name */
+.row .name .meter { display: block; width: min(160px, 70%); margin: 6px 0 0; height: 5px; }
+.meter.wide { display: block; width: 100%; height: 6px; margin: 0; }
+
+/* charts */
+.chart-card { gap: 6px; padding: 16px 16px 10px; overflow: hidden; }
+.chart-head h3 { margin: 0; font-size: 1rem; }
+.chart-head p { margin: 2px 0 6px; font-size: .86rem; color: var(--muted); }
+.chart-head p b { color: var(--ink); }
+svg.chart { display: block; max-width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--line); stroke-width: 1; }
+.chart .tick { fill: var(--muted); font-size: 11px; font-family: var(--f-num); }
+.chart .end { fill: var(--ink); font-size: 12px; font-weight: 700; font-family: var(--f-num); }
+.chart .rowname { fill: var(--ink); font-size: 13px; font-weight: 650; }
+.chart .col { fill: var(--accent); transition: opacity .15s; }
+.chart .col.muted { fill: color-mix(in srgb, var(--accent) 45%, var(--surface)); }
+.chart .line { fill: none; stroke: var(--accent-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .wash { fill: var(--accent-2); opacity: .1; }
+.chart .dot { fill: var(--accent-2); stroke: var(--surface); stroke-width: 2; }
+.chart .hit { fill: transparent; }
+.chart .hit.hot { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
+.chart .seg.hot { opacity: .8; }
+:root { --k0: #dfe6ee; --k1: #bfe9e1; --k2: #5fc6b4; --k3: #0b8574; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --k0: #2a3550; --k1: #1f5a52; --k2: #2f9e8d; --k3: #5fe0cb; } }
+:root[data-theme="dark"] { --k0: #2a3550; --k1: #1f5a52; --k2: #2f9e8d; --k3: #5fe0cb; }
+.chart .k0, .sw.k0 { fill: var(--k0); background: var(--k0); } .chart .k1, .sw.k1 { fill: var(--k1); background: var(--k1); }
+.chart .k2, .sw.k2 { fill: var(--k2); background: var(--k2); } .chart .k3, .sw.k3 { fill: var(--k3); background: var(--k3); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82rem; color: var(--muted); margin-bottom: 4px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.chart-tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--bg); padding: 7px 10px; border-radius: 8px; font-size: .8rem; line-height: 1.4; max-width: 240px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+/* subject cards */
+.subj-grid { display: grid; gap: 12px; }
+.subj { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; box-shadow: var(--shadow); }
+.subj-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.subj-top strong { min-width: 0; }
+.subj-top .mono { flex: none; }
+.subj-nums { margin: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.subj-nums dt { font-size: .7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.subj-nums dd { margin: 0; font-family: var(--f-num); font-weight: 700; font-size: 1.02rem; }
+@media (max-width: 460px) { .subj-nums { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; } }
+
+/* wide screens: use the space */
+@media (min-width: 1024px) {
+  main > section#preps, main > section#import, main > section#settings, main > section#notes,
+  main > section#progress, main > section#calendar, main > section#picker { max-width: none; }
+  .cols2 { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; align-items: start; }
+  .masonry { display: block; columns: 2; column-gap: 24px; }
+  .masonry > * { break-inside: avoid; margin-bottom: 18px; width: 100%; }
+  #notesList.masonry > .empty-state { column-span: all; }
+  .subj-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #pickerList { background: none; border: 0; box-shadow: none; overflow: visible; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  #pickerList > .row { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+  #pickerList > .row + .row { border-top: 1px solid var(--line); }
+  #pickerList > .row:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+  #pickerList > .empty-state { grid-column: 1 / -1; }
+  section#calendar { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; column-gap: 24px; align-items: start; }
+  #calendar > .head-row { grid-column: 1 / -1; }
+  #calendar > .cal { grid-column: 1; grid-row: 2 / span 4; }
+  #calendar > #cStats { grid-column: 2; grid-row: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #calendar > .legend { grid-column: 2; grid-row: 3; }
+  #calendar > p { grid-column: 2; grid-row: 4; }
+  #preps .empty-state { padding-top: 24px; }
+}
+.btns.grid > .btn { padding-inline: 8px; font-size: .94rem; white-space: nowrap; }
+@media (max-width: 340px) { .btns.grid { grid-template-columns: 1fr; } .btns.grid > .btn { white-space: normal; } }
