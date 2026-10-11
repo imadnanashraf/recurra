@@ -4,7 +4,7 @@
    - Friends are found by @username, name, or their exact email
      (emails are never shown or listed; only a one-way fingerprint is stored).
    - A friend request must be accepted before two people can chat.
-   - Messages arrive live (no refresh). The admin cannot read chats.
+   - Messages arrive live (no refresh). The admin can open an account and read its chats (read only).
    Database:
      usernames/{name}       { uid }                     one owner per name
      people/{uid}           { username, first, last, name, photo, … }   what friends see
@@ -16,9 +16,12 @@ const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
 const Social = { list: [], people: {}, unsub: null, peopleUnsubs: {}, open: null, msgUnsub: null, msgs: [], first: true, lastSeen: {}, searchSeq: 0, results: null, sel: null };
 const hasHover = () => !!(window.matchMedia && matchMedia('(hover: hover)').matches);
 // you, as others see you: your uploaded photo, else your Google photo
-const mePerson = () => ({ uid: meUid(), ...App.profile, photo: App.profile.photo || (App.authUser && App.authUser.photoURL) || '' });
+const mePerson = () => ({ uid: meUid(), ...App.profile, photo: App.profile.photo || authPhoto() });
 const pairId = (a, b) => a < b ? `${a}_${b}` : `${b}_${a}`;
-const meUid = () => App.authUser && App.authUser.uid;
+// the account on screen: yours, or the person's account the admin opened (App.user)
+const meUid = () => (App.user && App.user.uid) || (App.authUser && App.authUser.uid);
+// your Google photo (not shown while the admin views someone else's account)
+const authPhoto = () => (!App.viewAs && App.authUser && App.authUser.photoURL) || '';
 const fullName = p => [p.first, p.last].filter(Boolean).join(' ').trim() || (p.name || '').trim();
 const cleanName = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 30);
 
@@ -146,7 +149,7 @@ $('setupForm').addEventListener('submit', async e => {
 });
 function personDoc(over = {}) {
   const p = { ...App.profile, ...over }, name = fullName(p);
-  return { uid: meUid(), username: p.username || '', first: p.first || '', last: p.last || '', name, nameLower: name.toLowerCase(), lastLower: (p.last || '').toLowerCase(), photo: p.photo || (App.authUser && App.authUser.photoURL) || '', updated: Date.now() };   // the photo you see on yourself: yours, else Google's
+  return { uid: meUid(), username: p.username || '', first: p.first || '', last: p.last || '', name, nameLower: name.toLowerCase(), lastLower: (p.last || '').toLowerCase(), photo: p.photo || authPhoto(), updated: Date.now() };   // the photo you see on yourself: yours, else Google's
 }
 // keep what friends see (photo, name) in step with your profile
 function syncPerson() { if (App.profile.username && !App.viewAs) Store.fs.doc(`people/${meUid()}`).set({ ...personDoc(), active: Date.now(), away: !!document.hidden }, { merge: true }).catch(() => {}); }
@@ -155,13 +158,13 @@ function syncPerson() { if (App.profile.username && !App.viewAs) Store.fs.doc(`p
 const otherOf = f => (f.users || []).find(u => u !== meUid());
 function startSocial() {
   stopSocial();
-  if (!App.authUser || App.viewAs) return;
+  if (!App.authUser) return;                       // the admin viewing an account: friends and chats, read only
   Social.first = true;
   Social.unsub = Store.fs.collection('friendships').where('users', 'array-contains', meUid()).onSnapshot(s => {
     const prev = new Map(Social.list.map(f => [f.id, f]));
     Social.list = s.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
     Social.list.forEach(f => watchPerson(otherOf(f)));
-    if (!Social.first) Social.list.forEach(f => {                       // news while you are elsewhere: pop-up, sound, notification
+    if (!Social.first && !App.viewAs) Social.list.forEach(f => {                       // news while you are elsewhere: pop-up, sound, notification
       const p = prev.get(f.id), other = otherOf(f);
       const say = (text, sound, where) => loadPerson(other).then(() => {
         const who = friendName(other), t = text(who);
@@ -178,6 +181,7 @@ function startSocial() {
     if (visible('thread')) { paintThreadHead(); paintTyping(); }
     Route.tryChat();
   }, e => console.warn('friends', e));
+  if (App.viewAs) return;
   beat(); clearInterval(Social.hb); Social.hb = setInterval(beat, 60e3);
   if (typeof watchIncoming === 'function') watchIncoming();
 }
@@ -221,7 +225,7 @@ const friendship = id => Social.list.find(f => f.id === id);
 const unreadOf = f => f.status === 'accepted' && f.lastFrom && f.lastFrom !== meUid() && (f.lastAt || 0) > (f['read_' + meUid()] || 0);
 function badgeCount() { return Social.list.filter(f => (f.status === 'pending' && f.from !== meUid()) || unreadOf(f)).length; }
 function paintChatBtn() {
-  const b = $('chatBtn'), on = !!(App.authUser && App.user && !App.viewAs && App.profile && App.profile.username);
+  const b = $('chatBtn'), on = !!(App.authUser && App.user && App.profile && App.profile.username);
   b.hidden = !on; if (!on) return;
   const n = badgeCount();
   $('chatBadge').hidden = !n; $('chatBadge').textContent = n > 9 ? '9+' : String(n);
@@ -270,7 +274,7 @@ function personRow(p, right, extra = '') {
 function typingNow(f, uid) { return !!(f && f['typing_' + uid] && Date.now() - f['typing_' + uid] < 6000); }
 function renderInbox() {
   const me = meUid(), mine = App.profile.username;
-  $('myHandle').innerHTML = mine ? `You are <b>@${esc(mine)}</b>. Share it so friends can add you.` : '';
+  $('myHandle').innerHTML = !mine ? '' : App.viewAs ? `Admin view of <b>@${esc(mine)}</b>'s friends and chats (read only).` : `You are <b>@${esc(mine)}</b>. Share it so friends can add you.`;
   const R = Social.results;
   $('friendResults').innerHTML = !R ? '' : R.loading ? '<p class="muted small">Searching…</p>'
     : R.msg ? `<p class="muted small">${esc(R.msg)}</p>`
@@ -358,6 +362,15 @@ $('chat').addEventListener('click', async e => {
 });
 $('chat').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset && e.target.dataset.fopen) { e.preventDefault(); openThread(e.target.dataset.fopen); } });
 
+// the admin viewing someone's account: friends and chats are read only (nothing can be sent, accepted or changed)
+['chat', 'thread'].forEach(id => $(id).addEventListener('click', e => {
+  if (!App.viewAs) return;
+  const t = e.target.closest('[data-back], #threadBack, [data-fopen], [data-photo], a[href], button, [data-mid]');
+  if (!t || t.matches('[data-back], #threadBack, [data-fopen], [data-photo], a[href]')) return;
+  e.preventDefault(); e.stopPropagation();
+  if (t.matches('button')) toast('Admin view: read only.');
+}, true));
+
 /* ---------- profile photo, large ---------- */
 function openPhoto(uid) {
   const p = uid === meUid() ? mePerson() : Social.people[uid]; if (!p) return;
@@ -385,6 +398,7 @@ function openThread(id) {
   Social.open = id; Social.msgs = []; Social.sel = null; Social.seenIds = null; Social.lastSig = null; Social.shown = null;
   $('msgList').innerHTML = '<p class="muted small center">Loading…</p>'; $('msgText').value = ''; sizeComposer();
   paintThreadHead(); show('thread'); document.body.classList.add('in-thread'); fitThread();
+  if (App.viewAs) Activity.log('admin_read_chat', { with: '@' + ((Social.people[otherOf(f)] || {}).username || '') });
   Social.msgUnsub = Store.fs.collection(`chats/${id}/messages`).orderBy('at').limitToLast(300).onSnapshot(s => {
     const near = nearBottom(), before = Social.seenIds;
     Social.msgs = s.docs.map(d => ({ id: d.id, ...(d.data() || {}) })).filter(m => m.kind !== 'test');
@@ -440,7 +454,7 @@ function paintThreadHead() {
   $('threadWho').innerHTML = `${avWrap(p)}<span class="pmain"><b>${esc(fullName(p) || '@' + p.username)}</b><small id="threadStatus">${statusLine(f, p)}</small></span>`;
   const blocked = f.status === 'blocked';
   $('msgForm').hidden = blocked || f.status !== 'accepted';
-  $('threadNote').hidden = !blocked; $('threadNote').textContent = blocked ? (f.blockedBy === meUid() ? 'You blocked this person. Unblock them from the friends list to chat again.' : 'You can’t send messages in this chat.') : '';
+  $('threadNote').hidden = !blocked && !App.viewAs; $('threadNote').textContent = App.viewAs ? 'Admin view: you can read this chat, but not send or change anything.' : blocked ? (f.blockedBy === meUid() ? 'You blocked this person. Unblock them from the friends list to chat again.' : 'You can’t send messages in this chat.') : '';
   if (typeof paintCallButtons === 'function') paintCallButtons();
   renderMessages();                                   // redraws only if something shown in the list changed (see below)
 }
@@ -512,7 +526,7 @@ function renderMessages() {
 }
 function markRead() {
   const f = friendship(Social.open);
-  if (!f || document.hidden || !visible('thread') || f.status !== 'accepted') return;
+  if (!f || App.viewAs || document.hidden || !visible('thread') || f.status !== 'accepted') return;
   const key = 'read_' + meUid();
   if ((f.lastAt || 0) > (f[key] || 0) || !f[key]) { f[key] = Date.now(); Store.fs.doc(`friendships/${f.id}`).set({ [key]: f[key] }, { merge: true }).catch(() => {}); paintChatBtn(); }
 }

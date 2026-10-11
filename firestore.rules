@@ -55,11 +55,11 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 
-    // ---------- friends and chat (the admin cannot read chats) ----------
+    // ---------- friends and chat (the two friends; the admin can read, never write) ----------
     function member(data) { return signedIn() && request.auth.uid in data.users; }
     function goodPair(id, users) { return users.size() == 2 && users[0] < users[1] && id == users[0] + '_' + users[1]; }
     match /friendships/{id} {
-      allow read: if member(resource.data);
+      allow read: if member(resource.data) || isAdmin();
       // a request: from you, to one other person, waiting
       allow create: if member(request.resource.data) && !locked(request.auth.uid) && goodPair(id, request.resource.data.users)
         && request.resource.data.from == request.auth.uid && request.resource.data.status == 'pending';
@@ -80,7 +80,7 @@ service cloud.firestore {
       return signedIn() && request.auth.uid in f.data.users && f.data.status == 'accepted';
     }
     match /chats/{id}/messages/{mid} {
-      allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
+      allow read: if isAdmin() || signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
       allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
@@ -90,7 +90,7 @@ service cloud.firestore {
     }
     // what a shared card carries (MCQs, notes, a syllabus): written once by the sender, read by the two friends
     match /chats/{id}/shares/{sid} {
-      allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
+      allow read: if isAdmin() || signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
       allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid;
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
     }
@@ -112,13 +112,13 @@ service cloud.firestore {
 
     // ---------- live group tests: only the invited players can see a room ----------
     match /rooms/{rid} {
-      allow read: if signedIn() && request.auth.uid in resource.data.invited;
+      allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.invited);
       allow create: if signedIn() && !locked(request.auth.uid) && request.resource.data.host == request.auth.uid
         && request.auth.uid in request.resource.data.invited && request.resource.data.invited.size() <= 5 && request.resource.data.status == 'lobby';
       allow update: if signedIn() && resource.data.host == request.auth.uid
         && request.resource.data.host == resource.data.host && request.resource.data.invited == resource.data.invited;
       match /players/{uid} {
-        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(rid)).data.invited;
+        allow read: if isAdmin() || (signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(rid)).data.invited);
         allow write: if signedIn() && request.auth.uid == uid && request.auth.uid in get(/databases/$(database)/documents/rooms/$(rid)).data.invited;
       }
     }

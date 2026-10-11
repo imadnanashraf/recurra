@@ -2172,3 +2172,18 @@ body.has-tabs .undo-bar { bottom: calc(92px + env(safe-area-inset-bottom, 0px));
 .ntools:has(.sel-toggle) { grid-template-columns: minmax(0, 1fr) auto; }
 .ntools:has(.sel-toggle) > .seg { grid-column: 1 / -1; }
 @media (min-width: 600px) { .ntools:has(.sel-toggle) { grid-template-columns: minmax(0, 1fr) minmax(0, 15rem) auto; } .ntools:has(.sel-toggle) > .seg { grid-column: auto; } }
+
+/* the admin viewing someone's account: chats and tests are read only */
+body.viewing #msgForm, body.viewing #threadCalls, body.viewing #threadMenu, body.viewing #threadActions, body.viewing #sharePanel,
+body.viewing #chat .nsearch, body.viewing #chat [data-copyhandle], body.viewing #friendResults, body.viewing #chat .notif-ask,
+body.viewing #chat [data-faccept], body.viewing #chat [data-fdecline], body.viewing #chat [data-funblock], body.viewing #chat .hello-chips,
+body.viewing #roomView [data-ltnew] { display: none !important; }
+
+/* a chosen option you can still change (quiz and live tests) */
+.opt.picked { box-shadow: 0 0 0 2px var(--accent) inset; }
+#quiz .opt.picked:not(.right):not(.wrong) .key { background: var(--accent); color: #fff; }
+.conf .conf-tip { margin-top: -4px; }
+.lt-opt.picked { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent) inset; }
+.lt-opt.picked .lt-key { background: var(--accent); color: #fff; }
+.lt-lock { width: 100%; margin-top: 10px; }
+.lt-lock[hidden] { display: none; }

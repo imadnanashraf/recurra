@@ -11,7 +11,7 @@
      users/{uid}/tests/{rid}     your saved result (history)
    ===================================================================== */
 const ROOM_MAX = 5, LT_SIZES = [10, 20, 30], LT_MINUTES = [5, 10, 15, 20];
-const LT = { rid: null, view: null, room: null, players: {}, unsubs: [], tick: null, k: 0, picked: null, pops: [], popBusy: false, prev: {}, saved: false, setup: null, view: null, adv: null, shownAt: 0 };
+const LT = { rid: null, view: null, room: null, players: {}, unsubs: [], tick: null, k: 0, picked: null, sel: null, pops: [], popBusy: false, prev: {}, saved: false, setup: null, view: null, adv: null, shownAt: 0 };
 
 /* ---------- seeded shuffles: the same for you on every device, different for each person ---------- */
 function seedOf(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } return h >>> 0; }
@@ -114,7 +114,10 @@ function onTick() {
   if (r.status === 'live') {
     const t = $('ltClock'); if (t) { const left = r.endAt - Date.now(); t.textContent = mmss(left); t.classList.toggle('low', left < 60e3); }
     const me = LT.players[meUid()];
-    if (me && !me.finishedAt && Date.now() >= r.endAt) finishMine();                 // time is up
+    if (me && !me.finishedAt && Date.now() >= r.endAt) {                             // time is up (a marked option still counts)
+      if (LT.view === 'live' && LT.sel !== null && LT.picked === null) pickAnswer(LT.sel);
+      finishMine();
+    }
     if (roomOver() && LT.view !== 'results') { if (r.host === meUid()) Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'done' }, { merge: true }).catch(() => {}); renderRoom(true); }
   }
 }
@@ -150,7 +153,7 @@ function renderLive() {
   const r = LT.room, me = LT.players[meUid()], i = myQIndex();
   if (i === undefined) return finishMine();
   const q = r.qs[i], opts = myOptions(r, i), num = (me.answered || 0) + 1;
-  LT.picked = null; LT.shownAt = Date.now();
+  LT.picked = null; LT.sel = null; LT.shownAt = Date.now();
   $('roomView').innerHTML = `<div class="lt-live">
     <div class="lt-top"><span class="lt-count">${num} / ${r.n}</span><span class="lt-clock" id="ltClock">${mmss(r.endAt - Date.now())}</span></div>
     <div class="lt-race" id="ltRace"></div>
@@ -158,6 +161,7 @@ function renderLive() {
       <p class="lt-meta">${esc(q.topic || r.subjectName)}</p>
       <h3>${rich(q.question)}</h3>
       <div class="lt-opts">${opts.map((o, k) => `<button type="button" class="lt-opt" data-ltpick="${k}"><span class="lt-key">${'ABCDEF'[k]}</span><span>${rich(o)}</span></button>`).join('')}</div>
+      <button class="btn primary lt-lock" type="button" data-ltlock hidden>Lock answer</button>
       <div class="lt-fb" id="ltFb"></div>
     </article></div>`;
   LT.opts = opts; LT.qi = i;
@@ -173,11 +177,19 @@ function paintRace() {
       <span class="lt-score">${p.correct || 0}${p.finishedAt ? ' 🏁' : ''}</span></div>`;
   }).join('');
 }
+// choosing an option only marks it (you can change it); "Lock answer" checks it. When time runs out, a marked option counts.
+function markAnswer(k) {
+  if (LT.picked !== null || !LT.room || !LT.opts || k >= LT.opts.length) return;
+  LT.sel = k; Sound.play('tap');
+  document.querySelectorAll('#ltQ .lt-opt').forEach((b, j) => { b.classList.toggle('picked', j === k); b.setAttribute('aria-pressed', j === k ? 'true' : 'false'); });
+  const lock = document.querySelector('#ltQ [data-ltlock]'); if (lock) lock.hidden = false;
+}
 async function pickAnswer(k) {
   if (LT.picked !== null || !LT.room) return;
   const r = LT.room, i = LT.qi, q = r.qs[i], pick = LT.opts[k], ok = pick === q.answer, me = { ...LT.players[meUid()] };
-  LT.picked = k;
-  document.querySelectorAll('#ltQ .lt-opt').forEach((b, j) => { b.disabled = true; if (LT.opts[j] === q.answer) b.classList.add('right'); else if (j === k) b.classList.add('wrong'); });
+  LT.picked = k; LT.sel = null;
+  const lock = document.querySelector('#ltQ [data-ltlock]'); if (lock) lock.hidden = true;
+  document.querySelectorAll('#ltQ .lt-opt').forEach((b, j) => { b.disabled = true; b.classList.remove('picked'); b.removeAttribute('aria-pressed'); if (LT.opts[j] === q.answer) b.classList.add('right'); else if (j === k) b.classList.add('wrong'); });
   const streak = ok ? (me.streak || 0) + 1 : 0;
   $('ltFb').innerHTML = ok ? `<b class="good">✓ Right!</b>${streak >= 3 ? ` <span>🔥 ${streak} in a row</span>` : ''}` : `<b class="bad">✗ It's “${esc(q.answer)}”.</b>${q.explanation ? ` <span>${rich(q.explanation)}</span>` : ''}`;
   Sound.play(ok ? (streak >= 3 && streak % 1 === 0 && [3, 5, 8].includes(streak) ? 'streak' : 'right') : 'wrong');
@@ -439,7 +451,8 @@ $('room').addEventListener('click', async e => {
       await Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'live', startAt: now, endAt: now + LT.room.secs * 1000 }, { merge: true }); return;
     }
     if ('ltcancel' in d) { await Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'cancelled' }, { merge: true }); return; }
-    if (d.ltpick !== undefined) { if (Date.now() < LT.room.startAt) return; return pickAnswer(Number(d.ltpick)); }
+    if (d.ltpick !== undefined) { if (Date.now() < LT.room.startAt) return; return markAnswer(Number(d.ltpick)); }
+    if ('ltlock' in d) { if (LT.sel !== null) return pickAnswer(LT.sel); return; }
     if ('lthistory' in d) return MODES.tests();
     if ('ltbadges' in d) return openBadges();
     if ('ltnew' in d) return openLtSetup();
@@ -456,7 +469,8 @@ $('room').addEventListener('click', async e => {
 });
 document.addEventListener('keydown', e => {
   if (!visible('room') || LT.view !== 'live' || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-  const k = '1234abcd'.indexOf(e.key.toLowerCase()); if (k >= 0 && LT.opts && k % 4 < LT.opts.length) pickAnswer(k % 4);
+  if (e.key === 'Enter' && LT.sel !== null) { e.preventDefault(); return pickAnswer(LT.sel); }
+  const k = '1234abcd'.indexOf(e.key.toLowerCase()); if (k >= 0 && LT.opts && k % 4 < LT.opts.length) markAnswer(k % 4);
 });
 
 /* ---------- invites: live, in the Tests tab (badge + pop-up anywhere in the app) ---------- */

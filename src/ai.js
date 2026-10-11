@@ -18,7 +18,7 @@ const aiStore = {
   set(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} },
 };
 // your key is saved in your account (aiKeys/{you}: only you can read it, not even the admin), and kept on this device as a copy
-const aiSlot = k => `${k}:${(App.authUser && App.authUser.uid) || ''}`;
+const aiSlot = k => `${k}:${meUid() || ''}`;
 const aiKey = () => aiStore.get(aiSlot('rc-gkey'));
 const aiModel = () => aiStore.get(aiSlot('rc-gmodel')) || 'gemini-2.5-flash';
 function aiKeepKey(key, model) {
@@ -37,7 +37,7 @@ function aiShown() {
   return target !== 'new' && (kind === 'mcq' || kind === 'notes') && !!App.subjects.find(s => s.code === App.imp.subject);
 }
 async function aiLoad() {
-  if (AI.loading || !App.authUser) return; AI.loading = true; AI.for = meUid();
+  if (AI.loading || !App.authUser || App.viewAs) return; AI.loading = true; AI.for = meUid();
   // the key from your account (works on all your devices); an older key kept only on this device moves into your account
   try {
     const k = await Store.fs.doc(`aiKeys/${meUid()}`).get(), old = aiStore.get('rc-gkey');

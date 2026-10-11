@@ -137,6 +137,7 @@ const ACTIONS = {
   session_finished: ['Study', d => `Studied ${d.n} ${d.n === 1 ? 'question' : 'questions'} in "${d.prep}" (${d.right} right first try)`],
   day_paused: ['Study', d => d.paused ? `Paused today in "${d.prep}"` : `Resumed today in "${d.prep}"`],
   admin_opened_account: ['Admin', 'Admin opened this account'],
+  admin_read_chat: ['Admin', 'Admin read a chat'],
   admin_reset_sent: ['Admin', 'Admin sent a password reset email'],
   admin_password_set: ['Admin', 'Admin set a new password'],
   password_applied: ['Admin', 'New password applied (they were signed out everywhere)'],

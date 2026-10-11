@@ -400,7 +400,7 @@ function renderQuestion() {
     <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
   $('qRecall').hidden = it.phase !== 'recall';
   $('qOpts').hidden = it.phase === 'recall';
-  $('qConf').hidden = true;
+  $('qConf').hidden = true; $('qCheck').hidden = true;
   $('qFeedback').innerHTML = '';
   $('skipBtn').hidden = false; $('nextBtn').hidden = true;
   setKeyHint();
@@ -409,7 +409,8 @@ function renderQuestion() {
 function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
-  $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: answer · S: don\'t know', conf: 'Keys 1 sure · 2 not sure · 3 guessed', done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
+  const chosen = prefs().confidence ? 'Enter: sure · N: not sure · G: guessed · 1–4: change' : 'Enter: check · 1–4: change';
+  $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: choose · S: don\'t know', chosen, done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
 }
 function showOptions() {
   const it = App.session.queue[App.session.i];
@@ -418,16 +419,24 @@ function showOptions() {
   $('qRecall').hidden = true; $('qOpts').hidden = false; setKeyHint();
   Native.tap();
 }
-// k = option index, or null for "Don't know"
+// k = option index, or null for "Don't know".
+// Choosing an option only marks it: you can change it as often as you like. The answer is checked
+// when you confirm, with "Sure / Not sure / Guessed" (or "Check answer" if that question is turned off).
 function pick(k) {
   const it = App.session.queue[App.session.i];
-  if (it.result || it.phase === 'conf') return;
+  if (it.result) return;
   if (k === null) return finish(null, '');
   if (it.phase === 'recall') showOptions();
-  if (!prefs().confidence) return finish(k, '');
-  it.picked = k; it.phase = 'conf'; Sound.play('tap');
-  [...$('qOpts').children].forEach((b, idx) => { b.disabled = true; if (idx === k) b.classList.add('picked'); });
-  $('qConf').hidden = false; $('skipBtn').hidden = true; setKeyHint();
+  if (it.picked === k && it.phase === 'chosen') return;
+  it.picked = k; it.phase = 'chosen'; Sound.play('tap');
+  [...$('qOpts').children].forEach((b, idx) => { b.classList.toggle('picked', idx === k); b.setAttribute('aria-pressed', idx === k ? 'true' : 'false'); });
+  const conf = prefs().confidence;
+  $('qConf').hidden = !conf; $('qCheck').hidden = conf; setKeyHint();
+}
+function confirmPick(conf) {
+  const it = App.session.queue[App.session.i];
+  if (it.result || it.phase !== 'chosen' || it.picked === null) return;
+  finish(it.picked, conf);
 }
 function finish(k, conf) {
   const z = App.session, it = z.queue[z.i], q = it.q;
@@ -456,9 +465,9 @@ function finish(k, conf) {
     z.queue.splice(at, 0, { q, retry: true });
     again = true;
   }
-  $('qConf').hidden = true; $('qOpts').hidden = false; $('qRecall').hidden = true;
+  $('qConf').hidden = true; $('qCheck').hidden = true; $('qOpts').hidden = false; $('qRecall').hidden = true;
   [...$('qOpts').children].forEach((b, idx) => {
-    b.disabled = true; b.classList.remove('picked');
+    b.disabled = true; b.classList.remove('picked'); b.removeAttribute('aria-pressed');
     const o = it.opts[idx];
     if (o === q.answer) b.classList.add('right');
     else if (o === chosen) b.classList.add('wrong');
@@ -499,7 +508,8 @@ function next() {
 }
 $('showOpts').addEventListener('click', showOptions);
 $('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b && !b.disabled) pick(Number(b.dataset.k)); });
-$('qConf').addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) finish(App.session.queue[App.session.i].picked, b.dataset.conf); });
+$('qConf').addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) confirmPick(b.dataset.conf); });
+$('qCheck').addEventListener('click', () => confirmPick(''));
 $('skipBtn').addEventListener('click', () => pick(null));
 $('nextBtn').addEventListener('click', next);
 $('quitBtn').addEventListener('click', endSession);
@@ -518,7 +528,11 @@ document.addEventListener('keydown', e => {
   const it = App.session.queue[App.session.i];
   if (it.result) { if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); next(); } return; }
   if (it.phase === 'recall' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); return showOptions(); }
-  if (it.phase === 'conf') { const c = { 1: 'sure', 2: 'unsure', 3: 'guess' }[e.key]; if (c) { e.preventDefault(); finish(it.picked, c); } return; }
+  if (it.phase === 'chosen') {
+    const conf = prefs().confidence;
+    if (e.key === 'Enter') { e.preventDefault(); return confirmPick(conf ? 'sure' : ''); }
+    const c = conf && { n: 'unsure', g: 'guess' }[e.key.toLowerCase()]; if (c) { e.preventDefault(); return confirmPick(c); }
+  }
   const k = '123456'.indexOf(e.key);
   if (k >= 0 && k < it.opts.length) { e.preventDefault(); pick(k); }
   else if (e.key.toLowerCase() === 's') { e.preventDefault(); pick(null); }
@@ -1388,7 +1402,7 @@ function initials(name) {
 }
 // photo you added → Google photo → coloured circle with your initials (the default)
 function avatarHTML() {
-  const u = App.user || {}, photo = App.profile.photo || u.photoURL;
+  const u = App.user || {}, photo = App.profile.photo || u.photoURL || (App.viewAs && (Social.people[u.uid] || {}).photo) || '';
   if (photo) return `<img src="${esc(photo)}" alt="" referrerpolicy="no-referrer">`;
   return esc(initials(displayName()));
 }
@@ -1546,7 +1560,7 @@ $('googleBtn').addEventListener('click', async () => {
 
 // profile: name and photo
 $('avatarBtn').addEventListener('click', () => MODES.settings());
-$('profAvatar').addEventListener('click', () => { if (App.user && !App.viewAs && (App.profile.photo || (App.authUser && App.authUser.photoURL))) openPhoto(meUid()); });
+$('profAvatar').addEventListener('click', () => { if (App.user && (App.profile.photo || authPhoto())) openPhoto(meUid()); });
 $('profEdit').addEventListener('click', () => openSetup(true));
 // shrink any photo to a 160×160 JPEG (about 10 KB) so it fits in the free database
 function shrinkPhoto(file) {
@@ -1706,6 +1720,7 @@ async function startAccount(user, screen) {
   if (screen) App.afterLoad = screen;
   App.prepsUnsub = Store.watchPreps(onPreps, e => { console.warn(e); setSync('offline'); });
   if (!App.viewAs) Reminders.refreshSoon(4000);
+  else { startSocial(); loadPerson(user.uid).then(() => paintAvatars()); }   // the admin can see this person's friends and read their chats
 }
 function renderViewAs() {
   const bar = $('viewAsBar'), v = App.viewAs;
