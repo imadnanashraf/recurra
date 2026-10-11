@@ -119,6 +119,7 @@
     <div class="cols2">
       <div class="col">
       <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
+      <div class="card subjcard" id="impSubjects" hidden></div>
       <div class="card" id="impHelp"></div>
       <div class="card soon">
         <span class="badge warn">Coming soon</span>
@@ -334,14 +335,27 @@
     <p class="muted" style="font-size:.85rem">The % is how many questions you got right on the first try that day. The streak counts days you finished the review; a paused day keeps the streak but does not add to it.</p>
   </section>
 
-  <!-- NOTES -->
+  <!-- NOTES: search, a book-style index, a reader -->
   <section id="notes" hidden>
     <div class="head-row">
-      <h2>Revision Notes</h2>
+      <h2 id="notesTitle">Revision notes</h2>
       <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
-    <select id="notesFilter" aria-label="Filter notes by subject"></select>
-    <div id="notesList" class="masonry"></div>
+    <div class="nsearch" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="notesSearch" type="search" placeholder="Search notes, topics, tricks, traps…" autocomplete="off" spellcheck="false" aria-label="Search notes">
+    </div>
+    <div class="ntools" id="notesTools">
+      <div class="seg seg3" id="notesView" role="group" aria-label="Index order">
+        <button type="button" data-nv="contents" aria-pressed="true">Contents</button>
+        <button type="button" data-nv="az" aria-pressed="false">A–Z</button>
+        <button type="button" data-nv="recent" aria-pressed="false">Newest</button>
+      </div>
+      <select id="notesFilter" aria-label="Filter notes by subject"></select>
+    </div>
+    <div id="notesIndex"></div>
+    <div id="notesReader" hidden></div>
+    <div id="notesList" class="masonry" hidden></div>
   </section>
   <!-- ADMIN: only the superadmin sees this (the database rules enforce it too) -->
   <section id="admin" hidden>

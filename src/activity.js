@@ -109,6 +109,8 @@ const ACTIONS = {
   prep_reset: ['Content', d => `Reset progress in "${d.prep}"`],
   prep_exported: ['Content', d => `Exported "${d.prep}"`],
   content_added: ['Content', d => `Added ${d.summary} to "${d.prep}"`],
+  subject_saved: ['Content', d => `${d.edit ? 'Edited' : 'Added'} the subject "${d.subject}" in "${d.prep}"`],
+  subject_removed: ['Content', d => `Removed the subject "${d.subject}" from "${d.prep}"`],
   session_finished: ['Study', d => `Studied ${d.n} ${d.n === 1 ? 'question' : 'questions'} in "${d.prep}" (${d.right} right first try)`],
   day_paused: ['Study', d => d.paused ? `Paused today in "${d.prep}"` : `Resumed today in "${d.prep}"`],
   admin_opened_account: ['Admin', 'Admin opened this account'],

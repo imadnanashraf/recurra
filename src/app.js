@@ -64,6 +64,8 @@ function rebuild() {
 function refresh() {
   if (visible('home')) renderHome();
   else if (visible('preps')) renderPreps();
+  else if (visible('import') && App.imp && App.imp.target !== 'new' && !$('impSubjects').contains(document.activeElement)) renderSubjectsCard();
+  else if (visible('notes')) renderNotes();
 }
 function closePrep() {
   App.unsubs.forEach(u => { try { u(); } catch (e) {} }); App.unsubs = [];
@@ -619,22 +621,113 @@ addEventListener('resize', () => { clearTimeout(chartResize); chartResize = setT
 const NOTE_LABELS = { keyDifference: 'Key difference', points: 'Points', memoryTrick: 'Memory trick', examTrap: 'Exam trap', related: 'Related' };
 const NOTE_SKIP = new Set(['id', 'subject', 'code', 'topic', 'title', 'added']);
 const labelOf = k => NOTE_LABELS[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
-function renderNotes() {
-  const codes = [...new Set(App.notes.map(n => n.code))];
-  const sel = $('notesFilter'), keep = sel.value;
-  const name = c => (App.subjects.find(s => s.code === c) || { name: c }).name;
-  sel.innerHTML = `<option value="">All subjects (${App.notes.length})</option>` +
-    codes.map(c => `<option value="${esc(c)}">${esc(name(c))} (${App.notes.filter(n => n.code === c).length})</option>`).join('');
-  sel.value = codes.includes(keep) ? keep : '';
-  const list = App.notes.filter(n => !sel.value || n.code === sel.value).sort((a, b) => (a.topic || '').localeCompare(b.topic || ''));
-  $('notesList').innerHTML = list.length ? list.map(n => {
-    const ordered = [...NOTE_FIELDS, ...Object.keys(n).filter(k => !NOTE_FIELDS.includes(k))];
-    const rows = ordered.filter(k => !NOTE_SKIP.has(k) && n[k] && (Array.isArray(n[k]) ? n[k].length : true)).map(k => `
-      <div class="${/trap/i.test(k) ? 'trap' : ''}"><dt>${esc(labelOf(k))}</dt><dd>${Array.isArray(n[k]) ? `<ul>${n[k].map(x => `<li>${rich(x)}</li>`).join('')}</ul>` : rich(n[k])}</dd></div>`).join('');
-    return `<article class="note"><span class="mono muted">${esc(name(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}</span><h3>${rich(n.title)}</h3><dl>${rows}</dl></article>`;
-  }).join('') : `<div class="empty-state">${ART.notes}<strong>No revision notes yet</strong><p>Short notes on the things you mix up will live here. Add them from Today, then “Add questions or notes”.</p></div>`;
+// Notes are numbered like a book: chapter = subject (in syllabus order), then topic A–Z, then title A–Z → 1.1, 1.2, 2.1 …
+const NotesUI = { view: 'contents', q: '', open: null, all: false };
+const subjName = c => (App.subjects.find(s => s.code === c) || { name: c }).name;
+const shortDate = k => { if (!k) return ''; const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+const longDate = k => { if (!k) return 'Date unknown'; const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }); };
+function notesBook() {
+  const order = App.subjects.map(s => s.code);
+  const codes = [...new Set(App.notes.map(n => n.code))].sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999) || a.localeCompare(b));
+  const cmp = (a, b) => (a.topic || '').localeCompare(b.topic || '') || (a.title || '').localeCompare(b.title || '');
+  const chapters = codes.map((code, ci) => {
+    const notes = App.notes.filter(n => n.code === code).sort(cmp).map((n, ni) => ({ ...n, num: `${ci + 1}.${ni + 1}` }));
+    return { code, name: subjName(code), n: ci + 1, notes };
+  });
+  return { chapters, flat: chapters.flatMap(c => c.notes) };
 }
-$('notesFilter').addEventListener('change', renderNotes);
+const qRe = q => q ? new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
+const mark = (html, re) => re ? html.replace(/(<[^>]+>)|([^<]+)/g, (m, tag, txt) => tag || txt.replace(re, '<mark>$&</mark>')) : html;
+const noteText = n => Object.entries(n).filter(([k]) => !NOTE_SKIP.has(k) && k !== 'num').map(([, v]) => Array.isArray(v) ? v.join(' ') : String(v)).join(' ');
+function noteHTML(n, re) {
+  const ordered = [...NOTE_FIELDS, ...Object.keys(n).filter(k => !NOTE_FIELDS.includes(k) && k !== 'num')];
+  const rows = ordered.filter(k => !NOTE_SKIP.has(k) && k !== 'num' && n[k] && (Array.isArray(n[k]) ? n[k].length : true)).map(k => `
+    <div class="${/trap/i.test(k) ? 'trap' : /trick/i.test(k) ? 'trick' : ''}"><dt>${esc(labelOf(k))}</dt><dd>${Array.isArray(n[k]) ? `<ul>${n[k].map(x => `<li>${mark(rich(x), re)}</li>`).join('')}</ul>` : mark(rich(n[k]), re)}</dd></div>`).join('');
+  return `<article class="note" id="note-${esc(n.id)}"><div class="note-meta"><span class="note-num">${esc(n.num || '')}</span><span>${esc(subjName(n.code))}${n.topic ? ' · ' + mark(esc(n.topic), re) : ''}</span><span class="note-date">${esc(shortDate(n.added))}</span></div><h3>${mark(rich(n.title), re)}</h3><dl>${rows}</dl></article>`;
+}
+function tocEntry(n, extra, re) {
+  return `<li><button type="button" class="toc-e" data-note="${esc(n.id)}"><span class="toc-n">${esc(n.num)}</span><span class="toc-main"><span class="toc-line"><span class="toc-t">${mark(esc(n.title), re)}</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-d">${esc(shortDate(n.added))}</span></span>${extra ? `<small class="toc-sub">${extra}</small>` : ''}</span></button></li>`;
+}
+function renderNotes() {
+  const book = notesBook(), filter = $('notesFilter'), keep = filter.value;
+  filter.innerHTML = `<option value="">All subjects (${App.notes.length})</option>` + book.chapters.map(c => `<option value="${esc(c.code)}">${esc(c.name)} (${c.notes.length})</option>`).join('');
+  filter.value = book.chapters.some(c => c.code === keep) ? keep : '';
+  const sub = filter.value, inSub = n => !sub || n.code === sub;
+  $('notesTitle').textContent = 'Revision notes';
+  [...$('notesView').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.nv === NotesUI.view)));
+  const empty = !App.notes.length;
+  $('notesTools').hidden = empty; document.querySelector('#notes .nsearch').hidden = empty;
+  const reader = !!NotesUI.open && book.flat.some(n => n.id === NotesUI.open);
+  $('notesReader').hidden = !reader; $('notesIndex').hidden = reader || NotesUI.all; $('notesList').hidden = reader || !NotesUI.all;
+  if (empty) { $('notesIndex').hidden = false; $('notesIndex').innerHTML = `<div class="empty-state">${ART.notes}<strong>No revision notes yet</strong><p>Short notes on the things you mix up will live here. Add them from Today, then “Add questions or notes”.</p></div>`; return; }
+  if (reader) return renderReader(book);
+  if (NotesUI.all) {
+    const list = book.flat.filter(inSub);
+    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(list.length, 'note')} in book order</span></div>` + list.map(n => noteHTML(n)).join('');
+    return;
+  }
+  const q = NotesUI.q.trim(), re = qRe(q);
+  let html = '';
+  if (q) {
+    const lq = q.toLowerCase();
+    const hits = book.flat.filter(inSub).map(n => {
+      const t = (n.title || '').toLowerCase(), tp = (n.topic || '').toLowerCase(), body = noteText(n).toLowerCase();
+      const score = t.includes(lq) ? 3 : tp.includes(lq) || subjName(n.code).toLowerCase().includes(lq) ? 2 : body.includes(lq) ? 1 : 0;
+      if (!score) return null;
+      const raw = noteText(n), i = raw.toLowerCase().indexOf(lq);
+      const snip = i < 0 ? '' : (i > 40 ? '…' : '') + raw.slice(Math.max(0, i - 40), i + lq.length + 70) + (i + lq.length + 70 < raw.length ? '…' : '');
+      return { n, score, snip };
+    }).filter(Boolean).sort((a, b) => b.score - a.score || a.n.num.localeCompare(b.n.num, undefined, { numeric: true }));
+    html = `<p class="muted small results-count">${hits.length ? `${plural(hits.length, 'note')} ${hits.length === 1 ? 'matches' : 'match'} “${esc(q)}”` : `Nothing matches “${esc(q)}”. Try a shorter word.`}</p>` +
+      (hits.length ? `<ol class="toc toc-flat results">${hits.map(h => tocEntry(h.n, `${esc(subjName(h.n.code))}${h.n.topic ? ' · ' + mark(esc(h.n.topic), re) : ''}${h.snip ? `<span class="snip">${mark(esc(h.snip), re)}</span>` : ''}`, re)).join('')}</ol>` : '');
+  } else if (NotesUI.view === 'az') {
+    const list = book.flat.filter(inSub).sort((a, b) => a.title.localeCompare(b.title));
+    let letter = '';
+    html = `<div class="toc book az">${list.map(n => {
+      const L = (n.title[0] || '#').toUpperCase(), head = L !== letter ? `${letter ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-letter">${esc(L)}</h3><ol>` : '';
+      letter = L; return head + tocEntry(n, `${esc(subjName(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}`);
+    }).join('')}</ol></section></div>`;
+  } else if (NotesUI.view === 'recent') {
+    const list = book.flat.filter(inSub).sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.num.localeCompare(b.num, undefined, { numeric: true }));
+    let day = null;
+    html = `<div class="toc book recent">${list.map(n => {
+      const head = n.added !== day ? `${day !== null ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-day">${esc(longDate(n.added))}</h3><ol>` : '';
+      day = n.added; return head + tocEntry(n, `${esc(subjName(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}`);
+    }).join('')}</ol></section></div>`;
+  } else {
+    html = `<div class="toc book">${book.chapters.filter(c => !sub || c.code === sub).map(c => `
+      <section class="toc-ch"><h3><span class="toc-cn">${c.n}</span><span class="toc-ct">${esc(c.name)}</span><small>${plural(c.notes.length, 'note')}</small></h3>
+      <ol>${c.notes.map(n => tocEntry(n, n.topic ? esc(n.topic) : '')).join('')}</ol></section>`).join('')}</div>`;
+  }
+  $('notesIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${NotesUI.view === 'az' ? 'Index' : NotesUI.view === 'recent' ? 'By date added' : 'Contents'}</span><button class="btn ghost" type="button" data-readall>Read all ${icon('next')}</button></div>`) + html;
+}
+function renderReader(book) {
+  const list = book.flat, i = list.findIndex(n => n.id === NotesUI.open), n = list[i];
+  const prev = list[i - 1], next = list[i + 1], re = qRe(NotesUI.q.trim());
+  $('notesReader').innerHTML = `<div class="reader-bar">
+      <button class="btn ghost" type="button" data-nback>${icon('back')}${NotesUI.q.trim() ? 'Results' : 'Index'}</button>
+      <span class="muted small">${i + 1} of ${list.length}</span>
+      <span class="reader-nav"><button class="btn" type="button" data-note="${prev ? esc(prev.id) : ''}" ${prev ? '' : 'disabled'} aria-label="Previous note">${icon('back')}</button><button class="btn" type="button" data-note="${next ? esc(next.id) : ''}" ${next ? '' : 'disabled'} aria-label="Next note">${icon('next')}</button></span>
+    </div>
+    <div class="reader-note">${noteHTML(n, re)}</div>
+    <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-note="${esc(prev.id)}"><small>Previous</small>${esc(prev.num)} ${esc(prev.title)}</button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-note="${esc(next.id)}"><small>Next</small>${esc(next.num)} ${esc(next.title)}</button>` : ''}</div>`;
+}
+function openNote(id) { NotesUI.open = id; NotesUI.all = false; renderNotes(); window.scrollTo(0, 0); }
+$('notes').addEventListener('click', e => {
+  const t = e.target.closest('[data-note]');
+  if (t && t.dataset.note) return openNote(t.dataset.note);
+  if (e.target.closest('[data-nback]')) { NotesUI.open = null; NotesUI.all = false; renderNotes(); return; }
+  if (e.target.closest('[data-readall]')) { NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
+  const v = e.target.closest('[data-nv]');
+  if (v) { NotesUI.view = v.dataset.nv; NotesUI.open = null; NotesUI.all = false; renderNotes(); }
+});
+$('notesSearch').addEventListener('input', () => { NotesUI.q = $('notesSearch').value; NotesUI.open = null; NotesUI.all = false; renderNotes(); });
+$('notesFilter').addEventListener('change', () => { NotesUI.open = null; renderNotes(); });
+document.addEventListener('keydown', e => {
+  if ($('notes').hidden || $('notesReader').hidden || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const b = e.key === 'ArrowLeft' ? $('notesReader').querySelector('.reader-nav [data-note]') : e.key === 'ArrowRight' ? $('notesReader').querySelectorAll('.reader-nav [data-note]')[1] : null;
+  if (b && b.dataset.note) openNote(b.dataset.note);
+});
 
 /* ---------- preps screen ---------- */
 function showPreps() { renderPreps(); show('preps'); }
@@ -767,11 +860,75 @@ function renderImport() {
       <div class="btns"><button class="btn primary" type="button" id="copyPrompt">Copy AI prompt</button>
       <button class="btn" type="button" id="toggleSample">Show sample format</button></div>
       <pre class="sample" id="sampleBox" hidden>${esc(JSON.stringify(SAMPLES[kind], null, 2))}</pre>`;
+    const noSubjects = target !== 'new' && !App.subjects.length && (kind === 'mcq' || kind === 'notes');
+    $('copyPrompt').disabled = noSubjects;
+    if (noSubjects) $('copyPrompt').insertAdjacentHTML('afterend', '<span class="muted small hint-inline">Add a subject above first.</span>');
     $('copyPrompt').onclick = () => copyText(promptFor(kind, App.prep ? App.prep.name : 'my exam', App.subjects), 'Prompt copied. Paste it into your AI chat.');
     $('toggleSample').onclick = () => { const b = $('sampleBox'); b.hidden = !b.hidden; $('toggleSample').textContent = b.hidden ? 'Show sample format' : 'Hide sample format'; };
   }
+  renderSubjectsCard();
   renderPreview();
 }
+/* ---------- subjects of a prep, added and edited by hand ---------- */
+function suggestCode(name, taken) {
+  const words = name.replace(/&/g, ' ').split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(w => w && !/^(and|of|the|for|in)$/i.test(w));
+  let base = (words.length > 1 ? words.map(w => w[0]).join('').slice(0, 5) : (words[0] || 'SUB').slice(0, 4)).toUpperCase() || 'SUB';
+  let code = base, i = 2;
+  while (taken.includes(code)) code = base.slice(0, 6) + i++;
+  return code;
+}
+function renderSubjectsCard() {
+  const box = $('impSubjects'), active = App.imp && App.imp.target !== 'new' && !!App.prep;
+  box.hidden = !active; if (!active) return;
+  const subs = App.subjects, none = !subs.length, needs = App.imp.kind === 'mcq' || App.imp.kind === 'notes';
+  const used = code => App.questions.some(q => q.code === code) || App.notes.some(n => n.code === code);
+  const editing = App.imp.editSubject ? subs.find(s => s.code === App.imp.editSubject) : null;
+  box.classList.toggle('needs', none && needs);
+  box.innerHTML = `<div class="subj-head"><strong>Subjects in this prep</strong><span class="muted small">${subs.length ? plural(subs.length, 'subject') : 'none yet'}</span></div>
+    ${none ? `<p class="small subj-note">${needs ? 'Add at least one subject first. The AI prompt lists your subjects, so every question and note lands in the right subject.' : 'Add subjects here one by one, or import a whole syllabus below.'}</p>`
+      : `<div class="subj-chips">${subs.map(s => `<span class="subj-chip${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b>${esc(s.code)}</b>${esc(s.name)}${s.marks ? `<small>${s.marks} marks</small>` : ''}</button>${used(s.code) ? '' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</span>`).join('')}</div>`}
+    <details class="subj-add"${none || editing ? ' open' : ''}><summary>${editing ? `Edit ${esc(editing.name)}` : none ? 'Add a subject' : 'Add another subject'}</summary>
+      <div class="subj-form">
+        <label>Subject name<input id="sName" maxlength="80" placeholder="e.g. Computer Networks" value="${esc(editing ? editing.name : '')}"></label>
+        <label>Short code<input id="sCode" maxlength="8" placeholder="CN" autocapitalize="characters" spellcheck="false" value="${esc(editing ? editing.code : '')}"${editing ? ' readonly' : ''}></label>
+        <label>Marks <span class="muted">optional</span><input id="sMarks" type="number" min="0" max="999" inputmode="numeric" value="${editing && editing.marks ? editing.marks : ''}"></label>
+        <label>Part <span class="muted">optional</span><input id="sPart" maxlength="20" placeholder="e.g. B" value="${esc(editing ? editing.part || '' : '')}"></label>
+      </div>
+      <div class="btns"><button class="btn primary" type="button" id="sSave">${editing ? 'Save changes' : 'Add subject'}</button>${editing ? '<button class="btn" type="button" id="sCancel">Cancel</button>' : ''}</div>
+      <p class="msg" id="sMsg"></p>
+    </details>`;
+  let codeTouched = !!editing;
+  $('sCode').oninput = () => { codeTouched = true; $('sCode').value = $('sCode').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+  $('sName').oninput = () => { if (!codeTouched) $('sCode').value = $('sName').value.trim() ? suggestCode($('sName').value, subs.map(s => s.code)) : ''; };
+  if ($('sCancel')) $('sCancel').onclick = () => { App.imp.editSubject = null; renderSubjectsCard(); };
+  $('sSave').onclick = async () => {
+    const name = $('sName').value.trim(), code = $('sCode').value.trim().toUpperCase(), marks = Number($('sMarks').value) || 0, part = $('sPart').value.trim();
+    if (!name) return msg('sMsg', 'Give the subject a name.', 'err');
+    if (!/^[A-Z0-9]{1,8}$/.test(code)) return msg('sMsg', 'The short code is 1 to 8 capital letters or numbers, like CN.', 'err');
+    if (!editing && subs.some(s => s.code === code)) return msg('sMsg', `${code} is already used. Pick another short code.`, 'err');
+    const next = editing ? subs.map(s => s.code === code ? { ...s, name, marks, part } : s) : [...subs, { code, name, marks, part }];
+    $('sSave').disabled = true;
+    try {
+      await Store.setPrep(App.prepId, { subjects: next });
+      App.subjects = next; App.prep.subjects = next; App.imp.editSubject = null; rebuild();
+      Activity.log('subject_saved', { prep: App.prep.name, subject: name, edit: !!editing });
+      renderImport(); toast(editing ? 'Subject saved.' : `Added ${name}.`);
+    } catch (e) { $('sSave').disabled = false; msg('sMsg', 'Could not save. Check your internet.', 'err'); }
+  };
+}
+$('impSubjects').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-sedit]'), del = e.target.closest('[data-sdel]');
+  if (ed) { App.imp.editSubject = App.imp.editSubject === ed.dataset.sedit ? null : ed.dataset.sedit; return renderSubjectsCard(); }
+  if (!del) return;
+  const s = App.subjects.find(x => x.code === del.dataset.sdel); if (!s) return;
+  const next = App.subjects.filter(x => x.code !== s.code);
+  try {
+    await Store.setPrep(App.prepId, { subjects: next });
+    App.subjects = next; App.prep.subjects = next; rebuild();
+    Activity.log('subject_removed', { prep: App.prep.name, subject: s.name });
+    renderImport(); toast(`Removed ${s.name}.`);
+  } catch (err) { toast('Could not save. Check your internet.'); }
+});
 $('impKinds').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]'); if (!b) return;
   App.imp.kind = b.dataset.kind; App.imp.checked = null; renderImport();
@@ -1001,7 +1158,7 @@ $('optHaptic').addEventListener('change', () => savePrefs({ haptics: $('optHapti
 /* ---------- navigation ---------- */
 const MODES = {
   topic: openSubjectPicker,
-  notes: () => { renderNotes(); show('notes'); },
+  notes: () => { NotesUI.open = null; NotesUI.all = false; renderNotes(); show('notes'); },
   progress: () => { show('progress'); renderProgress(); },
   calendar: () => { Cal.month = null; renderCalendar(); show('calendar'); },
   import: () => openImport('active', 'mcq'),
