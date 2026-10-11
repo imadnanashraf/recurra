@@ -59,4 +59,13 @@ if (gs && existsSync(gs)) {
   writeFileSync(mf, m);
   push = true;
 }
+// 5. voice and video calls: camera and microphone
+{
+  const mf = join(app, 'src', 'main', 'AndroidManifest.xml');
+  let m = readFileSync(mf, 'utf8');
+  const perms = ['android.permission.CAMERA', 'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS'];
+  for (const p of perms) if (!m.includes(p)) m = m.replace(/<application/, `<uses-permission android:name="${p}" />\n    <application`);
+  if (!m.includes('android.hardware.camera')) m = m.replace(/<application/, `<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application`);
+  writeFileSync(mf, m);
+}
 console.log(`Android patched: version ${pkg.version} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);

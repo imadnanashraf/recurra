@@ -179,11 +179,13 @@ function startSocial() {
     Route.tryChat();
   }, e => console.warn('friends', e));
   beat(); clearInterval(Social.hb); Social.hb = setInterval(beat, 60e3);
+  if (typeof watchIncoming === 'function') watchIncoming();
 }
 function stopSocial() {
   if (Social.unsub) { try { Social.unsub(); } catch (e) {} Social.unsub = null; }
   Object.values(Social.peopleUnsubs).forEach(u => { try { u(); } catch (e) {} }); Social.peopleUnsubs = {};
   clearInterval(Social.hb); closeThread(); Social.list = []; paintChatBtn();
+  if (typeof stopIncoming === 'function') { stopIncoming(); if (Call.cur) endCall('ended'); }
 }
 // "online": the app is open and in front on one of your devices (checked every minute)
 function beat(away) {
@@ -417,6 +419,7 @@ function paintThreadHead() {
   const blocked = f.status === 'blocked';
   $('msgForm').hidden = blocked || f.status !== 'accepted';
   $('threadNote').hidden = !blocked; $('threadNote').textContent = blocked ? (f.blockedBy === meUid() ? 'You blocked this person. Unblock them from the friends list to chat again.' : 'You can’t send messages in this chat.') : '';
+  if (typeof paintCallButtons === 'function') paintCallButtons();
   renderMessages();                                   // redraws only if something shown in the list changed (see below)
 }
 function statusLine(f, p) {

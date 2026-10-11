@@ -1998,3 +1998,54 @@ html, body { overflow-x: clip; }
 .ag-do > li > div { display: grid; gap: 8px; line-height: 1.45; }
 .ag-do .ag-open { justify-self: start; }
 .ag-do p { margin: 0; }
+
+/* =====================================================================
+   Voice and video calls
+   ===================================================================== */
+.thread-calls { display: flex; gap: 2px; }
+.thread-calls[hidden] { display: none; }
+.thread-calls svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
+.call-view { position: fixed; inset: 0; z-index: 60; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px));
+  color: #fff; background: radial-gradient(120% 80% at 50% 0%, #1f5f74 0%, #10283d 55%, #0a1626 100%); overflow: hidden; animation: fadeIn .25s ease both; }
+.call-view[hidden] { display: none; }
+body.in-call { overflow: hidden; }
+.cv-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #0a1626; opacity: 0; transition: opacity .4s; }
+.call-view.has-remote .cv-remote { opacity: 1; }
+.cv-local { position: absolute; z-index: 2; right: 14px; top: calc(14px + env(safe-area-inset-top, 0px)); width: min(30vw, 150px); aspect-ratio: 3 / 4; object-fit: cover; border-radius: 16px; background: #000; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); border: 2px solid rgba(255, 255, 255, .2); }
+.cv-local.mirror { transform: scaleX(-1); }
+.call-view:not(.has-remote) .cv-local { width: min(34vw, 170px); }
+.cv-who { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; text-align: center; align-self: center; transition: opacity .3s, transform .3s; }
+.call-view.has-remote .cv-who { align-self: start; transform: scale(.7); transform-origin: top center; opacity: .95; text-shadow: 0 1px 8px rgba(0, 0, 0, .6); }
+.call-view.has-remote .cv-av { display: none; }
+.cv-who h2 { margin: 6px 0 0; font-size: 1.6rem; color: #fff; }
+.cv-status { margin: 0; font-size: 1rem; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+.cv-status.end { color: #ffd2cc; font-weight: 700; max-width: 28ch; }
+.cv-av .avatar.big { width: 128px; height: 128px; font-size: 2.8rem; box-shadow: 0 0 0 6px rgba(255, 255, 255, .08); }
+.cv-av.pulse .avatar { animation: cvPulse 1.8s ease-out infinite; }
+@keyframes cvPulse { 0% { box-shadow: 0 0 0 0 rgba(120, 230, 210, .55); } 100% { box-shadow: 0 0 0 34px rgba(120, 230, 210, 0); } }
+.cv-controls { position: relative; z-index: 2; display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.cv-btn { display: grid; justify-items: center; gap: 6px; background: none; border: 0; color: #fff; cursor: pointer; padding: 0; font: inherit; }
+.cv-btn span { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: transform .15s, background .2s; }
+.cv-btn:active span { transform: scale(.92); }
+.cv-btn small { font-size: .78rem; color: rgba(255, 255, 255, .85); }
+.cv-btn.on span { background: #fff; color: #10283d; }
+.cv-btn.end span { background: #e5483d; }
+.cv-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.cv-btn.end svg { transform: rotate(135deg); }
+.cv-btn.ok span { background: #1fb36b; animation: cvWiggle 1.2s ease-in-out infinite; }
+@keyframes cvWiggle { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-12deg); } 80% { transform: rotate(12deg); } 90% { transform: rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) { .cv-av.pulse .avatar, .cv-btn.ok span { animation: none; } }
+/* the call line in the chat */
+.call-log { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 210px; }
+.call-log .cl-ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); font-size: 1.1rem; }
+.call-log.miss .cl-ic { background: var(--danger-soft); }
+.call-log > div { display: grid; gap: 1px; min-width: 0; }
+.call-log b { font-size: .92rem; }
+.call-log small { font-size: .76rem; opacity: .75; }
+.mine .call-log .cl-ic { background: rgba(255, 255, 255, .2); }
+
+.cl-call { width: 36px; height: 36px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--accent); color: #fff; cursor: pointer; padding: 0; }
+.cl-call svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mine .cl-call { background: #fff; color: var(--accent); }
+.thread-head { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.thread-head .thread-calls .iconbtn { padding-inline: 8px; }
