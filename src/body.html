@@ -121,10 +121,11 @@
     <div class="cols2">
       <div class="col">
       <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
+      <div class="card share-banner" id="impShare" hidden></div>
       <div class="card pickcard" id="impPick" hidden></div>
       <div class="card subjcard" id="impSubjects" hidden></div>
       <div class="card" id="impHelp"></div>
-      <div class="card soon">
+      <div class="card soon" id="impSoon">
         <span class="badge warn">Coming soon</span>
         <strong>Upload notes and get questions automatically</strong>
         <span class="muted">Until then, use the AI prompt above with any free AI chat.</span>
@@ -376,7 +377,9 @@
     </div>
     <div class="msgs" id="msgList" role="log" aria-live="polite"></div>
     <p class="muted small center" id="threadNote" hidden></p>
+    <div class="share-panel card" id="sharePanel" hidden></div>
     <form class="composer" id="msgForm" autocomplete="off">
+      <button class="btn ghost plusbtn" type="button" id="msgPlus" aria-label="Share MCQs, notes or syllabus" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
       <textarea id="msgText" rows="1" maxlength="2000" placeholder="Message" aria-label="Message"></textarea>
       <button class="btn primary sendbtn" type="submit" id="msgSend" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button>
     </form>

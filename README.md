@@ -33,6 +33,8 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 - A **friend request** must be accepted before you can chat. You can remove or block a friend any time (⋯ in the chat).
 - **Chats are live:** messages, "Seen", requests and the unread badge update on their own. Tap your own message to delete it.
 - **Private:** the database rules let only the two friends read a chat. The admin cannot read chats; the activity log only notes things like "sent a friend request".
+- **Sharing:** the **+** in a chat shares MCQs or notes (a whole subject or one topic, up to 300), your syllabus, or **asks** your friend for one. Nothing is copied until the receiver taps **Add to my prep**; they pick the subject (the same checks as a normal paste) and get their own copy. Progress is never shared.
+- **Merging:** the same question (same subject and question text) or the same note (same title) is never added twice. From a friend, *your* version is kept and only missing parts are filled in (note points are combined); you can choose **Use theirs**. Reworded questions with the same answer are shown as "similar" and skipped unless you choose **Add anyway**. A shared syllabus is merged into yours by subject name, keeping your names and marks.
 - When an account is erased, its username, profile, friendships and chats are erased too.
 
 ## Admin, activity log and deleting accounts

@@ -345,3 +345,62 @@ Rules:
 ${material}
 [paste your notes here, or attach the PDF or photo]`;
 }
+
+// ---- merging what you already have with what comes in ----
+// The same question = same subject + same question text (or the same id). The same note = same subject + same title.
+// mode 'paste' (your own file): the new version replaces yours (your progress stays).
+// mode 'share' (from a friend): yours is kept; only empty fields are filled, and note points are combined.
+//   takeTheirs: where both have a different value, use theirs. Reworded questions with the same answer are "similar".
+const isEmptyVal = v => v === undefined || v === null || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && !v.length);
+const SKIP_MERGE = new Set(['id', 'subject', 'added', 'retired']);
+const qWords = s => new Set(norm(s).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(w => w.length > 2));
+function similarQuestion(a, b) {
+  if (norm(a.answer) !== norm(b.answer)) return false;
+  const A = qWords(a.question), B = qWords(b.question);
+  if (!A.size || !B.size) return false;
+  let n = 0; A.forEach(w => { if (B.has(w)) n++; });
+  return n / Math.max(A.size, B.size) >= 0.6;
+}
+function mergePlan(kind, items, existing, mode, takeTheirs) {
+  const isQ = kind === 'mcq', key = o => `${o.subject}|${norm(isQ ? o.question : o.title)}`;
+  const byId = new Map(existing.map(o => [o.id, o])), byKey = new Map(existing.map(o => [key(o), o]));
+  const out = { write: [], fresh: 0, updated: 0, filled: 0, conflicts: 0, same: 0, similar: [], conflictList: [] };
+  for (const it of items) {
+    const old = byId.get(it.id) || byKey.get(key(it));
+    if (!old) {
+      const like = mode === 'share' && isQ ? existing.find(o => o.subject === it.subject && similarQuestion(o, it)) : null;
+      if (like) { out.similar.push({ item: it, like }); continue; }
+      out.fresh++; out.write.push(it); continue;
+    }
+    if (mode !== 'share') {
+      const nu = { ...it, id: old.id, added: old.added || it.added };
+      if (JSON.stringify({ ...nu, added: '' }) === JSON.stringify({ ...old, added: '' })) out.same++;
+      else { out.updated++; out.write.push(nu); }
+      continue;
+    }
+    const nu = { ...old }; let filled = false, conflict = false;
+    const keys = [...new Set([...Object.keys(it), ...Object.keys(old)])].filter(k => !SKIP_MERGE.has(k) && k !== (isQ ? 'question' : 'title'));
+    for (const k of keys) {
+      const a = old[k], b = it[k];
+      if (isEmptyVal(b) || JSON.stringify(a) === JSON.stringify(b)) continue;
+      if (isEmptyVal(a)) { nu[k] = b; filled = true; continue; }
+      if (k === 'topic' || k === 'subtopic') continue;                       // keep your own grouping
+      if (isQ && (k === 'options' || k === 'answer')) {                        // options and answer go together
+        if (!conflict) out.conflictList.push({ item: it, old, field: 'answer' });
+        conflict = true; if (takeTheirs) { nu.options = it.options; nu.answer = it.answer; }
+        continue;
+      }
+      if (!isQ && Array.isArray(a) && Array.isArray(b)) {                      // note points: combine, no duplicates
+        const have = new Set(a.map(norm)), add = b.filter(x => !have.has(norm(x)));
+        if (add.length) { nu[k] = [...a, ...add]; filled = true; }
+        continue;
+      }
+      if (!conflict) out.conflictList.push({ item: it, old, field: k });
+      conflict = true; if (takeTheirs) nu[k] = b;
+    }
+    if (conflict) out.conflicts++;
+    if (filled) out.filled++;
+    if (filled || (conflict && takeTheirs)) out.write.push(nu); else if (!conflict) out.same++;
+  }
+  return out;
+}

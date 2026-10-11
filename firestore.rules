@@ -84,6 +84,15 @@ service cloud.firestore {
       allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
+      // a card's state only: "added", "sent", a live-test result
+      allow update: if friends(id) && request.resource.data.from == resource.data.from
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'doneAt', 'doneBy']);
+    }
+    // what a shared card carries (MCQs, notes, a syllabus): written once by the sender, read by the two friends
+    match /chats/{id}/shares/{sid} {
+      allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
+      allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid;
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
     }
 
     // jobs the admin hands to the account job (e.g. "set this password"), and the admin's GitHub key: admin only

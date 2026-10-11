@@ -851,9 +851,12 @@ const KIND_LABEL = { mcq: 'MCQs', notes: 'Revision notes', syllabus: 'Syllabus',
 // opts: { subject: CODE, topic: 'one topic', focus: ['topics to cover'] } (from the Syllabus tab)
 function openImport(target, kind, opts = {}) {
   App.imp = { target, kind, checked: null, back: visible('preps') ? 'preps' : visible('syllabus') ? 'syllabus' : 'home',
-    subject: opts.subject || (App.subjects.length === 1 && target !== 'new' ? App.subjects[0].code : null), topic: opts.topic || '', focus: opts.focus || null };
-  $('impText').value = ''; $('impFile').value = ''; msg('impMsg', '');
+    subject: opts.subject || (App.subjects.length === 1 && target !== 'new' ? App.subjects[0].code : null), topic: opts.topic || '', focus: opts.focus || null,
+    share: opts.share || null, takeTheirs: false, addSimilar: false };
+  if (opts.share) App.imp.back = 'thread';
+  $('impText').value = opts.share ? opts.share.text : ''; $('impFile').value = ''; msg('impMsg', '');
   renderImport(); show('import');
+  if (opts.share && (kind === 'syllabus' || App.imp.subject)) doCheck();
 }
 // the prompt "Copy AI prompt" copies right now: for the chosen kind, subject and topic
 function currentPrompt() {
@@ -861,15 +864,30 @@ function currentPrompt() {
   return sub ? promptForSubject(kind, App.prep, sub, sub.topics || [], App.imp.topic, App.imp.focus)
     : promptFor(kind, App.prep || 'my exam', App.subjects);
 }
+// "From Faria: 18 MCQs · Computer Networks" while adding something a friend shared
+function renderShareBanner() {
+  const sh = App.imp.share, box = $('impShare');
+  box.hidden = !sh; if (!sh) return;
+  const W = { mcq: ['📝', 'MCQs'], notes: ['📒', 'notes'], syllabus: ['🗂️', 'syllabus'] }[sh.what];
+  const what = sh.what === 'syllabus' ? `the syllabus “${esc(sh.title || '')}”` : `${sh.count} ${W[1]}${sh.subjectName ? ` · ${esc(sh.subjectName)}` : ''}${sh.topicName ? ` · ${esc(sh.topicName)}` : ''}`;
+  box.innerHTML = `<span class="sb-ic">${W[0]}</span><div><strong>From ${esc(sh.from)}</strong><span>${what}</span>
+    <small class="muted">${sh.what === 'syllabus' ? (App.imp.target === 'new' ? 'A new prep will be made from it.' : `It will be merged into <b>${esc(App.prep ? App.prep.name : '')}</b>: subjects you already have keep your names and marks; new topics are added.`)
+      : 'Pick the subject in your prep where they belong. Anything you already have is merged, not added twice.'}</small>
+    ${sh.what === 'syllabus' && App.imp.target !== 'new' ? '<button class="linkbtn" type="button" data-sharenew>Start a new prep from it instead</button>' : ''}</div>`;
+  const nb = box.querySelector('[data-sharenew]');
+  if (nb) nb.onclick = () => { App.imp.target = 'new'; App.imp.checked = null; renderImport(); doCheck(); };
+}
 function renderImport() {
   const { target, kind } = App.imp;
   const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
   $('impTitle').textContent = target === 'new' ? 'New prep from a file' : `Add to ${App.prep ? App.prep.name : ''}`;
   $('impText').placeholder = { mcq: '{ "type": "mcq", "questions": [ ... ] }', notes: '{ "type": "notes", "notes": [ ... ] }', syllabus: '{ "type": "syllabus", "subjects": [ ... ] }', prep: '{ "type": "prep", ... }' }[kind] || '';
+  renderShareBanner();
+  $('impKinds').hidden = !!App.imp.share; if ($('impSoon')) $('impSoon').hidden = !!App.imp.share;
   $('impKinds').innerHTML = kinds.map(k => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${k === kind}">${KIND_LABEL[k]}</button>`).join('');
   const perSubject = target !== 'new' && (kind === 'mcq' || kind === 'notes'), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
   if (perSubject && !sub) App.imp.subject = null;
-  $('impHelp').hidden = $('impPaste').hidden = perSubject && !sub;
+  $('impHelp').hidden = $('impPaste').hidden = (perSubject && !sub) || !!App.imp.share;
   renderPick();
   if (perSubject && !sub) { $('impPreview').hidden = true; renderSubjectsCard(); return; }
   if (kind === 'prep') {
@@ -1000,7 +1018,7 @@ $('impKinds').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]'); if (!b) return;
   App.imp.kind = b.dataset.kind; App.imp.checked = null; renderImport();
 });
-$('impBack').addEventListener('click', () => { if (App.imp.back === 'preps' || !App.prep) showPreps(); else if (App.imp.back === 'syllabus') MODES.syllabus(); else show('home'); });
+$('impBack').addEventListener('click', () => { if (App.imp.back === 'thread' && App.imp.share && friendship(App.imp.share.fid)) openThread(App.imp.share.fid); else if (App.imp.back === 'preps' || !App.prep) showPreps(); else if (App.imp.back === 'syllabus') MODES.syllabus(); else show('home'); });
 $('impFile').addEventListener('change', () => {
   const f = $('impFile').files[0]; if (!f) return;
   const r = new FileReader();
@@ -1050,6 +1068,12 @@ function checkImport(parsed, target) {
     }
     if (target === 'new' && !sy.syllabus.name) out.problems.unshift('The file has no "name". The prep will be called "My prep".');
     if (target === 'active') {
+      // a subject with another short code but the same (or a very similar) name is yours: use your code
+      sy.syllabus.subjects = sy.syllabus.subjects.map(ns => {
+        if (App.subjects.some(x => x.code === ns.code && (normTopic(x.name) === normTopic(ns.name) || matchTopic(ns.name, [x.name]) >= 0 || x.name === x.code))) return ns;
+        const i = matchTopic(ns.name, App.subjects.map(x => x.name));
+        return i >= 0 ? { ...ns, code: App.subjects[i].code } : App.subjects.some(x => x.code === ns.code) ? { ...ns, code: freeCode(ns.code) } : ns;
+      });
       const old = new Map(App.subjects.map(s => [s.code, s]));
       out.added = sy.syllabus.subjects.filter(s => !old.has(s.code));
       out.changed = sy.syllabus.subjects.filter(s => old.has(s.code) && JSON.stringify(old.get(s.code)) !== JSON.stringify(s));
@@ -1093,21 +1117,20 @@ function checkImport(parsed, target) {
     const block = blockedBy();
     if (block.blocked) return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block };
     const others = topicSort(r.questions);
-    let fresh = 0, updated = 0, same = 0;
-    r.questions.forEach(q => {
-      const old = App.bank[q.id];
-      if (!old) fresh++;
-      else if (JSON.stringify({ ...old, added: '' }) === JSON.stringify({ ...q, added: '' })) same++;
-      else updated++;
-    });
-    return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same, others };
+    return { kind: 'mcq', all: r.questions, problems: r.problems, newSubjects: r.newSubjects, others, ...planFor('mcq', r.questions) };
   }
   const r = cleanNotes(d.notes || [], subjects, today);
   { const block = blockedBy(); if (block.blocked) return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block }; }
   const others = topicSort(r.notes);
-  let fresh = 0, updated = 0, same = 0;
-  r.notes.forEach(n => { const old = App.notesMap[n.id]; if (!old) fresh++; else if (JSON.stringify({ ...old, added: '' }) === JSON.stringify({ ...n, added: '' })) same++; else updated++; });
-  return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same, others };
+  return { kind: 'notes', all: r.notes, problems: r.problems, newSubjects: r.newSubjects, others, ...planFor('notes', r.notes) };
+}
+// what will be written: new items, plus merged ones (see mergePlan); "similar" ones only if you ask
+function freeCode(code) { let n = 2; while (App.subjects.some(x => x.code === code + n)) n++; return (code + n).slice(0, 8); }
+function planFor(kind, items) {
+  const existing = Object.values(kind === 'mcq' ? App.bank : App.notesMap), share = !!(App.imp && App.imp.share);
+  const p = mergePlan(kind, items, existing, share ? 'share' : 'paste', share && App.imp.takeTheirs);
+  const write = share && App.imp.addSimilar ? [...p.write, ...p.similar.map(x => x.item)] : p.write;
+  return { [kind === 'mcq' ? 'questions' : 'notes']: write, fresh: p.fresh, updated: p.updated, same: p.same, filled: p.filled, conflicts: p.conflicts, similar: p.similar, conflictList: p.conflictList, share };
 }
 
 function renderPreview() {
@@ -1129,15 +1152,21 @@ function renderPreview() {
   box.classList.remove('blocked');
   if (c.kind === 'mcq' || c.kind === 'notes') {
     const word = c.kind === 'mcq' ? 'question' : 'note';
-    parts.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.same ? `, ${c.same} already in the app` : ''}</strong>`);
+    parts.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.filled ? `, ${c.filled} merged` : ''}${c.same ? `, ${c.same} already in the app` : ''}${c.conflicts ? `, ${c.conflicts} you already have in another version` : ''}</strong>`);
     if (c.updated) parts.push(`<span class="muted">Updated ${word}s keep your progress.</span>`);
+    if (c.filled) parts.push(`<span class="muted">Merged: you already had ${c.filled === 1 ? 'this one' : 'these'}; only the parts you were missing are added${c.kind === 'notes' ? ' (note points are combined)' : ''}. Your progress stays.</span>`);
+    if (c.conflicts) parts.push(`<div class="merge-choice"><span>${plural(c.conflicts, word)} ${c.conflicts === 1 ? 'is' : 'are'} different from yours${c.conflictList.some(x => x.field === 'answer') ? ' — <b>including a different answer</b>' : ''}. Which version should stay?</span>
+      <div class="seg seg2" role="group"><button type="button" data-imptheirs="0" aria-pressed="${!App.imp.takeTheirs}">Keep mine</button><button type="button" data-imptheirs="1" aria-pressed="${!!App.imp.takeTheirs}">Use theirs</button></div></div>`);
+    if (c.similar && c.similar.length) parts.push(`<div class="merge-choice"><span>${plural(c.similar.length, word)} ${c.similar.length === 1 ? 'looks' : 'look'} like ${c.similar.length === 1 ? 'one' : 'ones'} you already have (same answer, slightly different words), for example “${esc(c.similar[0].item.question)}” ≈ “${esc(c.similar[0].like.question)}”.</span>
+      <div class="seg seg2" role="group"><button type="button" data-impsimilar="0" aria-pressed="${!App.imp.addSimilar}">Skip them</button><button type="button" data-impsimilar="1" aria-pressed="${!!App.imp.addSimilar}">Add anyway</button></div></div>`);
     if (c.others && c.others.length) {
       const names = [...new Set(c.others)];
       parts.push(`<div class="others-note"><span>${plural(c.others.length, word)} did not match a syllabus topic, so ${c.others.length === 1 ? 'it goes' : 'they go'} under <b>Others</b>: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}.</span><small class="muted">If one belongs to another subject, don't add; switch subject instead. You can turn any of these into a syllabus topic later from the Syllabus tab.</small></div>`);
     }
-    canAdd = c.fresh + c.updated > 0; addLabel = `Add ${plural(c.fresh + c.updated, word)}`;
-    if (c.kind === 'mcq') parts.push(c.questions.slice(0, 3).map(q => `<div class="qpreview"><span class="mono muted">${esc(q.subject)} · ${esc(q.topic)}</span><span>${esc(q.question)}</span><span class="muted">Answer: ${esc(q.answer)}</span></div>`).join(''));
-    else parts.push(c.notes.slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
+    const n = (c.kind === 'mcq' ? c.questions : c.notes).length;
+    canAdd = n > 0; addLabel = c.fresh + c.updated === n ? `Add ${plural(n, word)}` : `Add and merge (${n})`;
+    if (c.kind === 'mcq') parts.push((c.all || c.questions).slice(0, 3).map(q => `<div class="qpreview"><span class="mono muted">${esc(q.subject)} · ${esc(q.topic)}</span><span>${esc(q.question)}</span><span class="muted">Answer: ${esc(q.answer)}</span></div>`).join(''));
+    else parts.push((c.all || c.notes).slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
   } else {
     const s = c.syllabus;
     parts.push(`<strong>${esc(s.name || (App.imp.target === 'active' && App.prep ? App.prep.name : 'My prep'))}</strong><span class="muted">${s.examDate ? `Exam ${esc(s.examDate)}` : 'No exam date'}${s.marking ? ` · +${s.marking.correct} / ${s.marking.wrong} per question` : ''} · ${plural(s.subjects.length, 'subject')}</span>`);
@@ -1158,6 +1187,8 @@ function renderPreview() {
 }
 $('impPreview').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.imptheirs !== undefined) { App.imp.takeTheirs = b.dataset.imptheirs === '1'; return doCheck(); }
+  if (b.dataset.impsimilar !== undefined) { App.imp.addSimilar = b.dataset.impsimilar === '1'; return doCheck(); }
   if (b.dataset.impswitch) { App.imp.subject = b.dataset.impswitch; App.imp.topic = ''; App.imp.focus = null; renderImport(); doCheck(); }
 });
 
@@ -1165,7 +1196,7 @@ async function applyImport(btn) {
   const c = App.imp.checked;
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    if (App.imp.target === 'new') { await createFromChecked(c); return; }
+    if (App.imp.target === 'new') { const sh = App.imp.share; await createFromChecked(c); if (sh) { App.imp = { share: sh }; await shareAdded(c); } return; }
     const base = Store.prepPath(App.prepId), writes = [];
     let subjects = App.subjects.map(s => ({ ...s }));
     const prepFields = {};
@@ -1175,12 +1206,19 @@ async function applyImport(btn) {
         const i = subjects.findIndex(x => x.code === ns.code);
         if (i < 0) { subjects.push(ns); continue; }
         const topics = [...(subjects[i].topics || [])];          // keep your topics, add the new ones
-        (ns.topics || []).forEach(t => { if (!topics.some(x => normTopic(x) === normTopic(t))) topics.push(t); });
-        subjects[i] = { ...subjects[i], ...ns, ...(topics.length ? { topics } : {}) };
+        (ns.topics || []).forEach(t => { if (!topics.some(x => normTopic(x) === normTopic(t) || matchTopic(t, [x]) >= 0)) topics.push(t); });
+        const mine = subjects[i], keepMine = !!App.imp.share;     // from a friend: your names and marks stay, only gaps are filled
+        subjects[i] = keepMine ? { ...ns, ...Object.fromEntries(Object.entries(mine).filter(([, v]) => !isEmptyVal(v))), ...(topics.length ? { topics } : {}) }
+          : { ...mine, ...ns, ...(topics.length ? { topics } : {}) };
       }
-      if (s.name) prepFields.name = s.name;
-      if (s.examDate) prepFields.examDate = s.examDate;
-      if (s.marking) prepFields.marking = s.marking;
+      if (App.imp.share) {
+        if (s.examDate && !App.prep.examDate) prepFields.examDate = s.examDate;
+        if (s.marking && !App.prep.marking) prepFields.marking = s.marking;
+      } else {
+        if (s.name) prepFields.name = s.name;
+        if (s.examDate) prepFields.examDate = s.examDate;
+        if (s.marking) prepFields.marking = s.marking;
+      }
     }
     for (const code of c.newSubjects || []) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, marks: 0, part: '' });
     if (JSON.stringify(subjects) !== JSON.stringify(App.subjects) || Object.keys(prepFields).length) {
@@ -1197,6 +1235,7 @@ async function applyImport(btn) {
       writes.push(...chunkWrites(`${base}/${isQ ? 'bank' : 'notes'}`, isQ ? 'q' : 'n', by, isQ ? App.bankDocs : App.notesDocs));
     }
     await Store.write(writes);
+    if (await shareAdded(c)) return;
     toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added. ${c.kind === 'mcq' ? 'New questions join your next review.' : 'See them in Revision notes.'}`);
     const summary = c.kind === 'mcq' ? plural(c.questions.length, 'question') : c.kind === 'notes' ? plural(c.notes.length, 'note') : 'a syllabus update';
     Activity.log('content_added', { prep: App.prep.name, kind: c.kind, summary });

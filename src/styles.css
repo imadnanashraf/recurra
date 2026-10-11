@@ -1298,3 +1298,40 @@ main > section#thread { padding-bottom: 0; }
 .sendbtn { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
 .sendbtn svg { width: 20px; height: 20px; fill: currentColor; }
 @media (min-width: 1024px) { .thread-head { top: 61px; } main > section#chat, main > section#thread { max-width: 760px; } }
+/* sharing in chat */
+.composer { grid-template-columns: auto minmax(0, 1fr) auto; }
+.plusbtn { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); }
+.plusbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; transition: transform .2s var(--ease-out, ease); }
+.plusbtn[aria-expanded="true"] svg { transform: rotate(45deg); }
+.share-panel { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 4; gap: 10px; margin-bottom: 8px; animation: riseIn .2s var(--ease-out, ease) both; box-shadow: var(--shadow-lg, var(--shadow)); }
+.share-panel label { font-size: .85rem; font-weight: 700; }
+.share-panel select, .share-panel input { width: 100%; }
+.sp-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.sp-head strong { font-size: 1rem; }
+.sp-head .iconbtn { width: 34px; height: 34px; font-size: 1rem; }
+.sp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sp-opt { display: grid; justify-items: start; gap: 2px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); text-align: left; font: inherit; color: var(--ink); cursor: pointer; transition: transform .12s, border-color .12s; }
+.sp-opt:hover { border-color: var(--accent); transform: translateY(-1px); }
+.sp-opt span { font-size: 1.5rem; line-height: 1.2; }
+.sp-opt b { font-size: .92rem; }
+.sp-opt small { color: var(--muted); font-size: .75rem; }
+.sp-sum { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--sunken); }
+.sp-sum span { font-size: 1.6rem; }
+.sp-sum div { display: grid; }
+.sp-sum small { color: var(--muted); }
+.bubble.card-msg { min-width: min(260px, 78vw); }
+.share-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; }
+.sc-ic { font-size: 1.7rem; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, currentColor 10%, transparent); }
+.sc-body { display: grid; gap: 1px; }
+.sc-body b { font-size: .95rem; }
+.sc-body small { opacity: .8; font-size: .8rem; }
+.sc-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 6px; margin-top: 4px; border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.sc-state { font-size: .78rem; font-weight: 700; opacity: .85; }
+.mine .sc-act .linkbtn, .mine .sc-state { color: inherit; }
+.theirs .sc-act .btn.primary { min-height: 36px; }
+.share-banner { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(var(--accent-soft), var(--surface) 80%); }
+.share-banner .sb-ic { font-size: 2rem; line-height: 1; }
+.share-banner > div { display: grid; gap: 3px; }
+.share-banner .linkbtn { justify-self: start; }
+.merge-choice { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--sunken); }
+.seg.seg2 { grid-template-columns: repeat(2, 1fr); }
