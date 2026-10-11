@@ -23,14 +23,14 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// Reminder pushes sent by the reminder job (Firebase Cloud Messaging, data message)
+// Pushes: daily reminders (reminder job) and chat / live-test alerts (push sender). Firebase Cloud Messaging data messages.
 self.addEventListener('push', e => {
   let p = {};
   try { p = e.data ? e.data.json() : {}; } catch (err) { p = { data: { body: e.data && e.data.text() } }; }
   const d = Object.assign({}, p.notification || {}, p.data || {});
   e.waitUntil(self.registration.showNotification(d.title || 'Recurra', {
     body: d.body || 'Your daily review is ready whenever you are.',
-    icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'daily-review', renotify: true,
+    icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: d.tag || 'daily-review', renotify: true,
     data: { url: d.url || './' },
   }));
 });
@@ -38,7 +38,7 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   const target = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    for (const c of list) if (c.url.startsWith(self.registration.scope)) return c.focus();
+    for (const c of list) if (c.url.startsWith(self.registration.scope)) { c.postMessage({ open: new URL(target).hash }); return c.focus(); }
     return self.clients.openWindow(target);
   }));
 });

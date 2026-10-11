@@ -11,7 +11,7 @@
      users/{uid}/tests/{rid}     your saved result (history)
    ===================================================================== */
 const ROOM_MAX = 5, LT_SIZES = [10, 20, 30], LT_MINUTES = [5, 10, 15, 20];
-const LT = { rid: null, room: null, players: {}, unsubs: [], tick: null, k: 0, picked: null, pops: [], popBusy: false, prev: {}, saved: false, setup: null, view: null, adv: null, shownAt: 0 };
+const LT = { rid: null, view: null, room: null, players: {}, unsubs: [], tick: null, k: 0, picked: null, pops: [], popBusy: false, prev: {}, saved: false, setup: null, view: null, adv: null, shownAt: 0 };
 
 /* ---------- seeded shuffles: the same for you on every device, different for each person ---------- */
 function seedOf(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); } return h >>> 0; }
@@ -76,12 +76,8 @@ async function createRoom() {
   const ref = Store.fs.collection('rooms').doc();
   await ref.set(room);
   await Store.fs.doc(`rooms/${ref.id}/players/${me}`).set(blankPlayer());
-  for (const u of S.friends) {                      // an invite card in each friend's chat
-    const f = friendship(pairId(me, u)); if (!f || f.status !== 'accepted') continue;
-    const at = Date.now();
-    await Store.fs.collection(`chats/${f.id}/messages`).doc().set({ from: me, at, kind: 'test', rid: ref.id, title: room.title, topicName: room.topicName, n: room.n, mins: S.min, text: '', status: 'sent' });
-    await Store.fs.doc(`friendships/${f.id}`).set({ lastAt: at, lastText: `🏁 Live test: ${room.title}`, lastFrom: me, lastKind: 'test', ['read_' + me]: at }, { merge: true });
-  }
+  // the invite reaches friends through the Tests tab (live), and as a notification when their app is closed
+  for (const u of S.friends) Push.send(u, 'test', { title: '🏁 Live test invite', body: `${displayName()} invites you: ${room.title} · ${room.n} questions`, where: '#room=' + ref.id, tag: 'room-' + ref.id, room: ref.id });
   Activity.log('test_hosted', { title: room.title, n: room.n, with: [...S.friends].map(u => '@' + ((Social.people[u] || {}).username || '')).join(', ') || 'solo' });
   openRoom(ref.id);
 }
@@ -99,6 +95,7 @@ function openRoom(rid) {
   LT.unsubs.push(Store.fs.collection(`rooms/${rid}/players`).onSnapshot(s => {
     const next = {}; s.docs.forEach(d => { next[d.id] = { uid: d.id, ...(d.data() || {}) }; });
     if (LT.room && LT.room.status === 'live') popEvents(LT.players, next);
+    if (LT.room && LT.room.status === 'lobby' && Object.keys(next).length > Object.keys(LT.players).length && Object.keys(LT.players).length) Sound.play('join');
     LT.players = next; Object.keys(next).forEach(u => { if (u !== meUid()) { watchPerson(u); loadPerson(u); } });
     renderRoom(false);
   }, e => console.warn('players', e)));
@@ -111,8 +108,8 @@ function onTick() {
   if (r.status === 'lobby') return;
   if (r.status === 'live' && LT.view === 'countdown') {
     const g = $('ltGo'), left = r.startAt - Date.now();
-    if (left > 0) { if (g) g.textContent = Math.ceil(left / 1000); return; }
-    return renderRoom(true);
+    if (left > 0) { const n = Math.ceil(left / 1000); if (g && g.textContent !== String(n)) { g.textContent = n; Sound.play('tick'); } return; }
+    Sound.play('go'); return renderRoom(true);
   }
   if (r.status === 'live') {
     const t = $('ltClock'); if (t) { const left = r.endAt - Date.now(); t.textContent = mmss(left); t.classList.toggle('low', left < 60e3); }
@@ -180,10 +177,11 @@ async function pickAnswer(k) {
   document.querySelectorAll('#ltQ .lt-opt').forEach((b, j) => { b.disabled = true; if (LT.opts[j] === q.answer) b.classList.add('right'); else if (j === k) b.classList.add('wrong'); });
   const streak = ok ? (me.streak || 0) + 1 : 0;
   $('ltFb').innerHTML = ok ? `<b class="good">✓ Right!</b>${streak >= 3 ? ` <span>🔥 ${streak} in a row</span>` : ''}` : `<b class="bad">✗ It's “${esc(q.answer)}”.</b>${q.explanation ? ` <span>${rich(q.explanation)}</span>` : ''}`;
+  Sound.play(ok ? (streak >= 3 && streak % 1 === 0 && [3, 5, 8].includes(streak) ? 'streak' : 'right') : 'wrong');
   if (navigator.vibrate && prefs().haptics !== false) try { navigator.vibrate(ok ? 15 : [30, 40, 30]); } catch (e) {}
   const answers = { ...(me.answers || {}), [i]: { p: pick, ok, ms: Date.now() - LT.shownAt } };
   const next = { ...me, answers, answered: Object.keys(answers).length, correct: (me.correct || 0) + (ok ? 1 : 0), streak, best: Math.max(me.best || 0, streak) };
-  if (next.answered >= r.n) { next.finishedAt = Date.now(); next.timeMs = next.finishedAt - r.startAt; }
+  if (next.answered >= r.n) { next.finishedAt = Date.now(); next.timeMs = next.finishedAt - r.startAt; setTimeout(() => Sound.play('finish'), 400); }
   LT.players[meUid()] = next;
   if (streak === 3 || streak === 5 || streak === 8) pop(`🔥 ${streak} in a row! You're on fire`);
   Store.fs.doc(`rooms/${LT.rid}/players/${meUid()}`).set(next).catch(e => { console.warn(e); toast('Connection problem. Your answers are saved when you are back online.'); });
@@ -203,7 +201,7 @@ function finishMine() {
   const next = { ...me, finishedAt: Date.now(), timeMs: Math.min(Date.now(), r.endAt) - r.startAt };
   LT.players[meUid()] = next;
   Store.fs.doc(`rooms/${LT.rid}/players/${meUid()}`).set(next).catch(() => {});
-  renderRoom(true);
+  Sound.play('finish'); renderRoom(true);
 }
 function renderWait() {
   const r = LT.room, me = LT.players[meUid()], left = joined().filter(p => !p.finishedAt);
@@ -270,7 +268,7 @@ function renderResults() {
     <div class="btns">${notMine.length ? `<button class="btn primary" type="button" data-ltaddwrong>Add the ${plural(notMine.length, 'question')} I got wrong to my prep</button>` : ''}
       <button class="btn" type="button" data-lthistory>My test history</button><button class="btn ghost" type="button" data-ltback>Done</button></div>
     ${myWrong.length && myWrong.length > notMine.length ? `<p class="muted small center">Questions you got wrong that are already in your prep will come back sooner in your revision.</p>` : ''}</div>`;
-  if (mineP && !LT.saved) saveHistory(R, stats, traps);
+  if (mineP && !LT.saved) { saveHistory(R, stats, traps); Sound.play(myRank === 0 ? 'win' : 'finish'); }
 }
 async function saveHistory(R, stats, traps) {
   LT.saved = true;
@@ -295,7 +293,7 @@ const BADGES = [
   { id: 'fire', icon: '🔥', name: 'On fire', how: '5 right answers in a row', test: H => H.some(t => (t.me.best || 0) >= 5) },
   { id: 'ten', icon: '🎖️', name: 'Regular', how: 'Play 10 live tests', test: H => H.length >= 10 },
 ];
-MODES.tests = () => { leaveRoom(); LT.view = 'history'; $('roomView').innerHTML = '<p class="muted center">Loading your tests…</p>'; show('room'); loadHistory(); };
+MODES.tests = () => { leaveRoom(); markInvitesSeen(); LT.view = 'history'; $('roomView').innerHTML = '<p class="muted center">Loading your tests…</p>'; show('room'); loadHistory(); };
 async function loadHistory() {
   let H = [];
   try { const s = await Store.fs.collection(`users/${meUid()}/tests`).get(); H = s.docs.map(d => d.data()).filter(t => t && t.me).sort((a, b) => (b.at || 0) - (a.at || 0)); } catch (e) { console.warn(e); }
@@ -305,8 +303,9 @@ async function loadHistory() {
   const best = H.reduce((a, t) => Math.max(a, Math.round(100 * t.me.correct / t.n)), 0);
   const h2h = {};
   H.forEach(t => t.players.forEach(p => { if (p.uid === me) return; const x = h2h[p.uid] = h2h[p.uid] || { uid: p.uid, name: p.name, w: 0, l: 0 }; x.name = p.name || x.name; if (t.me.rank < p.rank) x.w++; else x.l++; }));
-  $('roomView').innerHTML = `<div class="head-row"><h2>Live tests</h2><button class="btn ghost" type="button" data-ltback>${icon('back')}Back</button></div>
+  $('roomView').innerHTML = `<div class="head-row"><h2>Live tests</h2></div>
     <div class="btns"><button class="btn primary" type="button" data-ltnew>🏁 Start a new live test</button></div>
+    <div id="ltInvites"></div>
     ${H.length ? `<div class="lt-stats">
         <div class="stat"><b>${H.length}</b><small>Tests played</small></div><div class="stat"><b>${wins}</b><small>Wins</small></div>
         <div class="stat"><b>${avg}%</b><small>Average score</small></div><div class="stat"><b>${best}%</b><small>Best score</small></div></div>
@@ -321,6 +320,7 @@ async function loadHistory() {
         <span class="lt-rank r${t.me.rank}">${['🥇', '🥈', '🥉'][t.me.rank - 1] || '#' + t.me.rank}</span>
         <span class="pmain"><b>${esc(t.title)}${t.topicName ? ' · ' + esc(t.topicName) : ''}</b><small>${esc(fmtDate(t.at))} · ${t.players.length > 1 ? `with ${esc(t.players.filter(p => p.uid !== me).map(p => (p.name || '').split(' ')[0]).join(', '))}` : 'solo'}</small></span>
         <span class="lt-sc">${t.me.correct}/${t.n}</span></button>`).join('')}</div></section>` : ''}`;
+  paintInviteList();
   if (H.length > 1) {
     const pts = [...H].reverse().slice(-20);
     lineChart($('ltChart'), { title: 'Your scores', sub: `Last ${pts.length} tests`, data: pts.map(t => ({ label: new Date(t.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }), value: Math.round(100 * t.me.correct / t.n), tip: `<b>${esc(t.title)}</b><br>${esc(fmtDate(t.at))}<br>${t.me.correct}/${t.n} · ${['1st', '2nd', '3rd', '4th', '5th'][t.me.rank - 1]} of ${t.players.length}` })), every: Math.max(1, Math.ceil(pts.length / 6)) });
@@ -332,7 +332,7 @@ $('room').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   const d = b.dataset;
   try {
-    if ('ltback' in d) { leaveRoom(); LT.view = null; return MODES.chat(); }
+    if ('ltback' in d) { const v = LT.view; leaveRoom(); LT.view = null; return v === 'history' ? goHome() : MODES.tests(); }
     if (d.ltfriend) { const S = LT.setup; if (S.friends.has(d.ltfriend)) S.friends.delete(d.ltfriend); else if (S.friends.size < ROOM_MAX - 1) S.friends.add(d.ltfriend); else toast(`At most ${ROOM_MAX - 1} friends.`); return renderLtSetup(); }
     if (d.ltn) { LT.setup.n = Number(d.ltn); return renderLtSetup(); }
     if (d.ltmin) { LT.setup.min = Number(d.ltmin); return renderLtSetup(); }
@@ -361,7 +361,41 @@ document.addEventListener('keydown', e => {
   if (!visible('room') || LT.view !== 'live' || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
   const k = '1234abcd'.indexOf(e.key.toLowerCase()); if (k >= 0 && LT.opts && k % 4 < LT.opts.length) pickAnswer(k % 4);
 });
-// the invite card in the chat
-MSG_KINDS.test = (m, mine, f) => `<div class="share-card"><span class="sc-ic">🏁</span><div class="sc-body"><b>Live test: ${esc(m.title || '')}</b><small>${m.topicName ? esc(m.topicName) + ' · ' : ''}${plural(m.n || 0, 'question')} · ${m.mins || 10} min</small></div></div>
-  <div class="sc-act">${mine ? '<small class="sc-state">You invited them</small>' : `<small class="sc-state">${esc(friendName(otherOf(f)))} invites you</small>`}<button class="btn small ${mine ? '' : 'primary'}" type="button" data-ltgo="${esc(m.rid)}">${mine ? 'Open' : 'Join'}</button></div>`;
-$('msgList').addEventListener('click', e => { const b = e.target.closest('[data-ltgo]'); if (b) openRoom(b.dataset.ltgo); });
+
+/* ---------- invites: live, in the Tests tab (badge + pop-up anywhere in the app) ---------- */
+const Invites = { unsub: null, rooms: [], first: true };
+const seenRooms = () => { try { return new Set(JSON.parse(localStorage.getItem('rc-seenrooms-' + meUid()) || '[]')); } catch (e) { return new Set(); } };
+function markInvitesSeen() { try { const s = seenRooms(); Invites.rooms.forEach(r => s.add(r.id)); localStorage.setItem('rc-seenrooms-' + meUid(), JSON.stringify([...s].slice(-200))); } catch (e) {} paintTestsTab(); }
+const openInvites = () => Invites.rooms.filter(r => r.host !== meUid() && (r.status === 'lobby' || r.status === 'live') && Date.now() - (r.created || 0) < 6 * 3600e3 && (r.status === 'lobby' || Date.now() < (r.endAt || 0)));
+const myOpenRooms = () => Invites.rooms.filter(r => r.host === meUid() && (r.status === 'lobby' || (r.status === 'live' && Date.now() < (r.endAt || 0))));
+function startInvites() {
+  stopInvites(); if (!App.authUser || App.viewAs) return;
+  Invites.first = true;
+  Invites.unsub = Store.fs.collection('rooms').where('invited', 'array-contains', meUid()).onSnapshot(s => {
+    const before = new Set(Invites.rooms.map(r => r.id));
+    Invites.rooms = s.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+    const seen = seenRooms();
+    openInvites().forEach(r => {
+      if (before.has(r.id) || seen.has(r.id) || (Invites.first && Date.now() - (r.created || 0) > 15 * 60e3)) return;
+      if (LT.rid === r.id) return;
+      loadPerson(r.host).then(() => {
+        const t = `${friendName(r.host)} invited you to a live test: ${r.title}`;
+        toast(`🏁 ${t}`); Sound.play('invite'); Notify.show('🏁 Live test invite', t, 'room-' + r.id, '#room=' + r.id);
+      });
+    });
+    Invites.first = false;
+    paintTestsTab();
+    if (visible('room') && LT.view === 'history') paintInviteList();
+  }, e => console.warn('rooms', e));
+}
+function stopInvites() { if (Invites.unsub) { try { Invites.unsub(); } catch (e) {} Invites.unsub = null; } Invites.rooms = []; paintTestsTab(); }
+function paintTestsTab() {
+  const b = $('testsBadge'); if (!b) return;
+  const seen = seenRooms(), n = openInvites().filter(r => !seen.has(r.id)).length;
+  b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n);
+}
+function paintInviteList() {
+  const box = $('ltInvites'); if (!box) return;
+  const inv = openInvites(), mine = myOpenRooms();
+  box.innerHTML = inv.length || mine.length ? `<section class="card lt-inv"><h3>${inv.length ? 'Invites for you' : 'Your open test'}</h3>${[...inv, ...mine].map(r => `<div class="lt-inv-row">${pAvatar(ltPerson(r.host), 'lt-mini2')}<span class="pmain"><b>${esc(r.host === meUid() ? 'Your test' : (friendName(r.host) + ' invites you'))}</b><small>${esc(r.title)}${r.topicName ? ' · ' + esc(r.topicName) : ''} · ${plural(r.n, 'question')} · ${r.status === 'live' ? '<span class="live-dot">live now</span>' : 'waiting in the lobby'}</small></span><button class="btn small ${r.host === meUid() ? '' : 'primary'}" type="button" data-ltopen="${esc(r.id)}">${r.host === meUid() ? 'Open' : r.status === 'live' ? 'Watch' : 'Join'}</button></div>`).join('')}</section>` : '';
+}

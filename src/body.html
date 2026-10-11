@@ -15,6 +15,7 @@
   <button type="button" data-mode="topic" data-tab="topic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg><span>Practice</span></button>
   <button type="button" data-mode="syllabus" data-tab="syllabus" id="sylTab" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5v13c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z"/><path d="M12 6v13.5"/></svg><span>Syllabus</span></button>
   <button type="button" data-mode="notes" data-tab="notes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/></svg><span>Notes</span></button>
+  <button type="button" data-mode="tests" data-tab="tests" id="testsTab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 13v4M8 21h8M9 17h6v4H9z"/></svg><span>Tests</span><i class="tab-badge" id="testsBadge" hidden></i></button>
   <button type="button" data-mode="progress" data-tab="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Progress</span></button>
   <button type="button" data-mode="admin" data-tab="admin" id="adminTab" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Admin</span></button>
 </nav>
@@ -182,6 +183,7 @@
         <h3>Study</h3>
         <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
         <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="optSound"><span>Sounds<small>Soft sounds for messages, friend requests and live tests. Never on loop; off here any time.</small></span></label>
         <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
       </div>
       <div class="card form">
@@ -311,7 +313,6 @@
       <div class="card chart-card" id="chAcc"></div>
     </div>
     <div class="card chart-card" id="chMem"></div>
-    <button class="card lt-link" type="button" data-mode="tests"><span>🏆</span><span class="pmain"><b>Live tests with friends</b><small>Your scores, wins, head-to-head and badges</small></span><span data-icon="next"></span></button>
     <h3 class="sec-title">By subject</h3>
     <div class="subj-grid" id="pSubjects"></div>
     <p class="muted small">Strong = remembered at level 4 or 5 (gaps of 2 weeks or more). Due = waiting in today's review.</p>
@@ -489,6 +490,9 @@
     </div>
   </section>
 </main>
+
+<!-- A PROFILE PHOTO, LARGE -->
+<div class="sheet photo-view" id="photoView" role="dialog" aria-modal="true" aria-label="Profile" hidden></div>
 
 <!-- ONE-TIME PROFILE SETUP: first name, last name, @username -->
 <div class="sheet" id="setupSheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle" hidden>

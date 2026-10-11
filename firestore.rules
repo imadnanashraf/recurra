@@ -69,7 +69,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt'])) ||
         // chat bookkeeping: last message and "read up to"
         (resource.data.status == 'accepted' && request.resource.data.status == 'accepted'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastAt', 'lastText', 'lastFrom', 'lastKind', 'read_' + request.auth.uid])) ||
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastAt', 'lastText', 'lastFrom', 'lastKind', 'read_' + request.auth.uid, 'typing_' + request.auth.uid])) ||
         // block
         (request.resource.data.status == 'blocked' && request.resource.data.blockedBy == request.auth.uid && resource.data.status != 'blocked'));
       // decline, cancel, remove, unblock (a block can only be lifted by the person who blocked)
@@ -84,9 +84,9 @@ service cloud.firestore {
       allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
-      // a card's state only: "added", "sent", a live-test result
+      // a card's state ("added", "sent") or your own reaction (re_<you>)
       allow update: if friends(id) && request.resource.data.from == resource.data.from
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'doneAt', 'doneBy']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'doneAt', 'doneBy', 're_' + request.auth.uid]);
     }
     // what a shared card carries (MCQs, notes, a syllabus): written once by the sender, read by the two friends
     match /chats/{id}/shares/{sid} {

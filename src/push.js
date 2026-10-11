@@ -1,0 +1,42 @@
+/* =====================================================================
+   PUSH: notifications when the app is fully closed.
+   The app asks a tiny free "push sender" (a Cloudflare Worker, see
+   push/README.md) to notify a friend. The sender checks who you are (your
+   Firebase sign-in), that the two of you are friends, and then sends the
+   notification to that friend's phone or browser.
+   Until the sender's address is in config.js (pushUrl), this does nothing:
+   pop-ups, sounds and in-app badges still work as before.
+   ===================================================================== */
+const Push = {
+  url() { return (window.APP_CONFIG && APP_CONFIG.pushUrl) || ''; },
+  // this phone or browser can receive pushes: save its token (Android app, or browser with notifications allowed)
+  async register() {
+    if (!this.url() || !App.authUser || App.viewAs) return;
+    try {
+      if (NATIVE) {
+        const PN = window.capacitorExports && capacitorExports.registerPlugin('PushNotifications');
+        if (!PN) return;
+        const perm = await PN.requestPermissions(); if (perm.receive !== 'granted') return;
+        PN.addListener('registration', t => { if (t && t.value) Store.fs.doc(`users/${meUid()}/devices/a${hashId(t.value)}`).set({ token: t.value, kind: 'android', updated: Date.now() }).catch(() => {}); });
+        PN.addListener('pushNotificationActionPerformed', a => { const w = a && a.notification && a.notification.data && a.notification.data.where; if (w) Route.set(w); });
+        await PN.register();
+        return;
+      }
+      const vapid = window.APP_CONFIG && APP_CONFIG.vapidKey;
+      if (!vapid || !('PushManager' in window) || Notification.permission !== 'granted') return;
+      await loadScript('vendor/firebase-messaging-compat.js');
+      const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+      const token = await firebase.messaging().getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+      if (token) await Store.fs.doc(`users/${meUid()}/devices/w${hashId(token)}`).set({ token, kind: 'web', ua: navigator.userAgent.slice(0, 120), updated: Date.now() });
+    } catch (e) { console.warn('push register', e); }
+  },
+  // ask the sender to notify one person; never waits, never fails loudly
+  async send(to, type, { title, body, where, tag, room } = {}) {
+    const url = this.url(); if (!url || !to || !App.authUser) return;
+    try {
+      const token = await App.fb.auth.currentUser.getIdToken();
+      fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ to, type, title: String(title || 'Recurra').slice(0, 60), body: String(body || '').slice(0, 160), where: where || '', tag: tag || type, room: room || '' }) }).catch(() => {});
+    } catch (e) {}
+  },
+};

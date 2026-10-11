@@ -22,7 +22,7 @@ function show(id) {
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
   const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break', 'thread', 'room'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
-  const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
+  const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', room: 'tests', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
@@ -1269,7 +1269,7 @@ function renderSettings() {
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
-  $('optHaptic').checked = pf.haptics !== false; $('optHapticRow').hidden = !NATIVE;
+  $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
   $('remBox').hidden = !rm.on; $('remTest').hidden = !rm.on;
@@ -1281,6 +1281,7 @@ async function savePrefs(fields) {
   App.profile.prefs = Object.assign(prefs(), fields);
   try { await Store.setProfile({ prefs: App.profile.prefs }); } catch (e) { toast('Saved on this device; it will sync when you are online.'); }
 }
+$('optSound').addEventListener('change', () => { savePrefs({ sounds: $('optSound').checked }); if ($('optSound').checked) Sound.play('join'); });
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
 $('themeChips').addEventListener('click', e => {
@@ -1631,7 +1632,7 @@ function blockedText(p) {
   return 'This account has been deleted.';
 }
 function stopAccount() {
-  if (typeof stopSocial === 'function') stopSocial();
+  if (typeof stopSocial === 'function') { stopSocial(); stopInvites(); }
   if ($('setupSheet')) { $('setupSheet').hidden = true; document.body.classList.remove('sheet-open'); }
   if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
   if (App.profileUnsub) { try { App.profileUnsub(); } catch (e) {} App.profileUnsub = null; }
@@ -1668,7 +1669,7 @@ async function startAccount(user, screen) {
       else if ((p.pwChangedAt || 0) > started && p.pwChangedOn !== DEVICE) { App.blockMsg = 'Your password was changed. Sign in with the new password.'; App.fb.auth.signOut(); }
     });
     Activity.start();
-    startSocial();
+    startSocial(); startInvites(); Push.register(); setTimeout(() => Route.go(), 800);
     if (needsSetup()) openSetup(false); else syncPerson();      // also puts you back in friend search after the admin turns you on again
   }
   App.pendingName = null; App.pendingFirst = App.pendingLast = null;
