@@ -27,6 +27,7 @@ function show(id) {
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
+  if (typeof playIntro === 'function') playIntro(id);
 }
 function goHome() { if (App.prep) show('home'); else showPreps(); }
 function toast(msg) {
@@ -166,12 +167,13 @@ function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
   if (!$('spark').innerHTML) renderSpark();
+  if (!Sky.timer) startSky(); else renderSky();
   renderVerify();
   const p0 = App.prep, ex = examMs();
   if (ex) {
     const days = Math.round((ex - dayStart(Date.now())) / 864e5), m = p0.marking;
     const dateStr = new Date(ex).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-    const mark = m && m.totalQuestions ? ` · ${m.totalQuestions} MCQs · +${m.correct} / ${m.wrong}` : '';
+    const mark = '';
     $('countdown').innerHTML = days >= 0
       ? `<span class="days">${days}</span><span class="what">days to exam</span><span class="meta">${esc(dateStr)}${mark}</span>`
       : `<span class="what">Exam date passed</span>`;

@@ -40,8 +40,8 @@
       <button class="btn" type="button" id="googleBtn">Continue with Google</button>
       <div class="or" id="orLine">or with email</div>
       <div class="signup-only name2" id="nameRow" hidden>
-        <div><label for="loginFirst">First name</label><input id="loginFirst" autocomplete="given-name" maxlength="30" placeholder="e.g. Adnan"></div>
-        <div><label for="loginLast">Last name</label><input id="loginLast" autocomplete="family-name" maxlength="30" placeholder="e.g. Ashraf"></div>
+        <div><label for="loginFirst">First name</label><input id="loginFirst" autocomplete="given-name" maxlength="30" placeholder="e.g. Sara"></div>
+        <div><label for="loginLast">Last name</label><input id="loginLast" autocomplete="family-name" maxlength="30" placeholder="e.g. Mir"></div>
       </div>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" inputmode="email" required>
@@ -77,6 +77,7 @@
   <section id="home" hidden>
     <div class="verify" id="verifyBox" hidden></div>
     <p class="hello" id="hello"></p>
+    <div class="sky" id="sky" role="img"></div>
     <button class="spark" type="button" id="spark" aria-label="A study line for today. Tap for a different scene."></button>
     <div class="countdown" id="countdown"></div>
     <div id="todayCard"></div>
@@ -102,7 +103,7 @@
       <form class="card form" id="newPrepForm">
         <strong>Start from scratch</strong>
         <label for="newPrepName">Name</label>
-        <input id="newPrepName" required maxlength="60" placeholder="e.g. Networking">
+        <input id="newPrepName" required maxlength="60" placeholder="e.g. State Engineering Exam">
         <label for="newPrepDate">Exam date (optional)</label>
         <input id="newPrepDate" type="date">
         <div class="btns"><button class="btn primary" type="submit">Create prep</button></div>
@@ -521,7 +522,7 @@
       <div><label for="setLast">Last name</label><input id="setLast" autocomplete="family-name" maxlength="30"></div>
     </div>
     <label for="setUser">Username</label>
-    <div class="uinput"><span>@</span><input id="setUser" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="adnan_ashraf"></div>
+    <div class="uinput"><span>@</span><input id="setUser" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="sara_mir"></div>
     <p class="uhint" id="setUserHint" aria-live="polite"></p>
     <div class="btns grid"><button class="btn" type="button" id="setCancel" hidden>Cancel</button><button class="btn primary" type="submit" id="setSave">Save</button></div>
     <p class="msg" id="setMsg" role="alert"></p>

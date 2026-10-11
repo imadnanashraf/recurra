@@ -51,7 +51,7 @@ const Activity = {
     };
     let out = { ip: '', place: '', t: Date.now() };
     const a = await get('https://ipapi.co/json/');
-    if (a && a.ip) out = { ip: a.ip, place: [a.city, a.region, a.country_name].filter(Boolean).filter((v, i, l) => l.indexOf(v) === i).join(', '), t: Date.now() };
+    if (a && a.ip) out = { ip: a.ip, place: [a.city, a.region, a.country_name].filter(Boolean).filter((v, i, l) => l.indexOf(v) === i).join(', '), city: a.city || '', lat: a.latitude, lon: a.longitude, t: Date.now() };
     else { const b = await get('https://api.ipify.org?format=json'); if (b && b.ip) out.ip = b.ip; }
     this.netCache = out;
     try { sessionStorage.setItem('rc-net', JSON.stringify(out)); } catch (e) {}

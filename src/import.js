@@ -284,7 +284,7 @@ ${focus ? `My material (optional; if I give none, use standard textbook knowledg
 
 // The AI prompt for MCQs or notes of ONE subject. The AI never writes a subject: the app adds it.
 // allowed = the topics the AI may use (the subject's syllabus topics), pinned = one fixed topic, focus = topics to cover
-// "JKSSB SI Telecom" (exam on 30 Dec 2026) — prep may be a name or the prep itself
+// "State Engineering Exam" (exam on 15 Mar 2027) — prep may be a name or the prep itself
 function examLine(prep) {
   const name = typeof prep === 'string' ? prep : (prep && prep.name) || 'my exam';
   const d = prep && typeof prep === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(prep.examDate || '') ? prep.examDate : '';

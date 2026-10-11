@@ -302,20 +302,49 @@ const playedOK = t => !t.me || t.me.answered === undefined || t.me.answered >= M
 const groupOf = t => (t.players || []).length;
 const STEPS = [1, 3, 5, 10, 20, 35, 50, 75, 100];
 const nextStep = n => n < STEPS.length ? STEPS[n] : STEPS[STEPS.length - 1] + 50 * (n - STEPS.length + 1);   // after 100: every 50 more
+const pct = t => t.n ? t.me.correct / t.n : 0;
+const hourOf = t => new Date(t.at || 0).getHours(), dayOf = t => new Date(t.at || 0).getDay();
+const won = t => t.me.rank === 1 && groupOf(t) >= 2;
+const countOf = f => H => H.filter(f).length;
+// best run of tests in a row (newest last) where f(t) holds
+const runOf = f => H => { let best = 0, cur = 0; [...H].sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(t => { cur = f(t) ? cur + 1 : 0; best = Math.max(best, cur); }); return best; };
+// streak kind: levels at 5, 8, 10, 15 … (fire) or 2, 3, 5, 7 … (runs of tests)
 const BADGES = [
-  { id: 'win', icon: '🏆', name: 'Winner', how: '1st place in a test with friends (2 or more players)', unit: 'win', count: H => H.filter(t => t.me.rank === 1 && groupOf(t) >= 2).length, hit: t => t.me.rank === 1 && groupOf(t) >= 2 },
-  { id: 'perfect', icon: '🎯', name: 'Perfect score', how: 'Every answer right in a test of 10 or more questions (solo counts)', unit: 'perfect test', count: H => H.filter(t => t.n >= 10 && t.me.correct === t.n).length, hit: t => t.n >= 10 && t.me.correct === t.n },
-  { id: 'fast', icon: '⚡', name: 'Fastest finisher', how: 'Finish first with 60% or more, with friends', unit: 'time', count: H => H.filter(t => t.me.firstDone && groupOf(t) >= 2 && t.me.correct / t.n >= 0.6).length, hit: t => t.me.firstDone && groupOf(t) >= 2 && t.me.correct / t.n >= 0.6 },
-  { id: 'trap', icon: '🛡️', name: 'Trap dodger', how: 'Right on a question that at least 2 others got wrong', unit: 'trap', count: H => H.reduce((a, t) => a + (groupOf(t) >= 3 ? (t.me.dodged || 0) : 0), 0), hit: t => groupOf(t) >= 3 && t.me.dodged > 0 },
-  { id: 'fire', icon: '🔥', name: 'On fire', how: 'Right answers in a row (best streak: 5, 8, 10, 15 …)', unit: 'in a row', streak: true, count: H => H.reduce((a, t) => Math.max(a, t.me.best || 0), 0), hit: t => (t.me.best || 0) >= 5 },
-  { id: 'regular', icon: '🎖️', name: 'Regular', how: 'Live tests played (solo counts)', unit: 'test', count: H => H.length, hit: () => true },
+  // winning and placing
+  { id: 'win', icon: '🏆', name: 'Winner', how: '1st place with friends', unit: 'win', count: countOf(won), hit: won },
+  { id: 'champ', icon: '👑', name: 'Champion', how: 'Win tests in a row', unit: 'in a row', run: true, count: runOf(t => won(t)), hit: won },
+  { id: 'podium', icon: '🥈', name: 'Podium', how: 'Top 3 in a test of 3 or more players', unit: 'podium', count: countOf(t => groupOf(t) >= 3 && t.me.rank <= 3), hit: t => groupOf(t) >= 3 && t.me.rank <= 3 },
+  { id: 'close', icon: '📸', name: 'Photo finish', how: 'Win by just one point', unit: 'close win', count: countOf(t => won(t) && t.players.length > 1 && t.me.correct - (t.players.find(p => p.rank === 2) || {}).correct === 1), hit: t => won(t) && t.me.correct - ((t.players.find(p => p.rank === 2) || {}).correct || 0) === 1 },
+  { id: 'fast', icon: '⚡', name: 'Fastest finisher', how: 'Finish first with 60% or more, with friends', unit: 'time', count: countOf(t => t.me.firstDone && groupOf(t) >= 2 && pct(t) >= 0.6), hit: t => t.me.firstDone && groupOf(t) >= 2 && pct(t) >= 0.6 },
+  { id: 'trap', icon: '🛡️', name: 'Trap dodger', how: 'Right where 2 or more others went wrong', unit: 'trap', count: H => H.reduce((a, t) => a + (groupOf(t) >= 3 ? (t.me.dodged || 0) : 0), 0), hit: t => groupOf(t) >= 3 && t.me.dodged > 0 },
+  // getting it right
+  { id: 'perfect', icon: '🎯', name: 'Perfect score', how: 'Every answer right, 10 or more questions', unit: 'perfect test', count: countOf(t => t.n >= 10 && t.me.correct === t.n), hit: t => t.n >= 10 && t.me.correct === t.n },
+  { id: 'sharp', icon: '🧠', name: 'Sharpshooter', how: '90% or more in a test of 10+', unit: 'test', count: countOf(t => t.n >= 10 && pct(t) >= 0.9), hit: t => t.n >= 10 && pct(t) >= 0.9 },
+  { id: 'steady', icon: '📈', name: 'Steady', how: '70% or more in tests in a row', unit: 'in a row', run: true, count: runOf(t => t.n >= 10 && pct(t) >= 0.7), hit: t => t.n >= 10 && pct(t) >= 0.7 },
+  { id: 'fire', icon: '🔥', name: 'On fire', how: 'Right answers in a row', unit: 'in a row', streak: true, count: H => H.reduce((a, t) => Math.max(a, t.me.best || 0), 0), hit: t => (t.me.best || 0) >= 5 },
+  { id: 'mixed', icon: '🧩', name: 'All-rounder', how: '80% or more in a mixed-subject test', unit: 'test', count: countOf(t => /^Mixed/.test(t.title || '') && t.n >= 10 && pct(t) >= 0.8), hit: t => /^Mixed/.test(t.title || '') && pct(t) >= 0.8 },
+  { id: 'topic', icon: '🔬', name: 'Topic expert', how: '80% or more in a one-topic test', unit: 'test', count: countOf(t => t.topicName && t.n >= 10 && pct(t) >= 0.8), hit: t => t.topicName && pct(t) >= 0.8 },
+  { id: 'speed', icon: '⏱️', name: 'Quick thinker', how: 'Under 10 seconds a question with 70% or more', unit: 'test', count: countOf(t => t.n >= 10 && pct(t) >= 0.7 && t.me.timeMs / Math.max(1, t.me.answered || t.n) < 10000), hit: t => pct(t) >= 0.7 && t.me.timeMs / Math.max(1, t.me.answered || t.n) < 10000 },
+  { id: 'marathon', icon: '🏃', name: 'Marathon', how: 'Finish a 30-question test', unit: 'marathon', count: countOf(t => t.n >= 30 && (t.me.answered === undefined || t.me.answered >= t.n)), hit: t => t.n >= 30 },
+  // showing up
+  { id: 'regular', icon: '🎖️', name: 'Regular', how: 'Live tests played', unit: 'test', count: H => H.length, hit: () => true },
+  { id: 'days', icon: '🗓️', name: 'Habit', how: 'Different days with a live test', unit: 'day', count: H => new Set(H.map(t => new Date(t.at || 0).toDateString())).size, hit: () => true },
+  { id: 'early', icon: '🌅', name: 'Early bird', how: 'A test before 8 in the morning', unit: 'test', count: countOf(t => hourOf(t) >= 4 && hourOf(t) < 8), hit: t => hourOf(t) >= 4 && hourOf(t) < 8 },
+  { id: 'night', icon: '🦉', name: 'Night owl', how: 'A test after 10 at night', unit: 'test', count: countOf(t => hourOf(t) >= 22 || hourOf(t) < 4), hit: t => hourOf(t) >= 22 || hourOf(t) < 4 },
+  { id: 'weekend', icon: '🎒', name: 'Weekend warrior', how: 'A test on Saturday or Sunday', unit: 'test', count: countOf(t => dayOf(t) === 0 || dayOf(t) === 6), hit: t => dayOf(t) === 0 || dayOf(t) === 6 },
+  // friends
+  { id: 'host', icon: '📣', name: 'Host', how: 'Host a test with friends', unit: 'test', count: countOf(t => t.host === meUid() && groupOf(t) >= 2), hit: t => t.host === meUid() && groupOf(t) >= 2 },
+  { id: 'rivals', icon: '🤝', name: 'Friendly rivals', how: 'Different friends you played with', unit: 'friend', count: H => new Set(H.flatMap(t => t.players.map(p => p.uid)).filter(u => u !== meUid())).size, hit: t => groupOf(t) >= 2 },
+  { id: 'party', icon: '🎉', name: 'Full house', how: 'A test with 5 players', unit: 'test', count: countOf(t => groupOf(t) >= 5), hit: t => groupOf(t) >= 5 },
+  { id: 'loyal', icon: '💞', name: 'Study buddy', how: 'Tests with the same friend', unit: 'test', count: H => { const c = {}; H.forEach(t => t.players.forEach(p => { if (p.uid !== meUid()) c[p.uid] = (c[p.uid] || 0) + 1; })); return Math.max(0, ...Object.values(c)); }, hit: t => groupOf(t) >= 2 },
 ];
 const FIRE = [5, 8, 10, 15, 20, 25, 30, 40, 50];
+const RUNS = [2, 3, 5, 7, 10, 15, 20, 30, 50];
 function levelOf(b, n) {
-  const steps = b.streak ? FIRE : null;
-  let lv = 0; while ((steps ? (lv < steps.length ? steps[lv] : steps[steps.length - 1] + 10 * (lv - steps.length + 1)) : nextStep(lv)) <= n) lv++;
-  const goal = steps ? (lv < steps.length ? steps[lv] : steps[steps.length - 1] + 10 * (lv - steps.length + 1)) : nextStep(lv);
-  const prev = lv === 0 ? 0 : steps ? (lv - 1 < steps.length ? steps[lv - 1] : steps[steps.length - 1] + 10 * (lv - steps.length)) : nextStep(lv - 1);
+  const steps = b.streak ? FIRE : b.run ? RUNS : null, add = b.streak ? 10 : 10;
+  const at = k => steps ? (k < steps.length ? steps[k] : steps[steps.length - 1] + add * (k - steps.length + 1)) : nextStep(k);
+  let lv = 0; while (at(lv) <= n) lv++;
+  const goal = at(lv), prev = lv === 0 ? 0 : at(lv - 1);
   return { lv, goal, prev, pct: Math.round(100 * Math.min(1, (n - prev) / Math.max(1, goal - prev))) };
 }
 const tierOf = lv => lv >= 7 ? 'diamond' : lv >= 5 ? 'gold' : lv >= 3 ? 'silver' : lv >= 1 ? 'bronze' : 'none';
@@ -334,22 +363,21 @@ function badgeCard(b, L, big) {
     <strong>${esc(b.name)}</strong>
     <small>${L.lv ? `${TIER_NAME[t]} · Lv ${L.lv}` : 'Not yet'}</small>
     <span class="bdg-bar" aria-hidden="true"><i style="width:${L.pct}%"></i></span>
-    <small class="bdg-next">${L.n ? `${L.n} ${b.streak ? 'in a row (best)' : unit}` : ''}${L.n ? ' · ' : ''}next at ${L.goal}</small>
+    <small class="bdg-next">${L.n ? `${L.n} ${b.streak || b.run ? 'in a row (best)' : unit}` : ''}${L.n ? ' · ' : ''}next at ${L.goal}</small>
     ${big ? `<p class="bdg-how">${esc(b.how)}</p>${L.last ? `<p class="bdg-last">Last earned ${esc(fmtDate(L.last))}</p>` : ''}` : ''}
   </div>`;
 }
 function badgeStrip(H) {
   const L = badgeLevels(H), total = BADGES.reduce((a, b) => a + L[b.id].lv, 0);
   return `<section class="card bdg-sec"><div class="bdg-head"><h3>Badges <span class="muted small">${total} ${total === 1 ? 'level' : 'levels'} earned</span></h3><button class="linkbtn" type="button" data-ltbadges>View all ${icon('next')}</button></div>
-    <div class="bdg-strip" role="list">${BADGES.map(b => `<button type="button" class="bdg-chip t-${tierOf(L[b.id].lv)}" data-ltbadges role="listitem" aria-label="${esc(b.name)}, level ${L[b.id].lv}"><span class="bdg-ic"><i>${b.icon}</i>${L[b.id].lv ? `<b class="lv">${L[b.id].lv}</b>` : ''}</span><small>${esc(b.name)}</small></button>`).join('')}</div></section>`;
+    <div class="bdg-strip" role="list">${[...BADGES].sort((x, y) => L[y.id].lv - L[x.id].lv).map(b => `<button type="button" class="bdg-chip t-${tierOf(L[b.id].lv)}" data-ltbadges role="listitem" aria-label="${esc(b.name)}, level ${L[b.id].lv}"><span class="bdg-ic"><i>${b.icon}</i>${L[b.id].lv ? `<b class="lv">${L[b.id].lv}</b>` : ''}</span><small>${esc(b.name)}</small></button>`).join('')}</div></section>`;
 }
 async function openBadges() {
   leaveRoom(); LT.view = 'badges'; $('roomView').innerHTML = '<p class="muted center">Loading…</p>'; show('room');
   const H = await historyList(), L = badgeLevels(H);
   if (LT.view !== 'badges') return;
   $('roomView').innerHTML = `<div class="head-row"><h2>Badges</h2><button class="btn ghost" type="button" data-lthistory>${icon('back')}Tests</button></div>
-    <p class="muted">Badges never run out: every badge keeps levelling up. 🥉 Bronze (Lv 1–2) → 🥈 Silver (Lv 3–4) → 🥇 Gold (Lv 5–6) → 💎 Diamond (Lv 7 and up). Solo tests count for Perfect score, On fire and Regular. A test counts when you answer at least half of it.</p>
-    <div class="bdg-grid">${BADGES.map(b => badgeCard(b, L[b.id], true)).join('')}</div>`;
+    <div class="bdg-grid">${[...BADGES].sort((x, y) => L[y.id].lv - L[x.id].lv).map(b => badgeCard(b, L[b.id], true)).join('')}</div>`;
 }
 // after a test: "New badge!" or "Level up!" on the results screen
 function showNewBadges(before, after) {
