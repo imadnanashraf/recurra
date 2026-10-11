@@ -89,7 +89,8 @@ async function aiTrial(req, env) {
     const doc = await fsGet(env, tok, `aiTrial/${uid}`), used = doc ? Number(fields(doc.fields).used || 0) : 0;
     if (used >= FREE) return json({ error: 'trial used', used }, 402);
     // the file goes straight through to Google (not read or kept here)
-    const r = await fetch(`${GEM}/models/${await trialModel(env)}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' }, body: req.body });
+    const stream = new URL(req.url).searchParams.get('stream') === '1';      // live progress: Google's answer arrives piece by piece
+    const r = await fetch(`${GEM}/models/${await trialModel(env)}:${stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`, { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' }, body: req.body });
     let now = used;
     if (r.ok) {
       const name = `projects/${env.PROJECT_ID}/databases/(default)/documents/aiTrial/${uid}`;
@@ -97,7 +98,7 @@ async function aiTrial(req, env) {
         body: JSON.stringify({ writes: [{ update: { name, fields: {} }, updateMask: { fieldPaths: [] }, updateTransforms: [{ fieldPath: 'used', increment: { integerValue: '1' } }, { fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }] }] }) });
       now = used + 1;
     }
-    return new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', 'x-trial-used': String(now), ...CORS } });
+    return new Response(r.body, { status: r.status, headers: { 'content-type': r.ok && stream ? 'text/event-stream' : 'application/json', 'cache-control': 'no-store', 'x-trial-used': String(now), ...CORS } });
   } catch (e) {
     return json({ error: String(e && e.message || e).slice(0, 100) }, /token|key/.test(String(e && e.message)) ? 401 : 500);
   }

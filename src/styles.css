@@ -2049,3 +2049,22 @@ body.in-call { overflow: hidden; }
 .mine .cl-call { background: #fff; color: var(--accent); }
 .thread-head { grid-template-columns: auto minmax(0, 1fr) auto auto; }
 .thread-head .thread-calls .iconbtn { padding-inline: 8px; }
+/* upload: live status */
+.ai-clock { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); font-size: .9rem; }
+.ai-steps { list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 10px; border-radius: 12px; background: var(--surface); }
+.ai-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; color: var(--muted); }
+.ai-steps li > div { display: grid; gap: 3px; min-width: 0; }
+.ai-steps b { font-size: .92rem; font-weight: 650; }
+.ai-steps small { font-size: .82rem; color: var(--muted); }
+.ai-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: .72rem; font-weight: 900; color: #fff; margin-top: 1px; }
+.ai-steps li.done { color: var(--ink); }
+.ai-steps li.done .ai-dot { background: var(--good); border-color: var(--good); }
+.ai-steps li.on { color: var(--ink); }
+.ai-steps li.on b { font-weight: 800; }
+.ai-steps li.on .ai-dot { border-color: var(--accent-soft); border-top-color: var(--accent); animation: aiSpin .8s linear infinite; }
+.ai-steps li.on.warn .ai-dot { border-color: var(--miss-soft); border-top-color: var(--miss); }
+.ai-steps li.on.warn small { color: var(--miss); font-weight: 650; }
+.ai-bar { display: block; height: 6px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.ai-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.ai-done { padding: 10px 12px; border-radius: 12px; background: var(--good-soft); color: var(--ink); font-size: .9rem; }
+@media (prefers-reduced-motion: reduce) { .ai-steps li.on .ai-dot { animation: none; border-color: var(--accent); } }

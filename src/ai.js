@@ -97,59 +97,136 @@ function aiPrompt() {
   return currentPrompt().replace(/\[paste[^\]]*\]\s*$/, where);
 }
 
-// ---- generate ----
+// ---- generate (with live status) ----
+// One request, sent with XMLHttpRequest so we can show the real upload %, and answered as a
+// stream so we can count the questions while Google writes them.
+function aiPost(url, headers, body, onUp, onText) {
+  return new Promise((ok, no) => {
+    const x = new XMLHttpRequest(); AI.xhr = x;
+    x.open('POST', url); Object.entries(headers).forEach(([k, v]) => x.setRequestHeader(k, v));
+    x.timeout = 300e3;
+    if (x.upload) x.upload.onprogress = e => { if (e.lengthComputable) onUp(e.loaded / e.total); };
+    x.onprogress = () => onText(x.responseText || '');
+    x.onload = () => ok({ status: x.status, text: x.responseText || '', header: n => x.getResponseHeader(n) });
+    x.onerror = x.ontimeout = () => ok({ status: 0, text: '', header: () => null });
+    x.onabort = () => no(Object.assign(new Error('stopped'), { name: 'AbortError' }));
+    x.send(body);
+  });
+}
+// the text Google has written so far (from the "data: {...}" lines of the stream)
+function sseText(raw) {
+  let text = '', finish = '', block = '';
+  for (const line of raw.split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    try {
+      const j = JSON.parse(line.slice(5));
+      const c = (j.candidates || [])[0];
+      if (c && c.content) text += (c.content.parts || []).map(p => p.text || '').join('');
+      if (c && c.finishReason) finish = c.finishReason;
+      if (j.promptFeedback && j.promptFeedback.blockReason) block = j.promptFeedback.blockReason;
+    } catch (e) { /* a line still arriving */ }
+  }
+  return { text, finish, block };
+}
+const countItems = (t, kind) => (t.match(kind === 'mcq' ? /"question"\s*:/g : kind === 'notes' ? /"title"\s*:/g : /"name"\s*:/g) || []).length;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function aiGenerate() {
   const mode = aiMode(); if (!AI.files.length || AI.busy) return;
   const total = AI.files.reduce((n, f) => n + f.size, 0);
   const pdfBytes = AI.files.filter(f => !/^image\//.test(f.type)).reduce((n, f) => n + f.size, 0);
   if (pdfBytes > AI_MAX) { AI.err = `This is ${fmtSize(pdfBytes)}. One upload can be up to ${fmtSize(AI_MAX)}. Split the PDF into chapters, or use Copy AI prompt (ChatGPT and Gemini accept bigger files).`; return aiRender(); }
   if (mode === 'none') return aiGuide(0);
-  AI.busy = true; AI.err = ''; aiRender();
-  const names = AI.files.map(f => f.name).join(', '), kind = App.imp.kind;
+  const names = AI.files.map(f => f.name).join(', '), kind = App.imp.kind, via = mode === 'own' ? 'own key' : 'free trial';
   const sub = App.subjects.find(s => s.code === App.imp.subject);
-  let status = 0, text = '';
+  AI.busy = true; AI.err = ''; AI.retry = false; AI.stopped = false;
+  AI.st = { stage: 'prep', i: 0, n: AI.files.length, up: 0, count: 0, attempt: 1, wait: 0, t0: Date.now(), tWrite: 0, kind };
+  aiRender(); clearInterval(AI.tick); AI.tick = setInterval(aiPaintStatus, 1000);
+  const fail = (msg, retry) => {
+    clearInterval(AI.tick); AI.busy = false; AI.xhr = null; AI.err = msg; AI.retry = !!retry;
+    Activity.log('ai_upload_failed', { files: names, why: msg.split('.')[0], via });
+    aiRender();
+  };
+  // 1. prepare
+  const parts = [];
   try {
-    const parts = [];
-    for (const f of AI.files) parts.push(await filePart(f));
-    parts.push({ text: aiPrompt() });
-    const body = JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } });
-    AI.ctl = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = AI.ctl && setTimeout(() => AI.ctl.abort(), 240e3);
-    let r;
-    if (mode === 'own') r = await fetch(`${GEM}/models/${encodeURIComponent(aiModel())}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': aiKey(), 'content-type': 'application/json' }, body, signal: AI.ctl && AI.ctl.signal });
-    else {
-      const token = await App.fb.auth.currentUser.getIdToken();
-      r = await fetch(AI.trialUrl.replace(/\/+$/, '') + '/ai', { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body, signal: AI.ctl && AI.ctl.signal });
+    for (let i = 0; i < AI.files.length; i++) { AI.st.i = i + 1; aiPaintStatus(); parts.push(await filePart(AI.files[i])); if (AI.stopped) return fail('Stopped. Nothing was added.', true); }
+  } catch (e) { return fail('Could not open this file on your device. Try choosing it again.', true); }
+  parts.push({ text: aiPrompt() });
+  const body = JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } });
+  // 2–3. send, then Google writes (up to 3 tries when Google is busy or the line breaks)
+  let res = null, out = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    Object.assign(AI.st, { stage: 'send', up: 0, count: 0, attempt, wait: 0, tWrite: 0 }); aiPaintStatus();
+    try {
+      const onUp = f => { AI.st.up = f; if (f >= 0.999 && AI.st.stage === 'send') { AI.st.stage = 'write'; AI.st.tWrite = Date.now(); } aiPaintStatus(); };
+      const onText = raw => { if (AI.st.stage !== 'write') { AI.st.stage = 'write'; AI.st.tWrite = AI.st.tWrite || Date.now(); } AI.st.count = countItems(sseText(raw).text, kind); aiPaintStatus(); };
+      if (mode === 'own') res = await aiPost(`${GEM}/models/${encodeURIComponent(aiModel())}:streamGenerateContent?alt=sse`, { 'x-goog-api-key': aiKey(), 'content-type': 'application/json' }, body, onUp, onText);
+      else {
+        const token = await App.fb.auth.currentUser.getIdToken();
+        res = await aiPost(AI.trialUrl.replace(/\/+$/, '') + '/ai?stream=1', { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body, onUp, onText);
+      }
+    } catch (e) { return fail('Stopped. Nothing was added. Your file is still here: tap Try again when you’re ready.', true); }
+    if (res.status === 200) {
+      if (mode === 'trial') { const u = Number(res.header('x-trial-used')); AI.used = isFinite(u) && u > 0 ? u : AI.used + 1; }
+      out = sseText(res.text);
+      if (out.text.trim()) break;
+      if (out.block || /SAFETY|RECITATION|PROHIBITED/.test(out.finish)) return fail('Google would not read this file. Try a different page or photo.', false);
+      if (attempt < 3) { await aiWait(attempt); if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; }
+      return fail('Google did not give anything back for this file. Try a clearer photo or fewer pages.', true);
     }
-    if (timer) clearTimeout(timer);
-    status = r.status;
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error('google'), { status, text: JSON.stringify(j) });
-    if (mode === 'trial') { const u = Number(r.headers.get('x-trial-used')); AI.used = isFinite(u) && u > 0 ? u : AI.used + 1; }
-    const c = (j.candidates || [])[0];
-    text = c && c.content ? (c.content.parts || []).map(p => p.text || '').join('') : '';
-    if (!text.trim()) throw Object.assign(new Error('empty'), { status: 200, text: (j.promptFeedback && j.promptFeedback.blockReason) || (c && c.finishReason) || '' });
-  } catch (e) {
-    AI.busy = false; AI.ctl = null;
-    if (e && e.name === 'AbortError') { AI.err = 'Stopped. Nothing was added.'; return aiRender(); }
-    AI.err = e && e.message === 'empty' ? 'Google did not give anything back for this file. Try a clearer photo or fewer pages.' : aiError(e && e.status || status, e && e.text, mode === 'own');
-    Activity.log('ai_upload_failed', { files: names, why: AI.err.split('.')[0], via: mode === 'own' ? 'own key' : 'free trial' });
-    if (mode === 'trial' && /used up/.test(AI.err)) AI.used = AI.FREE;
-    return aiRender();
+    const busy = res.status === 0 || res.status >= 500;
+    if (busy && attempt < 3) { await aiWait(attempt); if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; }
+    if (mode === 'trial' && res.status === 402) AI.used = AI.FREE;
+    return fail(aiError(res.status, res.text, mode === 'own'), busy || res.status === 400);
   }
-  // done: show it like a paste, then forget the file
-  const info = { files: names, size: fmtSize(total), pages: AI.pages.trim(), kind, subject: sub ? sub.name : '', via: mode === 'own' ? 'own key' : 'free trial' };
-  AI.busy = false; AI.ctl = null; AI.files = []; AI.pages = '';
-  $('impText').value = text.trim();
+  // 4. check it, like a paste
+  AI.st.stage = 'check'; aiPaintStatus();
+  $('impText').value = out.text.trim();
   doCheck();
   const ch = App.imp.checked;
-  info.result = !ch ? 'nothing usable' : kind === 'mcq' ? plural((ch.questions || []).length, 'MCQ') : kind === 'notes' ? plural((ch.notes || []).length, 'note') : 'a syllabus';
-  Activity.log('ai_upload', info);
+  clearInterval(AI.tick);
+  if (!ch) {
+    const cut = /MAX_TOKENS/.test(out.finish);
+    AI.busy = false; AI.xhr = null;
+    AI.err = cut ? 'Google’s answer was too long and got cut off. Try fewer pages (for example 1-10), then Try again.' : 'Google’s answer could not be read, so nothing was added. Tap Try again: it usually works the second time.';
+    AI.retry = true; msg('impMsg', '');
+    Activity.log('ai_upload', { files: names, size: fmtSize(total), pages: AI.pages.trim(), kind, subject: sub ? sub.name : '', via, result: 'nothing usable' });
+    return aiRender();
+  }
+  const secs = Math.round((Date.now() - AI.st.t0) / 1000);
+  Activity.log('ai_upload', { files: names, size: fmtSize(total), pages: AI.pages.trim(), kind, subject: sub ? sub.name : '', via,
+    result: kind === 'mcq' ? plural(countItems(out.text, kind), 'MCQ') : kind === 'notes' ? plural(countItems(out.text, kind), 'note') : 'a syllabus' });
+  AI.busy = false; AI.xhr = null; AI.files = []; AI.pages = '';          // done: forget the file
+  const made = countItems(out.text, kind);
+  AI.done = { what: kind === 'mcq' ? plural(made, 'question') : kind === 'notes' ? plural(made, 'note') : 'your syllabus', secs };
   Sound.play('check');
   aiRender();
   const pv = $('impPreview'); if (pv && !pv.hidden) pv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   else $('impPaste').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+// Google is busy: wait a little, showing the countdown, then try again
+async function aiWait(attempt) {
+  const secs = attempt === 1 ? 4 : 8;
+  for (let s = secs; s > 0 && !AI.stopped; s--) { AI.st.stage = 'wait'; AI.st.wait = s; aiPaintStatus(); await sleep(1000); }
+}
+function aiStop() { AI.stopped = true; if (AI.xhr) try { AI.xhr.abort(); } catch (e) {} }
+// the live status inside the card
+function aiPaintStatus() {
+  const box = $('aiSteps'), st = AI.st; if (!box || !st) return;
+  const order = ['prep', 'send', 'write', 'check'], at = st.stage === 'wait' ? 1 : order.indexOf(st.stage);
+  const word = st.kind === 'mcq' ? 'question' : st.kind === 'notes' ? 'note' : 'subject';
+  const writing = Math.round((Date.now() - (st.tWrite || Date.now())) / 1000);
+  const detail = {
+    prep: st.n > 1 ? `File ${Math.min(st.i, st.n)} of ${st.n}` : 'Getting your file ready',
+    send: st.stage === 'wait' ? `Google is busy. Trying again in ${st.wait} s (try ${st.attempt + 1} of 3)` : `${Math.round(st.up * 100)}%${st.attempt > 1 ? ` · try ${st.attempt} of 3` : ''}`,
+    write: st.count ? `${plural(st.count, word)} so far…` : writing > 25 ? 'Still reading. Long files take a bit longer…' : 'Reading your file…',
+    check: 'Making sure everything is right',
+  };
+  const label = { prep: 'Preparing', send: 'Sending to Google', write: st.kind === 'mcq' ? 'Writing questions' : st.kind === 'notes' ? 'Writing notes' : 'Reading the syllabus', check: 'Checking' };
+  box.innerHTML = order.map((k, i) => `<li class="${i < at ? 'done' : i === at ? 'on' : ''}${k === 'send' && st.stage === 'wait' ? ' warn' : ''}"><span class="ai-dot">${i < at ? '✓' : ''}</span><div><b>${label[k]}</b>${i === at ? `<small>${esc(detail[k])}</small>${k === 'send' && st.stage === 'send' ? `<i class="ai-bar"><i style="width:${Math.round(st.up * 100)}%"></i></i>` : ''}` : ''}</div></li>`).join('');
+  const c = $('aiClock'); if (c) c.textContent = fmtDur2(Math.round((Date.now() - st.t0) / 1000));
+}
+const fmtDur2 = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 // ---- the card on the Add screen ----
 function aiRender() {
@@ -164,10 +241,12 @@ function aiRender() {
     : mode === 'trial' ? `<span class="ai-free">🎁 ${left} of ${AI.FREE} free uploads left</span>`
     : AI.trialOn && AI.loaded ? `<span class="ai-free">Your ${AI.FREE} free uploads are used up</span>` : '';
   if (AI.busy) {
-    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div></div>
-      <div class="ai-busy"><span class="ai-spin" aria-hidden="true"></span><div><b>Reading your file…</b><small>This usually takes 20–60 seconds. Keep this screen open.</small></div></div>
+    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div><span class="ai-clock" id="aiClock">0:00</span></div>
+      <ol class="ai-steps" id="aiSteps" aria-live="polite"></ol>
+      <p class="ai-note">Keep this screen open. It usually takes 20–60 seconds.</p>
       <button class="btn" type="button" id="aiStop">Stop</button>`;
-    $('aiStop').onclick = () => { if (AI.ctl) AI.ctl.abort(); };
+    $('aiStop').onclick = aiStop;
+    aiPaintStatus();
     return;
   }
   const filesHtml = AI.files.map((f, i) => `<li><span>${/^image\//.test(f.type) ? '🖼️' : /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? '📕' : '📄'}</span><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small><button class="x" type="button" data-airm="${i}" aria-label="Remove ${esc(f.name)}">×</button></li>`).join('');
@@ -180,22 +259,25 @@ function aiRender() {
        ${AI.files.length ? `<ul class="ai-files">${filesHtml}</ul>` : ''}
        ${hasPdf ? `<label for="aiPages" class="ai-pages-l">Only some pages? <small>(optional)</small></label><input id="aiPages" class="ai-pages" placeholder="e.g. 5-12" value="${esc(AI.pages)}" inputmode="numeric" autocomplete="off">` : ''}
        <p class="ai-note">🔒 Your file goes only to Google to be read, and is not kept by Recurra. Don’t upload anything private: Google may use free uploads to improve its AI.</p>
-       <div class="btns"><button class="btn primary" type="button" id="aiGo"${AI.files.length ? '' : ' disabled'}>${make}</button></div>`;
+       ${AI.err && AI.retry && AI.files.length ? '' : `<div class="btns"><button class="btn primary" type="button" id="aiGo"${AI.files.length ? '' : ' disabled'}>${make}</button></div>`}`;
   const foot = mode === 'own' ? `<div class="ai-foot"><button class="linkbtn" type="button" id="aiManage">Change or remove my key</button></div>`
     : mode === 'trial' ? `<div class="ai-foot"><button class="linkbtn" type="button" id="aiConnect2">Connect my own free key</button> for unlimited uploads</div>` : '';
   box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div></div>
     ${body}
-    ${AI.err ? `<div class="ai-err" role="alert"><p>${esc(AI.err)}</p><div class="btns"><button class="btn small" type="button" id="aiUseCopy">Use Copy AI prompt instead</button>${/key|used up|limit/.test(AI.err) && mode !== 'own' ? '<button class="btn small" type="button" id="aiConnect3">Connect my free key</button>' : ''}</div></div>` : ''}
+    ${AI.done && !AI.err ? `<div class="ai-done" role="status">✓ Made ${esc(AI.done.what)} in ${fmtDur2(AI.done.secs)}. Check them below, then tap <b>Add</b>.</div>` : ''}
+    ${AI.err ? `<div class="ai-err" role="alert"><p>${esc(AI.err)}</p><div class="btns">${AI.retry && AI.files.length && mode !== 'none' ? '<button class="btn small primary" type="button" id="aiRetry">Try again</button><button class="btn small" type="button" id="aiOther">Choose other files</button>' : ''}<button class="btn small" type="button" id="aiUseCopy">Use Copy AI prompt instead</button>${/key|used up|limit/.test(AI.err) && mode !== 'own' ? '<button class="btn small" type="button" id="aiConnect3">Connect my free key</button>' : ''}</div></div>` : ''}
     ${foot}
     <div class="ai-pro"><span>⭐</span><div><b>Pro: one tap, no setup</b><small>${AI.interest ? 'Thanks! We’ll tell you when it’s ready.' : 'Coming soon'}</small></div>${AI.interest ? '<span class="badge">✓ On the list</span>' : '<button class="btn small" type="button" id="aiNotify">Notify me</button>'}</div>`;
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('aiConnect', () => aiGuide(0)); on('aiConnect2', () => aiGuide(0)); on('aiConnect3', () => aiGuide(0));
-  on('aiGo', aiGenerate);
+  on('aiGo', () => { AI.done = null; aiGenerate(); });
+  on('aiRetry', () => { AI.done = null; aiGenerate(); });
+  on('aiOther', () => { AI.files = []; AI.err = ''; AI.retry = false; aiRender(); const f = $('aiFile'); if (f) f.click(); });
   on('aiManage', aiManage);
   on('aiNotify', aiNotify);
   on('aiUseCopy', () => { const h = $('impHelp'); h.scrollIntoView({ behavior: 'smooth', block: 'start' }); h.classList.remove('hl'); void h.offsetWidth; h.classList.add('hl'); });
   const inp = $('aiFile');
-  if (inp) inp.onchange = () => { AI.files.push(...[...inp.files].slice(0, 12)); AI.files = AI.files.slice(0, 12); AI.err = ''; inp.value = ''; aiRender(); };
+  if (inp) inp.onchange = () => { AI.files.push(...[...inp.files].slice(0, 12)); AI.files = AI.files.slice(0, 12); AI.err = ''; AI.done = null; inp.value = ''; aiRender(); };
   const pg = $('aiPages'); if (pg) pg.oninput = () => { AI.pages = pg.value.replace(/[^0-9,\- ]/g, '').slice(0, 30); };
   box.querySelectorAll('[data-airm]').forEach(b => { b.onclick = () => { AI.files.splice(Number(b.dataset.airm), 1); aiRender(); }; });
 }
