@@ -3,6 +3,7 @@
     <button class="brand" id="brand" type="button" aria-label="Recurra home">{{LOGO}}<span>Recurra</span></button>
     <button class="prepbtn" id="prepBtn" type="button" hidden><span id="prepName"></span>▾</button>
     <div class="sync" id="sync">Starting…</div>
+    <button class="chatbtn" id="chatBtn" type="button" aria-label="Friends and chat" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg><span class="cbadge" id="chatBadge" hidden></span></button>
     <button class="avatarbtn" id="avatarBtn" type="button" aria-label="Your profile and settings" hidden></button>
   </div>
 </header>
@@ -37,9 +38,9 @@
       <p class="muted reset-only" id="resetIntro" hidden>Enter the email you signed up with. We'll send you a link to set a new password.</p>
       <button class="btn" type="button" id="googleBtn">Continue with Google</button>
       <div class="or" id="orLine">or with email</div>
-      <div class="signup-only" id="nameRow" hidden>
-        <label for="loginName">Your name</label>
-        <input id="loginName" autocomplete="name" maxlength="40" placeholder="e.g. Adnan">
+      <div class="signup-only name2" id="nameRow" hidden>
+        <div><label for="loginFirst">First name</label><input id="loginFirst" autocomplete="given-name" maxlength="30" placeholder="e.g. Adnan"></div>
+        <div><label for="loginLast">Last name</label><input id="loginLast" autocomplete="family-name" maxlength="30" placeholder="e.g. Ashraf"></div>
       </div>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" inputmode="email" required>
@@ -162,8 +163,7 @@
             <button class="btn ghost" type="button" id="photoRemove">Remove photo</button>
           </div>
         </div>
-        <label for="profName">Name</label>
-        <div class="row-inline"><input id="profName" maxlength="40" autocomplete="name"><button class="btn" type="button" id="profSave">Save</button></div>
+        <div class="prof-id"><span><b id="profName"></b><small id="profHandle"></small></span><button class="btn" type="button" id="profEdit">Edit name or username</button></div>
         <p class="small">Email: <strong id="accEmail"></strong> <span id="accVerified"></span></p>
         <p class="msg" id="profMsg"></p>
       </div>
@@ -350,6 +350,38 @@
     </div>
   </section>
 
+  <!-- FRIENDS AND CHAT -->
+  <section id="chat" hidden>
+    <div class="head-row">
+      <h2>Friends</h2>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
+    </div>
+    <div class="nsearch" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="friendSearch" type="search" placeholder="@username, name or email" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Find friends">
+    </div>
+    <p class="muted small my-handle"><span id="myHandle"></span> <button class="linkbtn" type="button" data-copyhandle>Copy</button></p>
+    <div id="friendResults"></div>
+    <div id="chatList" class="fgrid"></div>
+  </section>
+  <section id="thread" hidden>
+    <div class="thread-head">
+      <button class="btn ghost iconbtn" type="button" id="threadBack" aria-label="Back to friends"><span data-icon="back"></span></button>
+      <div class="thread-who" id="threadWho"></div>
+      <button class="btn ghost iconbtn" type="button" id="threadMenu" aria-label="More">⋯</button>
+      <div class="thread-actions" id="threadActions" hidden>
+        <button type="button" data-tact="remove">Remove friend</button>
+        <button type="button" data-tact="block">Block</button>
+      </div>
+    </div>
+    <div class="msgs" id="msgList" role="log" aria-live="polite"></div>
+    <p class="muted small center" id="threadNote" hidden></p>
+    <form class="composer" id="msgForm" autocomplete="off">
+      <textarea id="msgText" rows="1" maxlength="2000" placeholder="Message" aria-label="Message"></textarea>
+      <button class="btn primary sendbtn" type="submit" id="msgSend" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button>
+    </form>
+  </section>
+
   <!-- QUESTION BANK: every MCQ, browsable like the notes -->
   <section id="bank" hidden>
     <div class="head-row">
@@ -453,4 +485,22 @@
     </div>
   </section>
 </main>
+
+<!-- ONE-TIME PROFILE SETUP: first name, last name, @username -->
+<div class="sheet" id="setupSheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle" hidden>
+  <form class="card form sheet-card" id="setupForm" novalidate>
+    <div class="sheet-art">👋</div>
+    <h2 id="setupTitle">Welcome! Set up your profile</h2>
+    <p class="muted" id="setupIntro"></p>
+    <div class="name2">
+      <div><label for="setFirst">First name</label><input id="setFirst" autocomplete="given-name" maxlength="30"></div>
+      <div><label for="setLast">Last name</label><input id="setLast" autocomplete="family-name" maxlength="30"></div>
+    </div>
+    <label for="setUser">Username</label>
+    <div class="uinput"><span>@</span><input id="setUser" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="adnan_ashraf"></div>
+    <p class="uhint" id="setUserHint" aria-live="polite"></p>
+    <div class="btns grid"><button class="btn" type="button" id="setCancel" hidden>Cancel</button><button class="btn primary" type="submit" id="setSave">Save</button></div>
+    <p class="msg" id="setMsg" role="alert"></p>
+  </form>
+</div>
 <div class="toast" id="toast" hidden></div>

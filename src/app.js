@@ -12,14 +12,14 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replac
 const getState = id => Progress.get(id);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const todayKey = () => dayKey(Date.now());
-const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'bank', 'admin', 'adminUser'];
+const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'bank', 'chat', 'thread', 'admin', 'adminUser'];
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 
 function show(id) {
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
-  const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break'].includes(id);
+  const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break', 'thread'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
   const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -1220,7 +1220,7 @@ function hourLabel(h) { return h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '
 function renderSettings() {
   $('accEmail').textContent = App.user ? (App.user.email || 'Google account') : '';
   $('accVerified').innerHTML = !App.user ? '' : (!usesPassword() || App.user.emailVerified) ? '<span class="badge ok">verified</span>' : '<span class="badge warn">not verified yet</span>';
-  $('profName').value = displayName();
+  $('profName').textContent = displayName(); $('profHandle').textContent = App.profile.username ? '@' + App.profile.username : 'No username yet';
   $('pwReset').hidden = !usesPassword();
   $('accConfirm').innerHTML = ''; msg('accMsg', ''); msg('profMsg', '');
   $('installCard').hidden = !Install.prompt || !!App.viewAs;
@@ -1393,7 +1393,7 @@ function authErrorWithAction(e, email) {
   msg('loginMsg', authError(e), 'err');
   const c = (e && e.code) || '', box = $('loginMsg');
   const add = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'linkbtn'; b.textContent = label; b.style.marginLeft = '6px'; b.onclick = fn; box.appendChild(b); };
-  if (/user-not-found/.test(c)) add('Create an account', () => { setAuthMode('signup'); $('loginEmail').value = email; $('loginName').focus(); });
+  if (/user-not-found/.test(c)) add('Create an account', () => { setAuthMode('signup'); $('loginEmail').value = email; $('loginFirst').focus(); });
   if (/wrong-password|invalid-credential/.test(c) && authMode === 'signin') add('Reset password', () => { setAuthMode('reset'); $('loginEmail').value = email; });
 }
 $('authToggle').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
@@ -1446,8 +1446,10 @@ $('loginForm').addEventListener('submit', async e => {
   }
   if (!pass) return msg('loginMsg', 'Enter your password.', 'err');
   if (authMode === 'signup') {
-    const name = $('loginName').value.trim();
-    if (!name) return msg('loginMsg', 'Please enter your name.', 'err');
+    const first = $('loginFirst').value.replace(/\s+/g, ' ').trim(), last = $('loginLast').value.replace(/\s+/g, ' ').trim(), name = `${first} ${last}`.trim();
+    if (!first) return msg('loginMsg', 'Please enter your first name.', 'err');
+    if (!last) return msg('loginMsg', 'Please enter your last name.', 'err');
+    App.pendingFirst = first; App.pendingLast = last;
     if (pass.length < 6) return msg('loginMsg', 'Use a password of at least 6 characters.', 'err');
     if (pass !== $('loginPass2').value) return msg('loginMsg', 'The two passwords do not match.', 'err');
     App.pendingName = name;
@@ -1477,16 +1479,7 @@ $('googleBtn').addEventListener('click', async () => {
 
 // profile: name and photo
 $('avatarBtn').addEventListener('click', () => MODES.settings());
-$('profSave').addEventListener('click', async () => {
-  const name = $('profName').value.trim();
-  if (!name) return msg('profMsg', 'Name cannot be empty.', 'err');
-  try {
-    await Store.setProfile({ name }); App.profile.name = name;
-    try { await App.fb.auth.currentUser.updateProfile({ displayName: name }); } catch (e) {}
-    paintAvatars(); msg('profMsg', 'Saved.', 'ok');
-    Activity.log('profile_updated', { what: 'name' });
-  } catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
-});
+$('profEdit').addEventListener('click', () => openSetup(true));
 // shrink any photo to a 160×160 JPEG (about 10 KB) so it fits in the free database
 function shrinkPhoto(file) {
   return new Promise((ok, fail) => {
@@ -1508,12 +1501,12 @@ $('photoFile').addEventListener('change', async () => {
   try {
     const photo = await shrinkPhoto(f);
     await Store.setProfile({ photo }); App.profile.photo = photo;
-    paintAvatars(); msg('profMsg', 'Photo updated.', 'ok');
+    paintAvatars(); syncPerson(); msg('profMsg', 'Photo updated.', 'ok');
     Activity.log('profile_updated', { what: 'photo' });
   } catch (e) { msg('profMsg', e.message === 'image' ? 'Could not read that photo. Try another one.' : 'Could not save. Check your internet.', 'err'); }
 });
 $('photoRemove').addEventListener('click', async () => {
-  try { await Store.setProfile({ photo: '' }); App.profile.photo = ''; paintAvatars(); msg('profMsg', 'Photo removed.', 'ok'); }
+  try { await Store.setProfile({ photo: '' }); App.profile.photo = ''; paintAvatars(); syncPerson(); msg('profMsg', 'Photo removed.', 'ok'); }
   catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
 });
 // change your own password: current password + new one, done on the spot (no email)
@@ -1600,6 +1593,8 @@ function blockedText(p) {
   return 'This account has been deleted.';
 }
 function stopAccount() {
+  if (typeof stopSocial === 'function') stopSocial();
+  if ($('setupSheet')) { $('setupSheet').hidden = true; document.body.classList.remove('sheet-open'); }
   if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
   if (App.profileUnsub) { try { App.profileUnsub(); } catch (e) {} App.profileUnsub = null; }
   closePrep();
@@ -1619,6 +1614,7 @@ async function startAccount(user, screen) {
       isNew = !App.profile.created;
       const first = { email: user.email || '', created: App.profile.created || Date.now() };
       if (App.pendingName || user.displayName) first.name = App.profile.name || App.pendingName || user.displayName;
+      if (App.pendingFirst && !App.profile.first) { first.first = App.pendingFirst; first.last = App.pendingLast || ''; }
       Object.assign(App.profile, first);
       Store.setProfile(first).catch(() => {});
     }
@@ -1634,8 +1630,10 @@ async function startAccount(user, screen) {
       else if ((p.pwChangedAt || 0) > started && p.pwChangedOn !== DEVICE) { App.blockMsg = 'Your password was changed. Sign in with the new password.'; App.fb.auth.signOut(); }
     });
     Activity.start();
+    startSocial();
+    if (needsSetup()) openSetup(false); else syncPerson();      // also puts you back in friend search after the admin turns you on again
   }
-  App.pendingName = null;
+  App.pendingName = null; App.pendingFirst = App.pendingLast = null;
   paintAvatars();
   if (screen) App.afterLoad = screen;
   App.prepsUnsub = Store.watchPreps(onPreps, e => { console.warn(e); setSync('offline'); });

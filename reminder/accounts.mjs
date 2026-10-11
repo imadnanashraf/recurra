@@ -11,17 +11,27 @@ const auth = admin.auth(), db = admin.firestore(), now = Date.now();
 const log = doc => db.collection('logs').add({ at: Date.now(), platform: 'Server', device: 'Hourly account job', ip: '', place: '', detail: {}, ...doc });
 const quiet = async fn => { try { await fn(); } catch (e) { if (e.code !== 'auth/user-not-found') throw e; } };
 let erased = 0, off = 0, on = 0;
+async function eraseSocial(uid) {
+  const del = async q => { const s = await q.get(); for (const x of s.docs) await x.ref.delete(); };
+  await del(db.collection('usernames').where('uid', '==', uid));
+  await del(db.collection('emails').where('uid', '==', uid));
+  await db.doc(`people/${uid}`).delete().catch(() => {});
+  const fr = await db.collection('friendships').where('users', 'array-contains', uid).get();
+  for (const f of fr.docs) { await db.recursiveDelete(db.collection('chats').doc(f.id)); await f.ref.delete(); }
+}
 
 const locked = await db.collection('users').where('status', 'in', LOCKED).get();
 for (const d of locked.docs) {
   const u = d.data(), uid = d.id;
   if (u.status === 'deleted' || (u.status === 'deleting' && (u.deleteAt || 0) <= now)) {
     await db.recursiveDelete(d.ref);                 // the profile and everything under it
+    await eraseSocial(uid);                          // username, what friends saw, friendships and chats
     await quiet(() => auth.deleteUser(uid));
     await log({ action: 'account_erased', uid, email: u.email || '', name: u.name || '' });
     erased++;
   } else if (!u.authDisabled) {
     await quiet(async () => { await auth.updateUser(uid, { disabled: true }); await auth.revokeRefreshTokens(uid); });
+    await db.doc(`people/${uid}`).delete().catch(() => {});   // hidden from friend search while locked (comes back when they sign in again)
     await d.ref.set({ authDisabled: true }, { merge: true });
     off++;
   }

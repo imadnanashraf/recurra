@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 // Creates (or refreshes) the test account with a demo prep, its questions and notes,
 // and about a month of realistic study history so Today, Progress and the calendar have data.
 // Runs from GitHub Actions (.github/workflows/seed-demo.yml). The password is random and never printed:
@@ -67,7 +68,11 @@ const prog = {};
 for (const [id, st] of Object.entries(state)) (prog[st.k] = prog[st.k] || {})[id] = st;
 for (const [code, q] of Object.entries(prog)) batchWrites.push([db.doc(`${prep}/progress/${code}`), { q, r, updated: now }]);
 batchWrites.push([db.doc(`${prep}/progress/_days`), { d: days, spq: 25, next: null, r, updated: now }]);
-batchWrites.push([db.doc(base), { email: EMAIL, name: NAME, activePrep: PID, test: true }, { merge: true }]);
+batchWrites.push([db.doc(base), { email: EMAIL, name: NAME, first: 'Test', last: 'Student', username: 'test_student', activePrep: PID, test: true }, { merge: true }]);
+// a username, so the test account can be found and chatted with like a real friend
+batchWrites.push([db.doc('usernames/test_student'), { uid, at: now }]);
+batchWrites.push([db.doc(`people/${uid}`), { uid, username: 'test_student', first: 'Test', last: 'Student', name: 'Test Student', nameLower: 'test student', lastLower: 'student', photo: '', updated: now }]);
+batchWrites.push([db.doc(`emails/${createHash('sha256').update(EMAIL.toLowerCase()).digest('hex')}`), { uid }]);
 for (let i = 0; i < batchWrites.length; i += 400) {
   const b = db.batch();
   batchWrites.slice(i, i + 400).forEach(([ref, data, opt]) => data === null ? b.delete(ref) : b.set(ref, data, opt || {}));

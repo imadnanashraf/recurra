@@ -26,6 +26,15 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 - One tap on a topic's circle marks it studied. Rings show % studied (outer) and % strong in memory (inner).
 - Settings → Study → **Share new questions by marks** gives high-mark subjects more of each day's new questions.
 
+## Friends and chat
+
+- **Your profile:** first name, last name and a unique **@username** (small letters, numbers, `_` or `.`, 3 to 20 characters). Everyone picks one once; change it in Settings → Profile.
+- **Find friends** with the chat button at the top: type a @username, a name, or their **exact** email. Emails are never shown; the app stores only a one-way fingerprint (SHA-256) of each email, so it can match an exact email but cannot list them.
+- A **friend request** must be accepted before you can chat. You can remove or block a friend any time (⋯ in the chat).
+- **Chats are live:** messages, "Seen", requests and the unread badge update on their own. Tap your own message to delete it.
+- **Private:** the database rules let only the two friends read a chat. The admin cannot read chats; the activity log only notes things like "sent a friend request".
+- When an account is erased, its username, profile, friendships and chats are erased too.
+
 ## Admin, activity log and deleting accounts
 
 - **Superadmin:** only `adnan.ashraf19@gmail.com` (with a verified email). An **Admin** tab appears for that account:

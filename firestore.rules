@@ -32,6 +32,60 @@ service cloud.firestore {
       }
     }
 
+    // ---------- people: usernames, profiles friends can see, exact-email lookup ----------
+    // a username has one owner; it can be claimed only if free, and only the owner can let it go
+    match /usernames/{name} {
+      allow get: if signedIn();
+      allow create: if signedIn() && !locked(request.auth.uid) && name.matches('^[a-z0-9_.]{3,20}$') && request.resource.data.uid == request.auth.uid;
+      allow update: if signedIn() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+    // what other people see about you: name, @username, photo (never your email)
+    match /people/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == uid && !locked(uid)
+        && request.resource.data.uid == uid
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+    // sha256(email) -> uid, so a friend who knows your exact email can find you; it cannot be listed
+    match /emails/{hash} {
+      allow get: if signedIn();
+      allow create, update: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // ---------- friends and chat (the admin cannot read chats) ----------
+    function member(data) { return signedIn() && request.auth.uid in data.users; }
+    function goodPair(id, users) { return users.size() == 2 && users[0] < users[1] && id == users[0] + '_' + users[1]; }
+    match /friendships/{id} {
+      allow read: if member(resource.data);
+      // a request: from you, to one other person, waiting
+      allow create: if member(request.resource.data) && !locked(request.auth.uid) && goodPair(id, request.resource.data.users)
+        && request.resource.data.from == request.auth.uid && request.resource.data.status == 'pending';
+      allow update: if member(resource.data) && !locked(request.auth.uid) && request.resource.data.users == resource.data.users && (
+        // the other person accepts
+        (resource.data.status == 'pending' && request.resource.data.status == 'accepted' && resource.data.from != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt'])) ||
+        // chat bookkeeping: last message and "read up to"
+        (resource.data.status == 'accepted' && request.resource.data.status == 'accepted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastAt', 'lastText', 'lastFrom', 'lastKind', 'read_' + request.auth.uid])) ||
+        // block
+        (request.resource.data.status == 'blocked' && request.resource.data.blockedBy == request.auth.uid && resource.data.status != 'blocked'));
+      // decline, cancel, remove, unblock (a block can only be lifted by the person who blocked)
+      allow delete: if member(resource.data) && (resource.data.status != 'blocked' || resource.data.blockedBy == request.auth.uid);
+    }
+    function friends(id) {
+      let f = get(/databases/$(database)/documents/friendships/$(id));
+      return signedIn() && request.auth.uid in f.data.users && f.data.status == 'accepted';
+    }
+    match /chats/{id}/messages/{mid} {
+      allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/friendships/$(id)).data.users;
+      allow create: if friends(id) && !locked(request.auth.uid) && request.resource.data.from == request.auth.uid
+        && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+
     // jobs the admin hands to the account job (e.g. "set this password"), and the admin's GitHub key: admin only
     match /adminTasks/{id} { allow read, write: if isAdmin(); }
     match /adminConfig/{id} { allow read, write: if isAdmin(); }
