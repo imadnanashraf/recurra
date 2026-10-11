@@ -105,16 +105,28 @@ function actor(cls, x, b, w, inner, shadow = true) {
   const pos = `--x:${x}%;--b:${b}%;--w:${w}`;
   return (shadow ? `<i class="sh ${cls}-sh" style="${pos}"></i>` : '') + `<span class="ac ${cls}" style="${pos}">${inner}</span>`;
 }
+// A character with real moving parts: legs, arms, body (and tail / tongue for cats) drawn in CSS, with a 3D face on top.
+// faces: first is the normal face, the rest swap in during the scene (classes f1, f2, ...). flip = faces left.
+function rig(cls, kind, x, b, w, faces, flip = false) {
+  const head = faces.map((f, i) => fxImg(f, i ? 'swap f' + i : '')).join('');
+  const extra = kind === 'cat' ? '<i class="tail"></i>' : '';
+  const tongue = kind === 'cat' ? '<i class="tongue"></i>' : '';
+  return `<i class="sh ${cls}-sh" style="--x:${x}%;--b:${b}%;--w:${w}"></i>` +
+    `<span class="rig ${kind} ${cls}" style="--x:${x}%;--b:${b}%;--w:${w}"><span class="pose${flip ? ' flip' : ''}">` +
+    `${extra}<i class="leg l1"></i><i class="leg l2"></i><i class="body"></i><i class="arm al"></i><i class="arm ar"></i>` +
+    `<span class="head">${head}</span>${tongue}</span></span>`;
+}
 const SCENES = {
-  snow: { label: 'A robot and a polar bear in a snowball fight', html: () =>
-    actor('sn-robot', 4, 8, 32, fxImg('robot')) + actor('sn-bear', 64, 8, 32, fxImg('polar_bear')) +
-    `<i class="ball sn-b1"><i></i></i><i class="ball sn-b2"><i></i></i>` +
-    actor('sn-puff1', 70, 50, 14, fxImg('cloud'), false) + actor('sn-puff2', 10, 50, 14, fxImg('cloud'), false) +
+  snow: { label: 'A robot and a polar bear walk in and have a snowball fight', html: () =>
+    rig('sf-robot', 'robot', 6, 6, 30, ['robot']) + rig('sf-bear', 'bear', 64, 6, 30, ['polar_bear'], true) +
+    `<i class="ball sf-b1"><i></i></i><i class="ball sf-b2"><i></i></i><i class="ball sf-b3"><i></i></i>` +
+    actor('sf-puff1', 66, 52, 14, fxImg('cloud'), false) + actor('sf-puff2', 12, 52, 14, fxImg('cloud'), false) +
+    actor('sf-dizzy', 80, 30, 13, fxImg('dizzy'), false) +
     actor('flake f1', 30, 100, 5, fxImg('snowflake'), false) + actor('flake f2', 52, 100, 4, fxImg('snowflake'), false) + actor('flake f3', 64, 100, 3.5, fxImg('snowflake'), false) },
-  cuddle: { label: 'Two cats sharing a kiss and a heart', html: () =>
-    actor('cu-left', 12, 8, 34, fxImg('grinning_cat_with_smiling_eyes') + fxImg('smiling_cat_with_heart_eyes', 'swap')) +
-    actor('cu-right', 54, 8, 34, fxImg('kissing_cat', 'flip')) +
-    actor('cu-heart', 42, 70, 14, fxImg('red_heart'), false) + actor('cu-heart2', 55, 62, 9, fxImg('red_heart'), false) },
+  cats: { label: 'Two cats walk up, one licks the other a bit too much and gets a slap', html: () =>
+    rig('cf-left', 'cat', 18, 6, 30, ['grinning_cat', 'weary_cat', 'cat_with_tears_of_joy']) +
+    rig('cf-right', 'cat', 50, 6, 30, ['grinning_cat_with_smiling_eyes', 'smiling_cat_with_heart_eyes', 'pouting_cat', 'cat_with_tears_of_joy'], true) +
+    actor('cf-pow', 30, 56, 16, fxImg('collision'), false) + actor('cf-heart', 44, 84, 10, fxImg('red_heart'), false) },
   panda: { label: 'A panda dozing over a book until the alarm rings', html: () =>
     actor('pa-panda', 28, 34, 40, fxImg('panda'), false) + actor('pa-book', 34, 0, 28, fxImg('open_book')) +
     actor('pa-zzz', 64, 72, 14, fxImg('zzz'), false) + actor('pa-alarm', 76, 6, 18, fxImg('alarm_clock')) +

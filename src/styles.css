@@ -578,42 +578,121 @@ body.focus { background: var(--bg); }
   background: radial-gradient(closest-side, rgba(28, 48, 84, .2), transparent); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stage .sh { background: radial-gradient(closest-side, rgba(0, 0, 0, .5), transparent); } }
 :root[data-theme="dark"] .stage .sh { background: radial-gradient(closest-side, rgba(0, 0, 0, .5), transparent); }
-@media (prefers-reduced-motion: reduce) { .stage *, .stage .ac img { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage .ac img, .stage .rig img { animation: none !important; } }
 
-/* snowball fight */
-.sn-robot { animation: snRobot 4s ease-in-out infinite; }
-@keyframes snRobot { 0%, 13%, 86%, 100% { transform: none; } 3% { transform: rotate(-10deg); } 8% { transform: rotate(6deg); } 90% { transform: translateX(-2cqw) rotate(-12deg); } 95% { transform: rotate(5deg); } }
-.sn-bear { animation: snBear 4s ease-in-out infinite; }
-@keyframes snBear { 0%, 38%, 63%, 100% { transform: none; } 42% { transform: translateX(2cqw) rotate(12deg); } 47% { transform: rotate(-5deg); } 52% { transform: rotate(10deg); } 57% { transform: rotate(-6deg); } }
-:where(.stage) .ball { position: absolute; left: 34%; bottom: 42%; width: 6.5cqw; height: 6.5cqw; opacity: 0; }
+/* shared props: snowballs and falling flakes */
+:where(.stage) .ball { position: absolute; left: 32%; bottom: 50%; width: 6.5cqw; height: 6.5cqw; opacity: 0; z-index: 5; }
 .stage .ball > i { display: block; width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 28%, #e6eef8 58%, #b3c4da 100%); box-shadow: 0 3px 5px rgba(28, 48, 84, .25); }
-.sn-b1 { animation: snB1x 4s linear infinite; } .sn-b1 > i { animation: snBy1 4s infinite; }
-.sn-b2 { left: 59%; animation: snB2x 4s linear infinite; } .sn-b2 > i { animation: snBy2 4s infinite; }
-@keyframes snB1x { 0%, 5% { opacity: 0; transform: none; } 6%, 37% { opacity: 1; } 37% { transform: translateX(30cqw); } 38%, 100% { opacity: 0; transform: translateX(30cqw); } }
-@keyframes snBy1 { 0%, 6% { transform: none; animation-timing-function: ease-out; } 21% { transform: translateY(-13cqw); animation-timing-function: ease-in; } 37%, 100% { transform: translateY(-1cqw); } }
-@keyframes snB2x { 0%, 51% { opacity: 0; transform: none; } 52%, 83% { opacity: 1; } 83% { transform: translateX(-30cqw); } 84%, 100% { opacity: 0; transform: translateX(-30cqw); } }
-@keyframes snBy2 { 0%, 52% { transform: none; animation-timing-function: ease-out; } 67% { transform: translateY(-13cqw); animation-timing-function: ease-in; } 83%, 100% { transform: translateY(-1cqw); } }
-.sn-puff1, .sn-puff2 { opacity: 0; transform-origin: center; filter: none; }
-.sn-puff1 { animation: snPuff1 4s ease-out infinite; } .sn-puff2 { animation: snPuff2 4s ease-out infinite; }
-@keyframes snPuff1 { 0%, 36% { opacity: 0; transform: scale(.3); } 40% { opacity: 1; transform: scale(1); } 52%, 100% { opacity: 0; transform: scale(1.5); } }
-@keyframes snPuff2 { 0%, 82% { opacity: 0; transform: scale(.3); } 86% { opacity: 1; transform: scale(1); } 98%, 100% { opacity: 0; transform: scale(1.5); } }
 :where(.stage) .flake { opacity: 0; filter: none; animation: fall 5s linear infinite; }
 .stage .f2 { animation-duration: 6s; animation-delay: -2s; } .stage .f3 { animation-duration: 7s; animation-delay: -4.5s; }
 @keyframes fall { from { opacity: 0; transform: translateY(-2cqw) rotate(0); } 12%, 85% { opacity: .85; } to { opacity: 0; transform: translateY(50cqw) rotate(200deg); } }
 
-/* cats: a kiss, a heart, a happy wiggle */
-.cu-right, .cu-right-sh { animation: cuLean 4.4s ease-in-out infinite; }
-@keyframes cuLean { 0%, 14%, 66%, 100% { transform: none; } 26%, 54% { transform: translateX(-7cqw) rotate(-9deg); } 32% { transform: translateX(-8cqw) rotate(-12deg); } }
-.cu-right-sh { animation-name: cuLeanSh; }
-@keyframes cuLeanSh { 0%, 14%, 66%, 100% { transform: none; } 26%, 54% { transform: translateX(-6cqw); } }
-.cu-left { animation: cuWiggle 4.4s ease-in-out infinite; }
-@keyframes cuWiggle { 0%, 34%, 74%, 100% { transform: none; } 40% { transform: rotate(-6deg); } 48% { transform: rotate(6deg); } 56% { transform: rotate(-5deg); } 64% { transform: translateY(-1.5cqw) rotate(4deg); } }
-.cu-left img:first-child { animation: cuBase 4.4s infinite; } .cu-left .swap { animation: cuSwap 4.4s infinite; }
-@keyframes cuSwap { 0%, 30%, 78%, 100% { opacity: 0; } 34%, 74% { opacity: 1; } }
-@keyframes cuBase { 0%, 30%, 78%, 100% { opacity: 1; } 34%, 74% { opacity: 0; } }
-.cu-heart, .cu-heart2 { opacity: 0; transform-origin: 50% 80%; animation: cuHeart 4.4s ease-out infinite; }
-.cu-heart2 { animation-delay: .3s; }
-@keyframes cuHeart { 0%, 28% { opacity: 0; transform: translateY(5cqw) scale(.2); } 36% { opacity: 1; transform: scale(1.15); } 42% { transform: scale(1); } 80%, 100% { opacity: 0; transform: translateY(-12cqw) scale(.9); } }
+/* ---- characters with moving parts: legs walk, arms throw and slap, tongue licks, tail wags ---- */
+:where(.stage) .rig { position: absolute; left: var(--x); bottom: var(--b); width: calc(var(--w) * 1cqw); aspect-ratio: 5 / 7; transform-origin: 50% 100%;
+  filter: drop-shadow(0 5px 6px rgba(28, 48, 84, .16)); }
+.rig.cat { --c1: #ffd561; --c2: #ed9626; --belly: #fff1c9; }
+.rig.bear { --c1: #ffffff; --c2: #d6ccf0; --belly: #ffffff; }
+.rig.robot { --c1: #f6f1fb; --c2: #b3a1d3; --belly: transparent; }
+.rig .pose { position: absolute; inset: 0; }
+.rig .pose.flip { transform: scaleX(-1); }
+.rig .pose > i { position: absolute; display: block; }
+.rig .head { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 1; z-index: 3; }
+.rig .head img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rig .head img.swap { opacity: 0; }
+.rig .body { left: 19%; width: 62%; top: 55%; height: 31%; z-index: 2; border-radius: 46% 46% 42% 42% / 52% 52% 46% 46%;
+  background: radial-gradient(ellipse 34% 30% at 50% 66%, var(--belly) 0 92%, transparent), radial-gradient(circle at 34% 26%, var(--c1), var(--c2) 80%);
+  box-shadow: inset -.8cqw -1cqw 1.4cqw rgba(70, 40, 20, .14); }
+.rig.robot .body { border-radius: 30%; background: radial-gradient(circle at 50% 58%, #ff5ea8 0 11%, #c42a75 13%, transparent 15%), radial-gradient(circle at 34% 26%, var(--c1), var(--c2) 80%); }
+.rig .leg { top: 77%; width: 17%; height: 21%; z-index: 1; border-radius: 42% 42% 50% 50% / 30% 30% 60% 60%; transform-origin: 50% 8%;
+  background: radial-gradient(circle at 35% 30%, var(--c1), var(--c2) 90%); animation: walk1 7s linear infinite; }
+.rig .l1 { left: 28%; } .rig .l2 { left: 55%; animation-name: walk2; }
+.rig .arm { top: 60%; width: 15%; height: 20%; z-index: 2; border-radius: 48% 48% 50% 50% / 40% 40% 60% 60%; transform-origin: 50% 12%;
+  background: radial-gradient(circle at 35% 30%, var(--c1), var(--c2) 90%); box-shadow: inset -.3cqw -.4cqw .6cqw rgba(70, 40, 20, .12); }
+.rig .al { left: 12%; animation: swing2 7s linear infinite; } .rig .ar { left: 73%; animation: swing1 7s linear infinite; }
+.rig .tail { left: -6%; top: 52%; width: 30%; height: 28%; z-index: 1; border-radius: 50%; border: 2.4cqw solid transparent;
+  border-bottom-color: var(--c2); border-left-color: var(--c2); transform-origin: 85% 80%; animation: tailWag 1.4s ease-in-out infinite alternate; }
+.rig .tongue { left: 50%; top: 50%; width: 30%; height: 6.5%; z-index: 4; border-radius: 0 60% 60% 0 / 0 50% 50% 0;
+  background: linear-gradient(#ff97aa, #e8506f); transform-origin: 0 50%; transform: scaleX(0); }
+@keyframes tailWag { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
+/* walking in: 6 steps in the first 16% of a 7 s scene */
+@keyframes walk1 { 0%, 5.4%, 10.8% { transform: rotate(24deg); } 2.7%, 8.1%, 13.5% { transform: rotate(-24deg); } 16%, 100% { transform: none; } }
+@keyframes walk2 { 0%, 5.4%, 10.8% { transform: rotate(-24deg); } 2.7%, 8.1%, 13.5% { transform: rotate(24deg); } 16%, 100% { transform: none; } }
+@keyframes swing1 { 0%, 5.4%, 10.8% { transform: rotate(-18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(18deg); } 16%, 100% { transform: none; } }
+@keyframes swing2 { 0%, 5.4%, 10.8% { transform: rotate(18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(-18deg); } 16%, 100% { transform: none; } }
+
+/* snowball fight: walk in, scoop, wind up, throw, hit, and the bear spins and plops down dizzy */
+.sf-robot { animation: sfRobot 7s linear infinite; }
+@keyframes sfRobot { 0% { opacity: 0; transform: translateX(-30cqw); } 2% { opacity: 1; } 2.7% { transform: translate(-25cqw, -.8cqw); } 5.4% { transform: translateX(-20cqw); }
+  8.1% { transform: translate(-15cqw, -.8cqw); } 10.8% { transform: translateX(-10cqw); } 13.5% { transform: translate(-5cqw, -.8cqw); } 16%, 18% { transform: none; }
+  20% { transform: scale(1.04, .9); } 23% { transform: rotate(-5deg); } 26% { transform: rotate(7deg); } 30%, 61% { transform: none; }
+  62% { transform: translateX(-2cqw) rotate(-12deg); } 65% { transform: rotate(5deg); } 68% { transform: none; } 70% { transform: scale(1.04, .9); } 72% { transform: rotate(-5deg); } 74% { transform: rotate(7deg); } 78%, 85% { transform: none; }
+  88% { transform: translateY(-5cqw); } 91% { transform: scale(1.05, .92); } 94% { opacity: 1; transform: translateY(-4cqw); } 97%, 100% { opacity: 0; transform: none; } }
+.sf-robot .ar { animation: sfArmR 7s linear infinite; } .sf-robot .al { animation: sfArmRL 7s linear infinite; }
+@keyframes sfArmR { 0%, 5.4%, 10.8% { transform: rotate(-18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(18deg); } 16%, 18% { transform: none; } 20% { transform: rotate(-40deg); }
+  23% { transform: rotate(155deg); } 26% { transform: rotate(-75deg); } 30%, 66% { transform: none; } 68% { transform: rotate(-40deg); } 71% { transform: rotate(155deg); } 73% { transform: rotate(-75deg); } 77%, 85% { transform: none; }
+  87%, 93% { transform: rotate(-150deg); } 96%, 100% { transform: none; } }
+@keyframes sfArmRL { 0%, 5.4%, 10.8% { transform: rotate(18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(-18deg); } 16%, 85% { transform: none; } 87%, 93% { transform: rotate(150deg); } 96%, 100% { transform: none; } }
+.sf-bear { animation: sfBear 7s linear infinite; }
+@keyframes sfBear { 0% { opacity: 0; transform: translateX(30cqw); } 2% { opacity: 1; } 2.7% { transform: translate(25cqw, -.8cqw); } 5.4% { transform: translateX(20cqw); }
+  8.1% { transform: translate(15cqw, -.8cqw); } 10.8% { transform: translateX(10cqw); } 13.5% { transform: translate(5cqw, -.8cqw); } 16%, 39% { transform: none; }
+  41% { transform: translateX(2cqw) rotate(10deg); } 44% { transform: scale(1.04, .9); } 47% { transform: rotate(5deg); } 50% { transform: rotate(-7deg); } 54%, 81% { transform: none; }
+  83% { transform: translateX(2cqw) rotate(12deg); } 87% { transform: translateY(-4cqw) rotateY(360deg); } 89%, 94% { opacity: 1; transform: rotateY(360deg) scale(1.08, .82); } 97%, 100% { opacity: 0; transform: rotateY(360deg) scale(1.08, .82); } }
+.sf-bear-sh { animation: sfBearSh 7s linear infinite; } .sf-robot-sh { animation: sfRobotSh 7s linear infinite; }
+@keyframes sfBearSh { 0% { opacity: 0; transform: translateX(30cqw); } 2% { opacity: 1; } 16%, 94% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; } }
+@keyframes sfRobotSh { 0% { opacity: 0; transform: translateX(-30cqw); } 2% { opacity: 1; } 16%, 94% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; } }
+.sf-bear .ar { animation: sfArmB 7s linear infinite; }
+@keyframes sfArmB { 0%, 5.4%, 10.8% { transform: rotate(-18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(18deg); } 16%, 42% { transform: none; } 44% { transform: rotate(-40deg); }
+  47% { transform: rotate(155deg); } 50% { transform: rotate(-75deg); } 54%, 100% { transform: none; } }
+.sf-b1 { animation: sfB1x 7s linear infinite; } .sf-b1 > i { animation: sfBy1 7s infinite; }
+.sf-b3 { animation: sfB3x 7s linear infinite; } .sf-b3 > i { animation: sfBy3 7s infinite; }
+.sf-b2 { left: 64%; animation: sfB2x 7s linear infinite; } .sf-b2 > i { animation: sfBy2 7s infinite; }
+@keyframes sfB1x { 0%, 25.9% { opacity: 0; transform: none; } 26%, 40% { opacity: 1; } 40% { transform: translateX(36cqw); } 41%, 100% { opacity: 0; transform: translateX(36cqw); } }
+@keyframes sfBy1 { 0%, 26% { transform: none; animation-timing-function: ease-out; } 33% { transform: translateY(-12cqw); animation-timing-function: ease-in; } 40%, 100% { transform: translateY(-3cqw); } }
+@keyframes sfB2x { 0%, 49.9% { opacity: 0; transform: none; } 50%, 62% { opacity: 1; } 62% { transform: translateX(-34cqw); } 63%, 100% { opacity: 0; transform: translateX(-34cqw); } }
+@keyframes sfBy2 { 0%, 50% { transform: none; animation-timing-function: ease-out; } 56% { transform: translateY(-12cqw); animation-timing-function: ease-in; } 62%, 100% { transform: translateY(-3cqw); } }
+@keyframes sfB3x { 0%, 72.9% { opacity: 0; transform: none; } 73%, 82% { opacity: 1; } 82% { transform: translateX(36cqw); } 83%, 100% { opacity: 0; transform: translateX(36cqw); } }
+@keyframes sfBy3 { 0%, 73% { transform: none; animation-timing-function: ease-out; } 77% { transform: translateY(-10cqw); animation-timing-function: ease-in; } 82%, 100% { transform: translateY(-3cqw); } }
+.sf-puff1, .sf-puff2, .sf-dizzy { opacity: 0; transform-origin: center; filter: none; z-index: 6; }
+.sf-puff1 { animation: sfPuff1 7s ease-out infinite; } .sf-puff2 { animation: sfPuff2 7s ease-out infinite; } .sf-dizzy { animation: sfDizzy 7s linear infinite; }
+@keyframes sfPuff1 { 0%, 39% { opacity: 0; transform: scale(.3); } 41% { opacity: 1; transform: scale(1); } 48%, 81% { opacity: 0; transform: scale(1.5); } 82% { opacity: 0; transform: scale(.3); } 84% { opacity: 1; transform: scale(1.1); } 92%, 100% { opacity: 0; transform: scale(1.6); } }
+@keyframes sfPuff2 { 0%, 61% { opacity: 0; transform: scale(.3); } 63% { opacity: 1; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes sfDizzy { 0%, 88% { opacity: 0; transform: scale(.4) rotate(0); } 90% { opacity: 1; transform: scale(1) rotate(60deg); } 95% { opacity: 1; transform: rotate(240deg); } 98%, 100% { opacity: 0; transform: rotate(320deg); } }
+
+/* cats: walk up, lick, lick, one lick too many... slap! then both laugh */
+.cf-left, .cf-left-sh { animation: cfLeft 7s linear infinite; }
+@keyframes cfLeft { 0% { opacity: 0; transform: translateX(-30cqw); } 2% { opacity: 1; } 2.7% { transform: translate(-25cqw, -.8cqw); } 5.4% { transform: translateX(-20cqw); }
+  8.1% { transform: translate(-15cqw, -.8cqw); } 10.8% { transform: translateX(-10cqw); } 13.5% { transform: translate(-5cqw, -.8cqw); } 16%, 20% { transform: none; }
+  23%, 27% { transform: translateX(3cqw) rotate(7deg); } 30% { transform: translateX(1cqw) rotate(3deg); } 33%, 37% { transform: translateX(3cqw) rotate(7deg); } 40% { transform: none; }
+  43%, 51% { transform: translateX(4.5cqw) rotate(9deg); } 54% { transform: translateX(-7cqw) rotate(-22deg); } 58% { transform: translateX(-6cqw) rotate(-14deg); } 64% { transform: translateX(-2cqw) rotate(-4deg); } 68%, 72% { transform: none; }
+  75%, 81%, 87% { transform: translateY(-2cqw) rotate(-3deg); } 78%, 84%, 90% { transform: none; } 94% { opacity: 1; transform: none; } 100% { opacity: 0; transform: none; } }
+.cf-left-sh { animation-name: cfLeftSh; } .cf-right-sh { animation-name: cfRightSh; }
+@keyframes cfLeftSh { 0% { opacity: 0; transform: translateX(-30cqw); } 2% { opacity: 1; } 16%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes cfRightSh { 0% { opacity: 0; transform: translateX(30cqw); } 2% { opacity: 1; } 16%, 94% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.cf-right, .cf-right-sh { animation: cfRight 7s linear infinite; }
+@keyframes cfRight { 0% { opacity: 0; transform: translateX(30cqw); } 2% { opacity: 1; } 2.7% { transform: translate(25cqw, -.8cqw); } 5.4% { transform: translateX(20cqw); }
+  8.1% { transform: translate(15cqw, -.8cqw); } 10.8% { transform: translateX(10cqw); } 13.5% { transform: translate(5cqw, -.8cqw); } 16%, 22% { transform: none; }
+  25%, 39% { transform: rotate(-5deg); } 44%, 50% { transform: rotate(6deg); } 53% { transform: translateX(-3cqw) rotate(-10deg); } 56% { transform: translateX(-3cqw) rotate(-6deg); } 62%, 72% { transform: none; }
+  75%, 81%, 87% { transform: translateY(-2cqw) rotate(3deg); } 78%, 84%, 90% { transform: none; } 94% { opacity: 1; transform: none; } 100% { opacity: 0; transform: none; } }
+.cf-left .tongue { animation: cfTongue 7s ease-in-out infinite; }
+@keyframes cfTongue { 0%, 22%, 28%, 32%, 38%, 42% { transform: scaleX(0); } 25%, 35% { transform: scaleX(1); } 45%, 49% { transform: scaleX(1.15); } 47% { transform: scaleX(.6); } 52%, 100% { transform: scaleX(0); } }
+.cf-right .ar { animation: cfSlap 7s linear infinite; }
+@keyframes cfSlap { 0%, 5.4%, 10.8% { transform: rotate(-18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(18deg); } 16%, 49% { transform: none; } 51.5% { transform: rotate(45deg); }
+  53.5% { transform: rotate(-118deg); } 56% { transform: rotate(-100deg); } 61%, 100% { transform: none; } }
+.cf-left .ar, .cf-right .al { animation: cfBelly 7s linear infinite; }   /* hold the belly while laughing */
+@keyframes cfBelly { 0%, 5.4%, 10.8% { transform: rotate(-18deg); } 2.7%, 8.1%, 13.5% { transform: rotate(18deg); } 16%, 71% { transform: none; } 74%, 90% { transform: rotate(-40deg); } 93%, 100% { transform: none; } }
+.cf-left .head img:first-child { animation: cfL0 7s infinite; } .cf-left .f1 { animation: cfL1 7s infinite; } .cf-left .f2 { animation: cfL2 7s infinite; }
+@keyframes cfL0 { 0%, 52% { opacity: 1; } 54%, 92% { opacity: 0; } 94%, 100% { opacity: 1; } }
+@keyframes cfL1 { 0%, 52% { opacity: 0; } 54%, 69% { opacity: 1; } 71%, 100% { opacity: 0; } }
+@keyframes cfL2 { 0%, 69% { opacity: 0; } 71%, 92% { opacity: 1; } 94%, 100% { opacity: 0; } }
+.cf-right .head img:first-child { animation: cfR0 7s infinite; } .cf-right .f1 { animation: cfR1 7s infinite; } .cf-right .f2 { animation: cfR2 7s infinite; } .cf-right .f3 { animation: cfR3 7s infinite; }
+@keyframes cfR0 { 0%, 22% { opacity: 1; } 24%, 92% { opacity: 0; } 94%, 100% { opacity: 1; } }
+@keyframes cfR1 { 0%, 22% { opacity: 0; } 24%, 41% { opacity: 1; } 43%, 100% { opacity: 0; } }
+@keyframes cfR2 { 0%, 41% { opacity: 0; } 43%, 69% { opacity: 1; } 71%, 100% { opacity: 0; } }
+@keyframes cfR3 { 0%, 69% { opacity: 0; } 71%, 92% { opacity: 1; } 94%, 100% { opacity: 0; } }
+.cf-pow, .cf-heart { opacity: 0; transform-origin: center; filter: none; z-index: 6; }
+.cf-pow { animation: cfPow 7s ease-out infinite; } .cf-heart { animation: cfHeart 7s ease-out infinite; }
+@keyframes cfPow { 0%, 53% { opacity: 0; transform: scale(.3); } 55% { opacity: 1; transform: scale(1.25) rotate(-10deg); } 58% { transform: scale(1) rotate(5deg); } 63%, 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes cfHeart { 0%, 25% { opacity: 0; transform: translateY(3cqw) scale(.3); } 29% { opacity: 1; transform: scale(1.1); } 40%, 100% { opacity: 0; transform: translateY(-10cqw) scale(.9); } }
 
 /* panda dozes off over the book, the alarm rings, idea! */
 .pa-panda { z-index: 1; transform-origin: 50% 90%; animation: paDoze 5s ease-in-out infinite; }
