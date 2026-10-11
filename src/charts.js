@@ -27,6 +27,17 @@ function wireTips(box) {
 }
 const niceMax = v => { if (v <= 5) return 5; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
 const chartWidth = box => Math.max(260, Math.floor(box.getBoundingClientRect().width) || 320);
+// x-axis labels: as many as fit (about one per 56px), always the last one; the first and last never spill over the edge
+function xLabels(n, x, W, L, R, label, y) {
+  const fit = Math.max(2, Math.floor((W - L - R) / 56)), step = Math.max(1, Math.ceil(n / fit));
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    if ((n - 1 - i) % step) continue;
+    const px = x(i), anchor = px - 22 < L - 4 ? 'start' : px + 22 > W ? 'end' : 'middle';
+    g += `<text class="tick" x="${anchor === 'start' ? Math.max(0, px - 6) : anchor === 'end' ? W - 1 : px}" y="${y}" text-anchor="${anchor}">${esc(label(i))}</text>`;
+  }
+  return g;
+}
 function chartHead(title, sub) { return `<div class="chart-head"><h3>${esc(title)}</h3>${sub ? `<p>${sub}</p>` : ''}</div>`; }
 
 // Columns: one value per day. data = [{ label, value, tip, muted }]
@@ -39,9 +50,9 @@ function columnChart(box, { title, sub, data, every = 7 }) {
   data.forEach((d, i) => {
     const cx = L + band * i + band / 2, x = cx - bw / 2, top = y(d.value || 0), h = H - B - top, r = Math.min(4, bw / 2, h);
     if (d.value) g += `<path class="col${d.muted ? ' muted' : ''}" d="M${x} ${H - B}V${top + r}q0 -${r} ${r} -${r}h${bw - 2 * r}q${r} 0 ${r} ${r}V${H - B}z"/>`;
-    if (i % every === (data.length - 1) % every) g += `<text class="tick" x="${cx}" y="${H - 6}" text-anchor="middle">${esc(d.label)}</text>`;
     g += `<rect class="hit" x="${L + band * i}" y="${T}" width="${band}" height="${H - T - B}" data-tip="${esc(d.tip)}"/>`;
   });
+  g += xLabels(data.length, i => L + band * i + band / 2, W, L, R, i => data[i].label, H - 6);
   box.innerHTML = chartHead(title, sub) + `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${g}<line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/></svg>`;
   wireTips(box);
 }
@@ -59,12 +70,12 @@ function lineChart(box, { title, sub, data, every = 7 }) {
   runs.forEach(r => { if (r.length > 1) g += `<path class="wash" d="M${r[0][0]} ${H - B}L${r.map(p => p.join(' ')).join('L')}L${r[r.length - 1][0]} ${H - B}z"/>`; });
   runs.forEach(r => { g += r.length > 1 ? `<path class="line" d="M${r.map(p => p.join(' ')).join('L')}"/>` : ''; });
   data.forEach((d, i) => {
-    if (i % every === (data.length - 1) % every) g += `<text class="tick" x="${x(i)}" y="${H - 6}" text-anchor="middle">${esc(d.label)}</text>`;
     if (d.value !== null) g += `<circle class="dot" cx="${x(i)}" cy="${y(d.value)}" r="4"/>`;
     g += `<rect class="hit" x="${x(i) - step / 2}" y="${T}" width="${step}" height="${H - T - B}" data-tip="${esc(d.tip)}"/>`;
   });
   const last = [...data].reverse().find(d => d.value !== null);
-  if (last) { const i = data.lastIndexOf(last); g += `<text class="end" x="${Math.min(x(i), W - R)}" y="${y(last.value) - 10}" text-anchor="end">${last.value}%</text>`; }
+  g += xLabels(data.length, x, W, L, R, i => data[i].label, H - 6);
+  if (last) { const i = data.lastIndexOf(last); g += `<circle class="dot last" cx="${x(i)}" cy="${y(last.value)}" r="6"/>`; }   // the latest day, a little bigger (its value is in the subtitle)
   box.innerHTML = chartHead(title, sub) + `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${g}<line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/></svg>`;
   wireTips(box);
 }
