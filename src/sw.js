@@ -13,7 +13,7 @@ self.addEventListener('activate', e => {
 // Page and settings: network first (so updates arrive), cache when offline. Libraries and fonts: cache first.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('/version.json')) return;   // version.json: always from the network
   const fresh = e.request.mode === 'navigate' || /\/(index\.html|config\.js)?$/.test(url.pathname) || url.pathname.endsWith('/config.js');
   if (fresh) {
     e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })

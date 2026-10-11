@@ -48,7 +48,7 @@ const HELP = [
     { q: 'Can my friends or the admin see my progress or chats?', a: `<p>No one sees your progress. Chats can be read only by you and that friend; the admin cannot read them.</p>` },
     { q: 'I forgot my password', a: `<p>On the sign-in screen tap <b>Forgot password?</b> and we email you a link.</p>` },
     { q: 'Does it work without internet?', a: `<p>Yes for studying: answers are saved on your device and sync when you are back online. Chat and live tests need internet.</p>` },
-    { q: 'Why did I not get a notification?', a: `<p>Check that notifications are allowed for Recurra in your phone or browser settings, and that “Sounds/Notifications” are on. If the app is fully closed, messages may arrive when you next open it.</p>` },
+    { q: 'Why did I not get a notification?', a: `<p>Check that notifications are allowed for Recurra in your phone or browser settings. If they arrive late, your phone’s battery saver is holding them back: Phone Settings → Apps → Recurra → <b>Battery</b> → <b>Unrestricted</b> (on Samsung, also take Recurra out of “Sleeping apps”). Call notifications that come too late are dropped on purpose, because the call has already ended.</p>` },
     { q: 'How do I start again from zero?', a: `<p>Tap the prep name at the top → <b>Reset progress</b>. Your questions and notes stay; only your answers are cleared.</p>` },
     { q: 'What happens if I delete my account?', a: `<p>You are signed out at once. Everything is erased for good after 30 days. Before that, the admin can restore it if you ask.</p>` },
     { q: 'Is it free?', a: `<p>Yes. No ads, no payments. Uploading PDFs uses your own free Google AI key after 5 free uploads, and Copy AI prompt is always free.</p>` },

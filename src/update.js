@@ -56,3 +56,26 @@ function showUpdateGate(conf) {
   $('updGo').onclick = () => { setTimeout(() => { $('updGo').textContent = 'Downloading… open it when it finishes'; }, 400); };
   $('updAgain').onclick = () => { location.reload(); };
 }
+
+/* ---------- the website: tell people when a newer version is out ----------
+   A tab (or the website saved to a home screen) that stays open keeps running the
+   old code. Every 5 minutes, and when you come back to it, it checks version.json;
+   if a newer build is out, a bar at the top says so with a Reload button. */
+const WEB_BUILD = '{{BUILD_ID}}';
+async function webUpdateCheck() {
+  if (NATIVE || location.protocol !== 'https:' || $('webUpd').hidden === false) return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const v = await r.json();
+    if (v.build && v.build !== WEB_BUILD) {
+      const bar = $('webUpd'); bar.hidden = false;
+      bar.innerHTML = `<span>✨ A new version of Recurra is ready.</span><button class="btn small primary" type="button" id="webUpdGo">Reload</button>`;
+      $('webUpdGo').onclick = () => location.reload();
+    }
+  } catch (e) {}
+}
+if (!NATIVE) {
+  setInterval(() => { if (!document.hidden) webUpdateCheck(); }, 5 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) webUpdateCheck(); });
+  setTimeout(webUpdateCheck, 20e3);
+}

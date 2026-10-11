@@ -31,7 +31,10 @@ const html = [
   '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('sound.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('bank.js'), src('admin.js'), src('social.js'), src('livetest.js'), src('call.js'), src('push.js'), src('ai.js'), src('help.js'), src('sky.js'), src('intro.js'), src('update.js'),
   '</script>\n</body>\n</html>\n',
 ].join('');
-writeFileSync(join(out, 'index.html'), html.replaceAll('{{VERSION}}', pkg.version));
+// every build gets an id; the website compares it with version.json to know a newer version is out
+const BUILD_ID = Date.now().toString(36);
+writeFileSync(join(out, 'index.html'), html.replaceAll('{{VERSION}}', pkg.version).replaceAll('{{BUILD_ID}}', BUILD_ID));
+writeFileSync(join(out, 'version.json'), JSON.stringify({ build: BUILD_ID, version: pkg.version }));
 
 // libraries (bundled, not loaded from the internet)
 const nm = p => join(root, 'node_modules', p);
@@ -45,7 +48,7 @@ copyFileSync(nm(AHN + 'latin-ext-wght-normal.woff2'), join(out, 'fonts', 'ahn-la
 cpSync(join(root, 'assets', 'icons'), join(out, 'icons'), { recursive: true });
 cpSync(join(root, 'assets', 'fx'), join(out, 'fx'), { recursive: true });
 copyFileSync(join(root, 'src', 'manifest.webmanifest'), join(out, 'manifest.webmanifest'));
-writeFileSync(join(out, 'sw.js'), src('sw.js').replace('{{VERSION}}', pkg.version + '-' + Date.now().toString(36)));
+writeFileSync(join(out, 'sw.js'), src('sw.js').replace('{{VERSION}}', pkg.version + '-' + BUILD_ID));
 const cfg = existsSync(join(root, 'config.js')) ? 'config.js' : 'config.example.js';
 copyFileSync(join(root, cfg), join(out, 'config.js'));
 writeFileSync(join(out, '.nojekyll'), '');

@@ -2116,3 +2116,9 @@ body.upd-open .tabbar { display: none !important; }
 .app-ver { margin: 6px 0 0; text-align: center; font-size: .76rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .ga-ph svg, .ga-ph .ga-wv { animation: none; } }
 .ga-pop::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 12px; }
+
+/* website: a newer version is out */
+.web-upd { position: fixed; z-index: 90; left: 12px; right: 12px; margin: 0 auto; top: calc(10px + env(safe-area-inset-top, 0px)); display: flex; align-items: center; gap: 12px;
+  width: fit-content; max-width: calc(100vw - 24px); padding: 8px 8px 8px 16px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: .9rem; font-weight: 650;
+  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, .5); animation: riseIn .3s var(--ease-out, ease) both; }
+.web-upd[hidden] { display: none; }

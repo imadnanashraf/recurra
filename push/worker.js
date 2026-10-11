@@ -131,8 +131,8 @@ export default {
       let sent = 0;
       for (const d of devices.slice(0, 10)) {
         const message = d.kind === 'android'
-          ? { token: d.token, data: { where, type }, android: { priority: 'HIGH', notification: { title, body, tag, icon: 'ic_stat_notify', color: '#2F6F73', sound: 'default', channel_id: type === 'test' ? 'tests' : 'messages' } } }
-          : { token: d.token, data: { title, body, tag, url: (env.APP_URL || './') + where }, webpush: { headers: { Urgency: 'high', TTL: '86400' } } };
+          ? { token: d.token, data: { where, type }, android: { priority: 'HIGH', ...(type === 'call' ? { ttl: '45s' } : {}), notification: { title, body, tag, icon: 'ic_stat_notify', color: '#2F6F73', sound: 'default', channel_id: type === 'test' ? 'tests' : type === 'call' ? 'calls' : 'messages' } } }
+          : { token: d.token, data: { title, body, tag, url: (env.APP_URL || './') + where }, webpush: { headers: { Urgency: 'high', TTL: type === 'call' ? '45' : '86400' } } };
         const r = await fetch(`https://fcm.googleapis.com/v1/projects/${env.PROJECT_ID}/messages:send`, { method: 'POST', headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' }, body: JSON.stringify({ message }) });
         if (r.ok) sent++;
         else if (r.status === 404 || r.status === 400) {           // an old token: forget it
