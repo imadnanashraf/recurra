@@ -17,6 +17,7 @@ const prefs = () => Object.assign({ recall: true, confidence: true }, App.profil
 const visible = id => !$(id).hidden;
 
 function show(id) {
+  if (typeof Focus !== 'undefined') { Focus.wanted = id === 'quiz' || id === 'break' || (id === 'room' && document.body.classList.contains('lt-focus')); if (Focus.wanted) Focus.start(); else Focus.stop(); }
   if (id !== 'room' && typeof leaveRoom === 'function' && LT.rid) leaveRoom();
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
@@ -405,7 +406,7 @@ function pick(k) {
   if (k === null) return finish(null, '');
   if (it.phase === 'recall') showOptions();
   if (!prefs().confidence) return finish(k, '');
-  it.picked = k; it.phase = 'conf';
+  it.picked = k; it.phase = 'conf'; Sound.play('tap');
   [...$('qOpts').children].forEach((b, idx) => { b.disabled = true; if (idx === k) b.classList.add('picked'); });
   $('qConf').hidden = false; $('skipBtn').hidden = true; setKeyHint();
 }
@@ -424,6 +425,9 @@ function finish(k, conf) {
   }
   Progress.record(q, it.result, it.retry, conf);
   Native.answer(it.result === 'correct');
+  // a soft sound for right or wrong (quieter than live tests); a small sparkle every 5 right in a row
+  z.run = it.result === 'correct' ? (z.run || 0) + 1 : 0;
+  Sound.play(it.result === 'correct' ? (z.run && z.run % 5 === 0 ? 'streak' : 'softRight') : it.result === 'wrong' ? 'softWrong' : 'tap');
   let again = false;
   if (it.result !== 'correct' && (z.retries[q.id] || 0) < SCHEDULE.retriesInSession) {
     z.retries[q.id] = (z.retries[q.id] || 0) + 1;
@@ -519,6 +523,7 @@ function showBreak() {
   z.blockFrom = Object.keys(z.first).length;
   const right = ids.filter(id => z.first[id].result === 'correct').length, w = sessionWins(z, ids);
   const gains = [w.learned && `${w.learned} new learned`, w.up && `${w.up} moved up`, w.strong && `${w.strong} now strong`].filter(Boolean).join(' · ');
+  Sound.play('breath');
   $('bWins').innerHTML = `<h2>Block done: ${right} of ${ids.length} right</h2><p class="muted">${gains || 'Every attempt strengthens memory, right or wrong.'}</p>`;
   show('break');
   Break.timers.forEach(clearInterval); Break.timers = [];
@@ -543,6 +548,7 @@ function renderResult() {
   const fixed = missed.filter(f => z.queue.some(it => it.q === f.q && it.retry && it.result === 'correct')).length;
   const w = sessionWins(z, ids);
   $('rTitle').textContent = 'Session complete';
+  Sound.play('done');
   const wins = [
     w.learned && [w.learned, w.learned === 1 ? 'new question learned' : 'new questions learned'],
     w.up && [w.up, w.up === 1 ? 'question moved up a memory level' : 'questions moved up a memory level'],
@@ -1235,6 +1241,7 @@ async function applyImport(btn) {
       writes.push(...chunkWrites(`${base}/${isQ ? 'bank' : 'notes'}`, isQ ? 'q' : 'n', by, isQ ? App.bankDocs : App.notesDocs));
     }
     await Store.write(writes);
+    Sound.play('done');
     if (await shareAdded(c)) return;
     toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added. ${c.kind === 'mcq' ? 'New questions join your next review.' : 'See them in Revision notes.'}`);
     const summary = c.kind === 'mcq' ? plural(c.questions.length, 'question') : c.kind === 'notes' ? plural(c.notes.length, 'note') : 'a syllabus update';
@@ -1269,7 +1276,7 @@ function renderSettings() {
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
-  $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optHapticRow').hidden = !NATIVE;
+  $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
   $('remBox').hidden = !rm.on; $('remTest').hidden = !rm.on;
@@ -1281,6 +1288,7 @@ async function savePrefs(fields) {
   App.profile.prefs = Object.assign(prefs(), fields);
   try { await Store.setProfile({ prefs: App.profile.prefs }); } catch (e) { toast('Saved on this device; it will sync when you are online.'); }
 }
+$('optFocus').addEventListener('change', () => { savePrefs({ focusSound: $('optFocus').value }); if ($('optFocus').value !== 'off') { Focus.stop(); Focus.start(); setTimeout(() => { if (!Focus.wanted) Focus.stop(); }, 3000); } else Focus.stop(); });
 $('optSound').addEventListener('change', () => { savePrefs({ sounds: $('optSound').checked }); if ($('optSound').checked) Sound.play('join'); });
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));

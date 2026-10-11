@@ -143,9 +143,10 @@ $('syllabus').addEventListener('click', async e => {
       const [code, i] = d.tick.split('|'), s = App.subjects.find(x => x.code === code), name = s.topics[Number(i)], key = topicKey(code, name);
       const now = doneMap()[key] ? 0 : Date.now();
       App.prep.topicDone = { ...doneMap(), [key]: now };
+      if (now) Sound.play('check');
       renderSyllabus();
       const st = sylStats().find(x => x.s.code === code);
-      if (now && st.doneN === st.topics.length) { celebrate($('sylList').querySelector(`[data-code="${code}"]`)); Activity.log('subject_completed', { prep: App.prep.name, subject: s.name }); }
+      if (now && st.doneN === st.topics.length) { Sound.play('win'); celebrate($('sylList').querySelector(`[data-code="${code}"]`)); Activity.log('subject_completed', { prep: App.prep.name, subject: s.name }); }
       await Store.setPrep(App.prepId, { topicDone: App.prep.topicDone });
       return;
     }

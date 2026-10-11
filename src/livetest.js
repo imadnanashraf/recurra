@@ -119,7 +119,7 @@ function onTick() {
   }
 }
 // the tab bar hides only while you answer (countdown and questions), like the normal question screen
-function ltFocus(on) { document.body.classList.toggle('lt-focus', !!on); }
+function ltFocus(on) { document.body.classList.toggle('lt-focus', !!on); Focus.wanted = !!on; if (on) Focus.start(); else Focus.stop(); }
 function renderRoom(full) {
   const r = LT.room; if (!r || !visible('room')) return;
   ltFocus(r.status === 'live' && !roomOver() && LT.players[meUid()] && !LT.players[meUid()].finishedAt);
@@ -263,6 +263,7 @@ function renderResults() {
   $('roomView').innerHTML = `<div class="lt-results">
     <div class="lt-hero"><span class="lt-flag">🏆</span><h2>${cheer}</h2><p>${esc(r.title)}${r.topicName ? ' · ' + esc(r.topicName) : ''} · ${plural(r.n, 'question')}</p></div>
     ${R.length > 1 ? `<div class="podium">${podium}</div>` : ''}
+    <div class="newbdgs" id="ltNewBadges" hidden></div>
     <section class="card"><h3>Scores</h3><ol class="lt-table">${R.map((p, k) => `<li class="${p.uid === me ? 'me' : ''}"><span class="rk">${medal[k] || k + 1}</span>${pAvatar(ltPerson(p.uid), 'lt-mini2')}<b>${esc(ltName(p.uid))}</b><span class="sc">${p.correct || 0}/${r.n}</span><span class="tm">${mmss(p.timeMs)}</span><span class="st">${p.best >= 3 ? `🔥${p.best}` : ''}</span></li>`).join('')}</ol></section>
     ${traps.length ? `<section class="card lt-traps"><h3>🪤 Trap questions <span class="muted small">most of you got these wrong</span></h3>${traps.map(s => {
         const mineA = mineP && (mineP.answers || {})[s.i];
@@ -274,33 +275,97 @@ function renderResults() {
   if (r.host === meUid() && r.status !== 'done') Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'done' }, { merge: true }).catch(() => {});
   if (mineP && !LT.saved) { saveHistory(R, stats, traps); Sound.play(myRank === 0 ? 'win' : 'finish'); }
 }
-async function saveHistory(R, stats, traps) {
+async function saveHistory(R, stats, traps) {   // eslint: async because it compares badges before and after
   LT.saved = true;
   const r = LT.room, me = meUid(), mine = LT.players[me], rank = R.findIndex(p => p.uid === me) + 1;
-  const dodged = traps.filter(s => ((mine.answers || {})[s.i] || {}).ok).length;
+  const answered = Object.keys(mine.answers || {}).length;
+  if (answered < Math.ceil(r.n / 2)) return;                           // answered less than half: not counted as played
+  // a "trap dodged": you got it right while at least 2 others got it wrong
+  const dodged = r.qs.filter((q, i) => ((mine.answers || {})[i] || {}).ok && Object.values(LT.players).filter(p => p.uid !== me && ((p.answers || {})[i] || {}).ok === false).length >= 2).length;
+  const before = await historyList();
   const doc = { rid: LT.rid, at: r.startAt, title: r.title, topicName: r.topicName || '', n: r.n, host: r.host,
     players: R.map((p, k) => ({ uid: p.uid, name: p.uid === me ? displayName() : fullName(Social.people[p.uid] || {}) || 'Friend', correct: p.correct || 0, timeMs: p.timeMs, rank: k + 1, best: p.best || 0 })),
-    me: { correct: mine.correct || 0, timeMs: R[rank - 1].timeMs, rank, best: mine.best || 0, dodged, firstDone: R.filter(p => p.finishedAt).sort((a, b) => a.finishedAt - b.finishedAt)[0] && R.filter(p => p.finishedAt).sort((a, b) => a.finishedAt - b.finishedAt)[0].uid === me } };
+    me: { correct: mine.correct || 0, answered, timeMs: R[rank - 1].timeMs, rank, best: mine.best || 0, dodged, firstDone: R.filter(p => p.finishedAt).sort((a, b) => a.finishedAt - b.finishedAt)[0] && R.filter(p => p.finishedAt).sort((a, b) => a.finishedAt - b.finishedAt)[0].uid === me } };
   try {
     const ref = Store.fs.doc(`users/${me}/tests/${LT.rid}`), old = await ref.get();
-    if (!old.exists) { await ref.set(doc); Activity.log('test_finished', { title: r.title, score: `${doc.me.correct}/${r.n}`, rank: `${rank} of ${R.length}` }); }
+    if (!old.exists) {
+      await ref.set(doc); Activity.log('test_finished', { title: r.title, score: `${doc.me.correct}/${r.n}`, rank: `${rank} of ${R.length}` });
+      showNewBadges(badgeLevels(before), badgeLevels([doc, ...before]));
+    }
   } catch (e) { console.warn(e); }
 }
 
 /* ---------- 4. history, charts, head-to-head, badges ---------- */
+// Badges never run out: each one has levels that keep going (Lv 1, 2, 3 …), with bronze → silver → gold → diamond looks.
+// They are worked out from your saved test history, so they are the same on every device.
+const playedOK = t => !t.me || t.me.answered === undefined || t.me.answered >= Math.ceil(t.n / 2);
+const groupOf = t => (t.players || []).length;
+const STEPS = [1, 3, 5, 10, 20, 35, 50, 75, 100];
+const nextStep = n => n < STEPS.length ? STEPS[n] : STEPS[STEPS.length - 1] + 50 * (n - STEPS.length + 1);   // after 100: every 50 more
 const BADGES = [
-  { id: 'first', icon: '🎈', name: 'First test', how: 'Play your first live test', test: H => H.length >= 1 },
-  { id: 'win', icon: '🏆', name: 'Winner', how: 'Win a test against friends', test: H => H.some(t => t.me.rank === 1 && t.players.length > 1) },
-  { id: 'perfect', icon: '🎯', name: 'Perfect score', how: 'Get every question right', test: H => H.some(t => t.me.correct === t.n) },
-  { id: 'fast', icon: '⚡', name: 'Fastest finisher', how: 'Finish first in a group test', test: H => H.some(t => t.me.firstDone && t.players.length > 1) },
-  { id: 'trap', icon: '🛡️', name: 'Trap dodger', how: 'Get a trap question right that most got wrong', test: H => H.some(t => t.me.dodged > 0) },
-  { id: 'fire', icon: '🔥', name: 'On fire', how: '5 right answers in a row', test: H => H.some(t => (t.me.best || 0) >= 5) },
-  { id: 'ten', icon: '🎖️', name: 'Regular', how: 'Play 10 live tests', test: H => H.length >= 10 },
+  { id: 'win', icon: '🏆', name: 'Winner', how: '1st place in a test with friends (2 or more players)', unit: 'win', count: H => H.filter(t => t.me.rank === 1 && groupOf(t) >= 2).length, hit: t => t.me.rank === 1 && groupOf(t) >= 2 },
+  { id: 'perfect', icon: '🎯', name: 'Perfect score', how: 'Every answer right in a test of 10 or more questions (solo counts)', unit: 'perfect test', count: H => H.filter(t => t.n >= 10 && t.me.correct === t.n).length, hit: t => t.n >= 10 && t.me.correct === t.n },
+  { id: 'fast', icon: '⚡', name: 'Fastest finisher', how: 'Finish first with 60% or more, with friends', unit: 'time', count: H => H.filter(t => t.me.firstDone && groupOf(t) >= 2 && t.me.correct / t.n >= 0.6).length, hit: t => t.me.firstDone && groupOf(t) >= 2 && t.me.correct / t.n >= 0.6 },
+  { id: 'trap', icon: '🛡️', name: 'Trap dodger', how: 'Right on a question that at least 2 others got wrong', unit: 'trap', count: H => H.reduce((a, t) => a + (groupOf(t) >= 3 ? (t.me.dodged || 0) : 0), 0), hit: t => groupOf(t) >= 3 && t.me.dodged > 0 },
+  { id: 'fire', icon: '🔥', name: 'On fire', how: 'Right answers in a row (best streak: 5, 8, 10, 15 …)', unit: 'in a row', streak: true, count: H => H.reduce((a, t) => Math.max(a, t.me.best || 0), 0), hit: t => (t.me.best || 0) >= 5 },
+  { id: 'regular', icon: '🎖️', name: 'Regular', how: 'Live tests played (solo counts)', unit: 'test', count: H => H.length, hit: () => true },
 ];
+const FIRE = [5, 8, 10, 15, 20, 25, 30, 40, 50];
+function levelOf(b, n) {
+  const steps = b.streak ? FIRE : null;
+  let lv = 0; while ((steps ? (lv < steps.length ? steps[lv] : steps[steps.length - 1] + 10 * (lv - steps.length + 1)) : nextStep(lv)) <= n) lv++;
+  const goal = steps ? (lv < steps.length ? steps[lv] : steps[steps.length - 1] + 10 * (lv - steps.length + 1)) : nextStep(lv);
+  const prev = lv === 0 ? 0 : steps ? (lv - 1 < steps.length ? steps[lv - 1] : steps[steps.length - 1] + 10 * (lv - steps.length)) : nextStep(lv - 1);
+  return { lv, goal, prev, pct: Math.round(100 * Math.min(1, (n - prev) / Math.max(1, goal - prev))) };
+}
+const tierOf = lv => lv >= 7 ? 'diamond' : lv >= 5 ? 'gold' : lv >= 3 ? 'silver' : lv >= 1 ? 'bronze' : 'none';
+const TIER_NAME = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', diamond: 'Diamond', none: 'Not yet' };
+function badgeLevels(H) {
+  H = H.filter(playedOK);
+  const out = {};
+  BADGES.forEach(b => { const n = b.count(H), L = levelOf(b, n); const last = H.filter(b.hit).sort((x, y) => (y.at || 0) - (x.at || 0))[0]; out[b.id] = { ...L, n, last: last && last.at }; });
+  return out;
+}
+async function historyList() { try { const s = await Store.fs.collection(`users/${meUid()}/tests`).get(); return s.docs.map(d => d.data()).filter(t => t && t.me); } catch (e) { return []; } }
+function badgeCard(b, L, big) {
+  const t = tierOf(L.lv), unit = b.unit + (L.n === 1 || b.streak ? '' : 's');
+  return `<div class="bdg2 t-${t}${big ? ' big' : ''}" title="${esc(b.how)}">
+    <span class="bdg-ic"><i>${b.icon}</i>${L.lv ? `<b class="lv">${L.lv}</b>` : ''}</span>
+    <strong>${esc(b.name)}</strong>
+    <small>${L.lv ? `${TIER_NAME[t]} · Lv ${L.lv}` : 'Not yet'}</small>
+    <span class="bdg-bar" aria-hidden="true"><i style="width:${L.pct}%"></i></span>
+    <small class="bdg-next">${L.n ? `${L.n} ${b.streak ? 'in a row (best)' : unit}` : ''}${L.n ? ' · ' : ''}next at ${L.goal}</small>
+    ${big ? `<p class="bdg-how">${esc(b.how)}</p>${L.last ? `<p class="bdg-last">Last earned ${esc(fmtDate(L.last))}</p>` : ''}` : ''}
+  </div>`;
+}
+function badgeStrip(H) {
+  const L = badgeLevels(H), total = BADGES.reduce((a, b) => a + L[b.id].lv, 0);
+  return `<section class="card bdg-sec"><div class="bdg-head"><h3>Badges <span class="muted small">${total} ${total === 1 ? 'level' : 'levels'} earned</span></h3><button class="linkbtn" type="button" data-ltbadges>View all ${icon('next')}</button></div>
+    <div class="bdg-strip" role="list">${BADGES.map(b => `<button type="button" class="bdg-chip t-${tierOf(L[b.id].lv)}" data-ltbadges role="listitem" aria-label="${esc(b.name)}, level ${L[b.id].lv}"><span class="bdg-ic"><i>${b.icon}</i>${L[b.id].lv ? `<b class="lv">${L[b.id].lv}</b>` : ''}</span><small>${esc(b.name)}</small></button>`).join('')}</div></section>`;
+}
+async function openBadges() {
+  leaveRoom(); LT.view = 'badges'; $('roomView').innerHTML = '<p class="muted center">Loading…</p>'; show('room');
+  const H = await historyList(), L = badgeLevels(H);
+  if (LT.view !== 'badges') return;
+  $('roomView').innerHTML = `<div class="head-row"><h2>Badges</h2><button class="btn ghost" type="button" data-lthistory>${icon('back')}Tests</button></div>
+    <p class="muted">Badges never run out: every badge keeps levelling up. 🥉 Bronze (Lv 1–2) → 🥈 Silver (Lv 3–4) → 🥇 Gold (Lv 5–6) → 💎 Diamond (Lv 7 and up). Solo tests count for Perfect score, On fire and Regular. A test counts when you answer at least half of it.</p>
+    <div class="bdg-grid">${BADGES.map(b => badgeCard(b, L[b.id], true)).join('')}</div>`;
+}
+// after a test: "New badge!" or "Level up!" on the results screen
+function showNewBadges(before, after) {
+  const news = BADGES.filter(b => after[b.id].lv > before[b.id].lv);
+  if (!news.length) return;
+  setTimeout(() => {
+    const box = $('ltNewBadges'); if (!box) return;
+    box.innerHTML = news.map(b => `<div class="newbdg">${badgeCard(b, after[b.id])}<span>${before[b.id].lv ? `Level up! ${esc(b.name)} is now Lv ${after[b.id].lv}` : `New badge: ${esc(b.name)}!`}</span></div>`).join('');
+    box.hidden = false; Sound.play('streak');
+    if (!prefersReduced()) { const c = document.createElement('div'); c.className = 'confetti'; for (let i = 0; i < 30; i++) { const p = document.createElement('i'); p.style.cssText = `--x:${(Math.random() * 2 - 1) * 160}px;--y:${-40 - Math.random() * 140}px;--r:${Math.random() * 720 - 360}deg;--d:${(0.9 + Math.random() * 0.7).toFixed(2)}s;background:${['#10a58f', '#1b93c9', '#f5a300', '#ff7a93', '#7c5cff'][i % 5]};left:${20 + Math.random() * 60}%`; c.appendChild(p); } box.appendChild(c); setTimeout(() => c.remove(), 1800); }
+  }, 900);
+}
 MODES.tests = () => { leaveRoom(); markInvitesSeen(); LT.view = 'history'; $('roomView').innerHTML = '<p class="muted center">Loading your tests…</p>'; show('room'); loadHistory(); };
 async function loadHistory() {
   let H = [];
-  try { const s = await Store.fs.collection(`users/${meUid()}/tests`).get(); H = s.docs.map(d => d.data()).filter(t => t && t.me).sort((a, b) => (b.at || 0) - (a.at || 0)); } catch (e) { console.warn(e); }
+  try { const s = await Store.fs.collection(`users/${meUid()}/tests`).get(); H = s.docs.map(d => d.data()).filter(t => t && t.me).filter(playedOK).sort((a, b) => (b.at || 0) - (a.at || 0)); } catch (e) { console.warn(e); }
   if (LT.view !== 'history' || !visible('room')) return;
   const me = meUid(), wins = H.filter(t => t.me.rank === 1 && t.players.length > 1).length;
   const avg = H.length ? Math.round(100 * H.reduce((a, t) => a + t.me.correct / t.n, 0) / H.length) : 0;
@@ -318,8 +383,7 @@ async function loadHistory() {
         <section class="card"><h3>Head to head</h3>${Object.values(h2h).length ? `<div class="h2h">${Object.values(h2h).sort((a, b) => b.w + b.l - a.w - a.l).map(x => {
             const tot = x.w + x.l; return `<div class="h2h-row">${pAvatar(Social.people[x.uid] || { uid: x.uid, first: x.name }, 'lt-mini2')}<b>You vs ${esc((Social.people[x.uid] && Social.people[x.uid].first) || x.name)}</b><span class="h2h-bar"><i class="w" style="width:${100 * x.w / tot}%"></i><i class="l" style="width:${100 * x.l / tot}%"></i></span><small>${x.w} won · ${x.l} lost</small></div>`; }).join('')}</div>` : '<p class="muted">Play with friends to see who wins more often.</p>'}</section>
       </div>` : `<div class="empty-state">${ART.empty}<strong>No live tests yet</strong><p>Challenge your friends: everyone answers the same questions at the same time. Your results and badges will show here.</p></div>`}
-    <section class="card"><h3>Badges <span class="muted small">${BADGES.filter(b => b.test(H)).length} of ${BADGES.length}</span></h3>
-      <div class="badges">${BADGES.map(b => { const on = b.test(H); return `<div class="bdg${on ? ' on' : ''}" title="${esc(b.how)}"><span>${b.icon}</span><b>${esc(b.name)}</b><small>${on ? 'Earned' : esc(b.how)}</small></div>`; }).join('')}</div></section>
+    ${badgeStrip(H)}
     ${H.length ? `<section class="card"><h3>Past tests</h3><div class="lt-past">${H.map(t => `<button type="button" class="lt-row" data-ltopen="${esc(t.rid)}">
         <span class="lt-rank r${t.me.rank}">${['🥇', '🥈', '🥉'][t.me.rank - 1] || '#' + t.me.rank}</span>
         <span class="pmain"><b>${esc(t.title)}${t.topicName ? ' · ' + esc(t.topicName) : ''}</b><small>${esc(fmtDate(t.at))} · ${t.players.length > 1 ? `with ${esc(t.players.filter(p => p.uid !== me).map(p => (p.name || '').split(' ')[0]).join(', '))}` : 'solo'}</small></span>
@@ -349,6 +413,7 @@ $('room').addEventListener('click', async e => {
     if ('ltcancel' in d) { await Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'cancelled' }, { merge: true }); return; }
     if (d.ltpick !== undefined) { if (Date.now() < LT.room.startAt) return; return pickAnswer(Number(d.ltpick)); }
     if ('lthistory' in d) return MODES.tests();
+    if ('ltbadges' in d) return openBadges();
     if ('ltnew' in d) return openLtSetup();
     if (d.ltopen) return openRoom(d.ltopen);
     if ('ltaddwrong' in d) {

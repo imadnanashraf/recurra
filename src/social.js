@@ -429,6 +429,8 @@ function paintTyping() {
   const p = Social.people[otherOf(f)] || {}, st = $('threadStatus');
   if (st) st.innerHTML = statusLine(f, p);
   const on = typingNow(f, otherOf(f)), box = $('typingRow');
+  if (on && !Social.wasTyping && visible('thread')) Sound.play('typingIn');
+  Social.wasTyping = on;
   if (box) { box.hidden = !on; if (on && nearBottom()) scrollToEnd(); }
   if (visible('chat')) renderInbox();
 }
@@ -507,7 +509,7 @@ function stopTyping() {
   if (f.status === 'accepted') Store.fs.doc(`friendships/${f.id}`).set({ ['typing_' + meUid()]: 0 }, { merge: true }).catch(() => {});
 }
 function sizeComposer() { const t = $('msgText'); t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight || 40) + 'px'; }
-$('msgText').addEventListener('input', () => { sizeComposer(); noteTyping(); });
+$('msgText').addEventListener('input', e => { sizeComposer(); noteTyping(); if (e && e.inputType && /^insert/.test(e.inputType)) Sound.play('key'); });
 $('msgText').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('msgText')) stopTyping(); }, 300));
 $('msgText').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && hasHover()) { e.preventDefault(); $('msgForm').requestSubmit ? $('msgForm').requestSubmit() : $('msgForm').dispatchEvent(new Event('submit', { cancelable: true })); } });
 $('msgForm').addEventListener('submit', async e => {
