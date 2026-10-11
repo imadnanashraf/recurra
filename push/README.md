@@ -19,7 +19,7 @@ The code is ready (`push/worker.js`). It only does three things:
    - Name `CLOUDFLARE_API_TOKEN`, value: the token from step 4.
    - Name `CLOUDFLARE_ACCOUNT_ID`, value: the Account ID from step 3.
 6. **Start it:** GitHub → **Actions** → **Push sender** → **Run workflow**. A green tick means it is live; the app finds it by itself.
-7. **Android app:** GitHub → **Actions** → **Build Android app** → **Run workflow**, then install the new `recurra.apk` over the old one. (This build also registers the Android app with Firebase for you.)
+7. **Android app:** install the latest `recurra.apk` over the old one (the current build already supports it; the Android app was registered with Firebase automatically).
 8. **On each phone or browser:** open Recurra → chat button → **Turn on** notifications when asked.
 
 That's it. Nothing else to maintain. The free Cloudflare plan allows 100,000 requests a day, far more than needed.
