@@ -1718,6 +1718,12 @@ function updateAdminTab() {
   applyTheme();
   if (NATIVE) { $('googleBtn').hidden = true; $('orLine').hidden = true; }
   else if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  // the Android app download (website only): on the sign-in screen and in Settings
+  document.querySelectorAll('[data-getapp]').forEach(a => {
+    a.href = `https://github.com/${REPO}/releases/download/android/recurra.apk`;
+    a.hidden = NATIVE;
+    if (!/Android/i.test(navigator.userAgent)) a.querySelector('.ga-sub').textContent = 'Free. Open this page on your Android phone to download it.';
+  });
   const cfg = window.APP_CONFIG && window.APP_CONFIG.firebase;
   if (!cfg) { $('bootMsg').innerHTML = 'Setup is not finished: <code>config.js</code> has no Firebase settings yet. See README.md, step A5.'; return; }
   try { App.fb = await firebaseStart(cfg); }
