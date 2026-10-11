@@ -1,0 +1,27 @@
+name: Accounts
+
+# Every hour: turn off logins of locked accounts, erase accounts whose 30 days are up
+# (or that the admin deleted now), turn restored logins back on, trim the activity log.
+on:
+  schedule:
+    - cron: '15 * * * *'
+  push:
+    branches: [main]
+    paths: ['reminder/accounts.mjs', '.github/workflows/accounts.yml']
+  workflow_dispatch: {}
+
+jobs:
+  accounts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reminder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node accounts.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

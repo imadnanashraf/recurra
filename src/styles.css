@@ -873,3 +873,62 @@ svg.chart { display: block; max-width: 100%; height: auto; overflow: visible; to
 }
 .btns.grid > .btn { padding-inline: 8px; font-size: .94rem; white-space: nowrap; }
 @media (max-width: 340px) { .btns.grid { grid-template-columns: 1fr; } .btns.grid > .btn { white-space: normal; } }
+
+/* =====================================================================
+   Admin panel, "viewing someone's account" bar, delete-account box
+   ===================================================================== */
+.tabbar.five { grid-template-columns: repeat(5, 1fr); }
+@media (min-width: 760px) { .tabbar.five { grid-template-columns: repeat(5, auto); } }
+.viewas { position: sticky; top: 0; z-index: 7; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--sun-soft); color: var(--ink); border-bottom: 1px solid color-mix(in srgb, var(--sun) 40%, transparent); padding: 8px 16px; font-size: .9rem; }
+.viewas .btn { min-height: 36px; padding: 4px 12px; }
+@media (min-width: 1024px) { .viewas { justify-content: center; } }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: var(--sunken); border-radius: 12px; padding: 4px; }
+.seg button { border: 0; background: none; border-radius: 9px; padding: 8px 10px; font-weight: 700; color: var(--muted); min-height: 40px; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(20, 32, 51, .12); }
+.adm-pane { display: grid; gap: 14px; }
+.filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.filters input, .filters select { width: 100%; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: .92rem; min-height: 42px; }
+.filters input[type="search"] { grid-column: 1 / -1; }
+.filters .datef { display: grid; gap: 2px; font-size: .78rem; font-weight: 700; color: var(--muted); }
+@media (min-width: 1024px) {
+  main > section#admin, main > section#adminUser { max-width: none; }
+  .filters { grid-template-columns: 2fr repeat(3, minmax(0, 1fr)) repeat(2, minmax(0, .9fr)); align-items: end; }
+  #admPeople .filters { grid-template-columns: 2fr 1fr; }
+  .filters input[type="search"] { grid-column: auto; }
+  .seg { max-width: 360px; }
+}
+.avatar.sm { width: 40px; height: 40px; font-size: .9rem; }
+.row.person { grid-template-columns: auto minmax(0, 1fr) auto; }
+.row.person .n { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 9rem; }
+.au-head { display: flex; align-items: center; gap: 16px; }
+.au-id { display: grid; gap: 2px; min-width: 0; }
+.au-id strong { font-size: 1.15rem; }
+.au-id .muted { overflow-wrap: anywhere; }
+.kv { margin: 0; display: grid; gap: 10px; }
+.kv > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 10px; }
+.kv dt { color: var(--muted); font-size: .88rem; }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.au-acts { display: grid; gap: 10px; }
+.au-rename label { font-size: .88rem; font-weight: 700; }
+.au-rename input { flex: 1 1 10rem; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+.list.flat { box-shadow: none; }
+.loglist { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
+.loglist.compact { box-shadow: none; }
+.logday { margin: 0; padding: 10px 16px 6px; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--bg); border-top: 1px solid var(--line); }
+.logday:first-child { border-top: 0; }
+.logrow { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: 10px; padding: 10px 16px; align-items: start; font-size: .92rem; }
+.logrow + .logrow { border-top: 1px solid var(--line); }
+.logrow .lt { font-family: var(--f-num); font-size: .82rem; color: var(--muted); padding-top: 2px; }
+.logrow .lt small { display: block; }
+.logrow .lw { min-width: 0; }
+.logrow .lw small { display: block; color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+.logrow .lw .linkbtn { font-weight: 700; text-decoration: none; color: var(--ink); }
+.logrow .lw .badge { margin-left: 4px; }
+.logrow .lg { font-size: .72rem; font-weight: 700; color: var(--muted); background: var(--sunken); border-radius: 99px; padding: 2px 8px; }
+@media (max-width: 420px) { .logrow { grid-template-columns: 3.8rem minmax(0, 1fr); } .logrow .lg { display: none; } }
+.delete-box { display: grid; gap: 10px; }
+.delete-box ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.delete-box input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; letter-spacing: .08em; }
+.delete-box label { font-size: .88rem; font-weight: 700; }
+@media (max-width: 1023px) { #logUser { grid-column: 1 / -1; } }

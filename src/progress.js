@@ -207,6 +207,10 @@ const Store = {
   watchCol(path, cb, err) {
     return this.fs.collection(path).onSnapshot(s => cb(s.docs.map(d => ({ id: d.id, data: d.data() || {} }))), err);
   },
+  watchDoc(path, cb) {
+    const ref = this.fs.doc(path);
+    return typeof ref.onSnapshot === 'function' ? ref.onSnapshot(d => cb(d.exists ? (d.data() || {}) : {}), () => {}) : () => {};
+  },
   async getProfile() { const d = await this.fs.doc(this.base()).get(); return d.exists ? d.data() : {}; },
   setProfile(fields) { return this.fs.doc(this.base()).set(fields, { merge: true }); },
   setPrep(pid, fields) { return this.fs.doc(this.prepPath(pid)).set(fields, { merge: true }); },

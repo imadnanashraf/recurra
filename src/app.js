@@ -2,7 +2,7 @@
    PART 4 — SCREENS
    ===================================================================== */
 const App = {
-  fb: null, user: null, profile: {}, preps: [], prepsLoaded: false, prepId: null, prep: null, wantPrep: null,
+  fb: null, user: null, authUser: null, viewAs: null, profileUnsub: null, blockMsg: null, signingIn: false, profile: {}, preps: [], prepsLoaded: false, prepId: null, prep: null, wantPrep: null,
   subjects: [], bank: {}, bankDocs: [], notesMap: {}, notesDocs: [], questions: [], notes: [],
   loaded: false, unsubs: [], prepsUnsub: null, session: null, pick: null, imp: null,
 };
@@ -12,16 +12,16 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replac
 const getState = id => Progress.get(id);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const todayKey = () => dayKey(Date.now());
-const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes'];
+const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'admin', 'adminUser'];
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 
 function show(id) {
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
-  const tabs = !!App.prep && !['boot', 'login', 'quiz', 'break'].includes(id);
+  const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
-  const tab = { home: 'home', picker: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress' }[id];
+  const tab = { home: 'home', picker: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
@@ -104,14 +104,17 @@ function onPreps(list, fromCache) {
   list.sort((a, b) => (a.created || 0) - (b.created || 0));
   App.preps = list; App.prepsLoaded = true;
   if (App.wantPrep && list.some(p => p.id === App.wantPrep)) { const w = App.wantPrep; App.wantPrep = null; return openPrep(w); }
-  if (!list.length) { closePrep(); updatePrepButton(); if (!visible('import')) showPreps(); return; }
+  const after = App.afterLoad; App.afterLoad = null;
+  if (!list.length) { closePrep(); updatePrepButton(); if (after === 'admin') MODES.admin(); else if (!visible('import')) showPreps(); return; }
   const cur = list.find(p => p.id === App.prepId);
   if (!cur) {
     let want = null;
     try { want = localStorage.getItem('rc-active-' + App.user.uid); } catch (e) {}
     want = list.some(p => p.id === want) ? want : list.some(p => p.id === App.profile.activePrep) ? App.profile.activePrep : list[0].id;
     if (App.prepId) toast('That prep was deleted.');
-    return openPrep(want, visible('preps') ? 'preps' : 'home');
+    openPrep(want, visible('preps') ? 'preps' : 'home');
+    if (after === 'admin') MODES.admin();
+    return;
   }
   App.prep = cur; App.subjects = cur.subjects || [];
   if ((cur.resetAt || 0) > Progress.resetAt) Progress.wipeTo(cur.resetAt);
@@ -190,8 +193,8 @@ function renderHome() {
   on('goBtn', () => startSession('Today’s review', [...p.due, ...p.fresh], true));
   on('extraBtn', startExtra);
   on('addBtn', () => openImport('active', 'mcq'));
-  on('pauseBtn', () => { Progress.setToday({ paused: true }); renderHome(); Reminders.refreshSoon(0); toast('Paused for today. It starts again tomorrow.'); });
-  on('resumeBtn', () => { Progress.setToday({ paused: false }); renderHome(); Reminders.refreshSoon(0); });
+  on('pauseBtn', () => { Progress.setToday({ paused: true }); renderHome(); Reminders.refreshSoon(0); toast('Paused for today. It starts again tomorrow.'); Activity.log('day_paused', { paused: true, prep: App.prep.name }); });
+  on('resumeBtn', () => { Progress.setToday({ paused: false }); renderHome(); Reminders.refreshSoon(0); Activity.log('day_paused', { paused: false, prep: App.prep.name }); });
   renderStreak();
   const o = summary(App.questions);
   $('stats').innerHTML = `
@@ -469,7 +472,9 @@ function endSession() {
   const z = App.session, it = z.queue[z.i];
   if (it && it.result && it.shown) Progress.pace((Date.now() - it.shown) / 1000);
   syncDay(); Reminders.refreshSoon();
-  if (Object.keys(z.first).length) renderResult(); else show('home');
+  const firsts = Object.values(z.first);
+  if (firsts.length) Activity.log('session_finished', { prep: App.prep.name, n: firsts.length, right: firsts.filter(f => f.result === 'correct').length });
+  if (firsts.length) renderResult(); else show('home');
 }
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
@@ -703,6 +708,7 @@ async function createFromChecked(c) {
   await Store.write(writes);
   if (App.preps.some(p => p.id === pid) && App.prepId !== pid) { App.wantPrep = null; openPrep(pid); }
   toast(`Created "${s.name || 'My prep'}".`);
+  Activity.log('prep_created', { prep: s.name || 'My prep', questions: (c.questions || []).length, notes: (c.notes || []).length });
 }
 async function resetPrep(pid) {
   const base = Store.prepPath(pid), now = Date.now();
@@ -710,9 +716,11 @@ async function resetPrep(pid) {
   Progress.wipeTo(now);
   await Store.write([{ path: base, data: { ...stripId(App.prep), resetAt: now } }, ...ids.map(id => ({ path: `${base}/progress/${id}`, data: null }))]);
   toast('Progress reset.'); show('home');
+  Activity.log('prep_reset', { prep: App.prep ? App.prep.name : '' });
 }
 async function deletePrep(pid) {
   const base = Store.prepPath(pid), key = `rc-progress-${App.user.uid}-${pid}`;
+  const name = (App.preps.find(x => x.id === pid) || {}).name || '';
   await Progress.discard();                 // finish or cancel any upload first, so nothing comes back
   closePrep();
   try { localStorage.removeItem(key); } catch (e) {}
@@ -721,6 +729,7 @@ async function deletePrep(pid) {
   writes.push({ path: base, data: null });
   await Store.write(writes);
   toast('Prep deleted.');
+  Activity.log('prep_deleted', { prep: name });
 }
 const stripId = p => { const o = { ...p }; delete o.id; return o; };
 function exportPrep() {
@@ -730,6 +739,7 @@ function exportPrep() {
   const slug = (p.name || 'prep').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prep';
   download(`${slug}.json`, JSON.stringify(data, null, 2));
   toast('Downloaded. Your friend can add it with New prep, then “From a syllabus or prep file”.');
+  Activity.log('prep_exported', { prep: p.name });
 }
 
 /* ---------- import screen ---------- */
@@ -895,6 +905,8 @@ async function applyImport(btn) {
     }
     await Store.write(writes);
     toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added. ${c.kind === 'mcq' ? 'New questions join your next review.' : 'See them in Revision notes.'}`);
+    const summary = c.kind === 'mcq' ? plural(c.questions.length, 'question') : c.kind === 'notes' ? plural(c.notes.length, 'note') : 'a syllabus update';
+    Activity.log('content_added', { prep: App.prep.name, kind: c.kind, summary });
     show('home');
   } catch (e) {
     console.warn(e);
@@ -918,7 +930,9 @@ function renderSettings() {
   $('profName').value = displayName();
   $('pwReset').hidden = !usesPassword();
   $('accConfirm').innerHTML = ''; msg('accMsg', ''); msg('profMsg', '');
-  $('installCard').hidden = !Install.prompt;
+  $('installCard').hidden = !Install.prompt || !!App.viewAs;
+  $('remCard').hidden = !!App.viewAs; $('accCard').hidden = !!App.viewAs;
+  $('adminOpen').hidden = !isAdminUser(App.authUser) || !!App.viewAs;
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
@@ -955,6 +969,7 @@ $('remOn').addEventListener('change', async () => {
     await Reminders.save({ on });
     renderSettings();
     if (on) msg('remMsg', 'Reminders are on.', 'ok');
+    Activity.log('reminders_changed', { on });
   } catch (e) {
     console.warn(e);
     $('remOn').checked = false;
@@ -973,7 +988,7 @@ $('remTest').addEventListener('click', async () => {
   try { msg('remMsg', await Reminders.test(), 'ok'); }
   catch (e) { msg('remMsg', REM_ERRORS[e.message] || 'Could not send a test.', 'err'); }
 });
-$('signOut').addEventListener('click', () => App.fb && App.fb.auth.signOut());
+$('signOut').addEventListener('click', async () => { if (!App.fb) return; await Activity.log('signed_out'); App.fb.auth.signOut(); });
 $('installBtn').addEventListener('click', async () => {
   if (!Install.prompt) return;
   Install.prompt.prompt();
@@ -1069,7 +1084,7 @@ function authError(e) {
   if (/email-already-in-use/.test(c)) return 'This email already has an account. Sign in instead.';
   if (/weak-password/.test(c)) return 'Use a password of at least 6 characters.';
   if (/invalid-email|missing-email/.test(c)) return 'Enter a valid email address, like name@gmail.com.';
-  if (/user-disabled/.test(c)) return 'This account has been turned off.';
+  if (/user-disabled/.test(c)) return `This account is turned off or being deleted. If this is a mistake, write to ${ADMIN_EMAIL}.`;
   if (/operation-not-allowed|configuration-not-found/.test(c)) return 'This sign-in method is not turned on in Firebase yet.';
   if (/unauthorized-domain|unauthorized-continue-uri/.test(c)) return 'This website is not on the Firebase "Authorized domains" list yet.';
   if (/requires-recent-login/.test(c)) return 'For safety, sign out and sign in again, then try once more.';
@@ -1143,6 +1158,7 @@ $('loginForm').addEventListener('submit', async e => {
     App.pendingName = name;
   }
   $('loginBtn').disabled = true;
+  App.signingIn = true;
   try {
     if (authMode === 'signin') await App.fb.auth.signInWithEmailAndPassword(email, pass);
     else {
@@ -1156,6 +1172,7 @@ $('loginForm').addEventListener('submit', async e => {
 });
 $('googleBtn').addEventListener('click', async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
+  App.signingIn = true;
   try { await App.fb.auth.signInWithPopup(provider); }
   catch (err) {
     if (/popup-blocked|operation-not-supported/.test(err.code || '')) { try { await App.fb.auth.signInWithRedirect(provider); return; } catch (e2) { err = e2; } }
@@ -1172,6 +1189,7 @@ $('profSave').addEventListener('click', async () => {
     await Store.setProfile({ name }); App.profile.name = name;
     try { await App.fb.auth.currentUser.updateProfile({ displayName: name }); } catch (e) {}
     paintAvatars(); msg('profMsg', 'Saved.', 'ok');
+    Activity.log('profile_updated', { what: 'name' });
   } catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
 });
 // shrink any photo to a 160×160 JPEG (about 10 KB) so it fits in the free database
@@ -1196,6 +1214,7 @@ $('photoFile').addEventListener('change', async () => {
     const photo = await shrinkPhoto(f);
     await Store.setProfile({ photo }); App.profile.photo = photo;
     paintAvatars(); msg('profMsg', 'Photo updated.', 'ok');
+    Activity.log('profile_updated', { what: 'photo' });
   } catch (e) { msg('profMsg', e.message === 'image' ? 'Could not read that photo. Try another one.' : 'Could not save. Check your internet.', 'err'); }
 });
 $('photoRemove').addEventListener('click', async () => {
@@ -1203,38 +1222,110 @@ $('photoRemove').addEventListener('click', async () => {
   catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
 });
 $('pwReset').addEventListener('click', async () => {
-  try { await App.fb.auth.sendPasswordResetEmail(App.user.email); msg('accMsg', `We emailed a link to ${App.user.email} to set a new password.`, 'ok'); }
+  try { await App.fb.auth.sendPasswordResetEmail(App.user.email); msg('accMsg', `We emailed a link to ${App.user.email} to set a new password.`, 'ok'); Activity.log('password_reset_sent'); }
   catch (e) { msg('accMsg', authError(e), 'err'); }
 });
-// delete account: all preps, questions, progress, profile, then the login itself
+// delete account: locked now, erased for good after 30 days (by the hourly account job)
 $('accDelete').addEventListener('click', () => {
-  $('accConfirm').innerHTML = `<div class="confirm"><span>Delete your account and <strong>everything</strong> in it: all preps, questions, notes and progress? This cannot be undone.</span>
-    <div class="btns"><button class="btn danger" type="button" id="accDeleteYes">Yes, delete everything</button><button class="btn" type="button" id="accDeleteNo">Cancel</button></div></div>`;
+  const when = fmtDate(Date.now() + DELETE_WAIT_DAYS * DAY_MS), email = (App.user && App.user.email) || 'this email';
+  if (isAdminUser(App.authUser)) { $('accConfirm').innerHTML = '<p class="msg err">The admin account cannot be deleted from here.</p>'; return; }
+  $('accConfirm').innerHTML = `<div class="confirm delete-box">
+      <strong>What deleting your account does</strong>
+      <ul>
+        <li>You are signed out straight away, and you <b>won't be able to sign in</b> with ${esc(email)} again.</li>
+        <li>Your preps, questions, notes, progress and streak are hidden now and <b>erased for good on ${esc(when)}</b>, 30 days from today.</li>
+        <li>Changed your mind? Write to ${esc(ADMIN_EMAIL)} before ${esc(when)} and your account can be restored. After that date, nothing can be brought back.</li>
+        <li>Want to keep your questions? Use <b>Export to share</b> on the Preps screen first.</li>
+      </ul>
+      <label for="accDelType">Type DELETE to confirm</label>
+      <input id="accDelType" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div class="btns grid"><button class="btn" type="button" id="accDeleteNo">Keep my account</button><button class="btn danger" type="button" id="accDeleteYes" disabled>Delete my account</button></div>
+    </div>`;
+  $('accDelType').oninput = () => { $('accDeleteYes').disabled = $('accDelType').value.trim().toUpperCase() !== 'DELETE'; };
   $('accDeleteNo').onclick = () => { $('accConfirm').innerHTML = ''; };
   $('accDeleteYes').onclick = async () => {
     $('accDeleteYes').disabled = true; msg('accMsg', 'Deleting…');
     try {
+      const now = Date.now(), deleteAt = now + DELETE_WAIT_DAYS * DAY_MS;
+      await Activity.log('delete_requested', { deleteAt });
+      await Store.setProfile({ status: 'deleting', deleteRequestedAt: now, deleteAt });
       await Progress.discard(); closePrep();
-      if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
-      const writes = [];
-      for (const pid of await Store.ids(`${Store.base()}/preps`)) {
-        const base = Store.prepPath(pid);
-        for (const col of ['bank', 'notes', 'progress']) (await Store.ids(`${base}/${col}`)).forEach(id => writes.push({ path: `${base}/${col}/${id}`, data: null }));
-        writes.push({ path: base, data: null });
-      }
-      (await Store.ids(`${Store.base()}/devices`)).forEach(id => writes.push({ path: `${Store.base()}/devices/${id}`, data: null }));
-      writes.push({ path: Store.base(), data: null });
-      await Store.write(writes);
-      try { Object.keys(localStorage).filter(k => k.startsWith('rc-')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
-      await App.fb.auth.currentUser.delete();
-      toast('Your account was deleted.');
+      try { Object.keys(localStorage).filter(k => k.startsWith('rc-') && k !== 'rc-theme').forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      App.blockMsg = `Your account is being deleted. You have been signed out, and everything in it will be erased on ${fmtDate(deleteAt)}.`;
+      await App.fb.auth.signOut();
     } catch (e) {
       console.warn(e);
-      msg('accMsg', authError(e), 'err');
-      $('accDeleteYes') && ($('accDeleteYes').disabled = false);
+      msg('accMsg', 'Could not delete the account. Check your internet and try again.', 'err');
+      if ($('accDeleteYes')) $('accDeleteYes').disabled = false;
     }
   };
 });
+
+/* ---------- account start, locked accounts, "view as" for the admin ---------- */
+function blockedText(p) {
+  if (p.status === 'deleting') return `This account is being deleted. Everything in it will be erased on ${fmtDate(p.deleteAt)}, and it can't be used until then. If this is a mistake, write to ${ADMIN_EMAIL} before that date.`;
+  if (p.status === 'disabled') return `This account has been turned off by the admin. If you think this is a mistake, write to ${ADMIN_EMAIL}.`;
+  return 'This account has been deleted.';
+}
+function stopAccount() {
+  if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
+  if (App.profileUnsub) { try { App.profileUnsub(); } catch (e) {} App.profileUnsub = null; }
+  closePrep();
+}
+// user = the account to show (your own, or someone else's when the admin opens it)
+async function startAccount(user, screen) {
+  stopAccount();
+  App.user = user; App.preps = []; App.prepsLoaded = false; App.profile = {};
+  updatePrepButton(); setSync(); paintAvatars(); renderViewAs(); updateAdminTab();
+  Store.uid = user.uid;
+  $('bootMsg').textContent = App.viewAs ? `Opening ${App.viewAs.name || App.viewAs.email}'s account…` : 'Loading your preps…'; show('boot');
+  try { App.profile = await Store.getProfile(); } catch (e) { App.profile = {}; }
+  if (!App.viewAs) {
+    if (isBlocked(App.profile.status)) { App.blockMsg = blockedText(App.profile); Activity.stop(); await App.fb.auth.signOut(); return; }
+    let isNew = false;
+    if (!App.profile.email || (App.pendingName && !App.profile.name)) {
+      isNew = !App.profile.created;
+      const first = { email: user.email || '', created: App.profile.created || Date.now() };
+      if (App.pendingName || user.displayName) first.name = App.profile.name || App.pendingName || user.displayName;
+      Object.assign(App.profile, first);
+      Store.setProfile(first).catch(() => {});
+    }
+    if (isNew) Activity.log('account_created'); else if (App.signingIn) Activity.log('signed_in'); else Activity.opened();
+    try { localStorage.setItem('rc-opened-' + user.uid, String(Date.now())); } catch (e) {}
+    App.signingIn = false;
+    // if the admin turns this account off (or it is being deleted), sign out on every device straight away
+    App.profileUnsub = Store.watchDoc(Store.base(), p => {
+      if (!App.viewAs && App.authUser && isBlocked(p.status)) { App.blockMsg = blockedText(p); App.fb.auth.signOut(); }
+    });
+    Activity.start();
+  }
+  App.pendingName = null;
+  paintAvatars();
+  if (screen) App.afterLoad = screen;
+  App.prepsUnsub = Store.watchPreps(onPreps, e => { console.warn(e); setSync('offline'); });
+  if (!App.viewAs) Reminders.refreshSoon(4000);
+}
+function renderViewAs() {
+  const bar = $('viewAsBar'), v = App.viewAs;
+  bar.hidden = !v; document.body.classList.toggle('viewing', !!v);
+  if (!v) return;
+  bar.innerHTML = `<span>Viewing <b>${esc(v.name || v.email)}</b>'s account. Anything you change is saved to their account.</span><button class="btn" type="button" id="viewAsExit">Back to admin</button>`;
+  $('viewAsExit').onclick = () => exitViewAs();
+}
+async function openAccountAs(u) {
+  await Activity.log('admin_opened_account', {}, u);
+  App.viewAs = { uid: u.uid, email: u.email || '', name: u.name || '' };
+  startAccount({ uid: u.uid, email: u.email || '', displayName: u.name || '', emailVerified: true, providerData: [] });
+}
+function exitViewAs() {
+  const back = App.viewAs; App.viewAs = null;
+  startAccount(App.authUser, back ? 'admin' : null);
+}
+function updateAdminTab() {
+  const on = isAdminUser(App.authUser) && !App.viewAs;
+  $('adminTab').hidden = !on; $('tabbar').classList.toggle('five', on);
+  $('adminOpen').hidden = !on;
+}
 
 /* ---------- start ---------- */
 (async function init() {
@@ -1248,23 +1339,15 @@ $('accDelete').addEventListener('click', () => {
   catch (e) { $('bootMsg').textContent = 'Could not start. Check your internet connection and reload the page.'; return; }
   Store.fs = App.fb.fs;
   App.fb.auth.onAuthStateChanged(async user => {
-    if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
-    closePrep();
-    App.user = user; App.preps = []; App.prepsLoaded = false; App.profile = {};
-    updatePrepButton(); setSync(); paintAvatars();
-    if (!user) { setAuthMode('signin'); show('login'); return; }
-    Store.uid = user.uid;
-    $('bootMsg').textContent = 'Loading your preps…'; show('boot');
-    try { App.profile = await Store.getProfile(); } catch (e) { App.profile = {}; }
-    if (!App.profile.email || (App.pendingName && !App.profile.name)) {
-      const first = { email: user.email || '', created: App.profile.created || Date.now() };
-      if (App.pendingName || user.displayName) first.name = App.profile.name || App.pendingName || user.displayName;
-      Object.assign(App.profile, first);
-      Store.setProfile(first).catch(() => {});
+    App.authUser = user; App.viewAs = null;
+    if (!user) {
+      stopAccount(); Activity.stop();
+      App.user = null; App.preps = []; App.prepsLoaded = false; App.profile = {};
+      updatePrepButton(); setSync(); paintAvatars(); renderViewAs(); updateAdminTab();
+      setAuthMode('signin'); show('login');
+      if (App.blockMsg) { msg('loginMsg', App.blockMsg, 'err'); App.blockMsg = null; }
+      return;
     }
-    App.pendingName = null;
-    paintAvatars();
-    App.prepsUnsub = Store.watchPreps(onPreps, e => { console.warn(e); setSync('offline'); });
-    Reminders.refreshSoon(4000);
+    startAccount(user);
   });
 })();

@@ -16,6 +16,18 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 3. Every day: open the app and press **Start**. The app decides what to ask.
 4. Settings → **Daily reminders**: pick your hours. On Android the phone schedules them itself. In a laptop browser they arrive as browser notifications.
 
+## Admin, activity log and deleting accounts
+
+- **Superadmin:** only `adnan.ashraf19@gmail.com` (with a verified email). An **Admin** tab appears for that account:
+  people (status, last seen, device, IP, place), each person's preps and activity, and actions:
+  open their account, send a password reset email, rename, turn sign-in off/on, delete in 30 days, cancel deletion, delete now.
+- **Activity log:** sign-ins, app opens, preps, imports, study sessions, pauses, reminders, account and admin actions,
+  each with website / installed app / Android app, device, IP address and rough place (from ipapi.co). Filter by person, kind, place, dates or text. Kept for one year.
+- **Deleting an account** (Settings → Delete account): the person is signed out and locked out at once; everything is erased after 30 days.
+  The admin can cancel within those 30 days, or delete at once.
+- The database rules (`firestore.rules`) enforce all of this. The **Database rules** job publishes them when the file changes;
+  the hourly **Accounts** job turns logins off/on and erases accounts whose time is up.
+
 ## Test account
 
 `adnan.ashraf19+test@gmail.com` holds a demo prep (4 subjects, 32 questions, 6 notes) and a month of study history, so every screen has data.

@@ -1,0 +1,24 @@
+name: Database rules
+
+# Publishes firestore.rules to Firebase whenever it changes.
+on:
+  push:
+    branches: [main]
+    paths: ['firestore.rules', 'reminder/publish-rules.mjs', '.github/workflows/rules.yml']
+  workflow_dispatch: {}
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reminder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node publish-rules.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

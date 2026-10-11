@@ -9,6 +9,7 @@ const ICON = {
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   install: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/>',
   stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2"/>',
+  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/>',
 };
 const icon = (name, cls) => `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name] || ''}</svg>`;
 

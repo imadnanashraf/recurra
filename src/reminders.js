@@ -57,7 +57,7 @@ const Reminders = {
   },
 
   refreshSoon(ms) {
-    if (!NATIVE || !App.user) return;
+    if (!NATIVE || !App.user || App.viewAs) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.schedule().catch(e => console.warn('Reminders', e)), ms == null ? 2500 : ms);
   },
