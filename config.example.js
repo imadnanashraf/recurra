@@ -2,9 +2,9 @@
 // It should look like:
 //   firebase: {
 //     apiKey: "AIza...",
-//     authDomain: "si-telecom-xxxx.firebaseapp.com",
-//     projectId: "si-telecom-xxxx",
-//     storageBucket: "si-telecom-xxxx.appspot.com",
+//     authDomain: "recurra-xxxx.firebaseapp.com",
+//     projectId: "recurra-xxxx",
+//     storageBucket: "recurra-xxxx.appspot.com",
 //     messagingSenderId: "1234567890",
 //     appId: "1:1234567890:web:abc123"
 //   }

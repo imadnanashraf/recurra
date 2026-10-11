@@ -46,13 +46,13 @@ const Reminders = {
 
   async test() {
     if (NATIVE) {
-      await LN.schedule({ notifications: [{ id: 999, title: 'Daily Prep', body: 'This is how your reminders will look.', schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true }, smallIcon: 'ic_stat_notify' }] });
+      await LN.schedule({ notifications: [{ id: 999, title: 'Recurra', body: 'This is how your reminders will look.', schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true }, smallIcon: 'ic_stat_notify' }] });
       return 'Sent. It should appear in a few seconds.';
     }
     if (!this.webSupported() || Notification.permission !== 'granted') throw new Error('denied');
     const reg = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
-    await reg.showNotification('Daily Prep', { body: 'This is how your reminders will look.', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png' });
+    await reg.showNotification('Recurra', { body: 'This is how your reminders will look.', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png' });
     return 'Sent.';
   },
 
@@ -99,7 +99,7 @@ const Reminders = {
         if (at.getTime() <= now + 60000) continue;
         const body = d === 0 ? todayText : d === 1 && tomorrowText ? tomorrowText : 'Your daily review is ready whenever you are.';
         if (!body) continue;
-        list.push({ id: 1000 + d * 24 + h, title: 'Daily Prep', body, schedule: { at, allowWhileIdle: true }, smallIcon: 'ic_stat_notify' });
+        list.push({ id: 1000 + d * 24 + h, title: 'Recurra', body, schedule: { at, allowWhileIdle: true }, smallIcon: 'ic_stat_notify' });
       }
     }
     if (list.length) await LN.schedule({ notifications: list });

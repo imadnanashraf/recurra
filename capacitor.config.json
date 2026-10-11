@@ -1,6 +1,6 @@
 {
-  "appId": "app.dailyprep.study",
-  "appName": "Daily Prep",
+  "appId": "app.recurra",
+  "appName": "Recurra",
   "webDir": "www",
   "backgroundColor": "#eef2f1",
   "android": { "allowMixedContent": false, "adjustMarginsForEdgeToEdge": "auto" },

@@ -1,5 +1,5 @@
 {
-  "name": "daily-prep",
+  "name": "recurra",
   "version": "2.0.0",
   "private": true,
   "description": "Daily spaced-repetition MCQ review for exams and interviews. Web app and Android app, synced with Firebase.",

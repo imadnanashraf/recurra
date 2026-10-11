@@ -1,6 +1,6 @@
 {
-  "name": "Daily Prep",
-  "short_name": "Daily Prep",
+  "name": "Recurra",
+  "short_name": "Recurra",
   "description": "Daily spaced-repetition review for exams and interviews.",
   "start_url": "./",
   "scope": "./",

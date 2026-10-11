@@ -34,7 +34,7 @@ for (const u of users.docs) {
   if (!body) { console.log(`${who}: nothing waiting`); skipped++; continue; }
   for (const d of devices) {
     try {
-      await fcm.send({ token: d.data().token, data: { title: 'Daily Prep', body, url: APP_URL || './' }, webpush: { headers: { Urgency: 'high', TTL: '3600' } } });
+      await fcm.send({ token: d.data().token, data: { title: 'Recurra', body, url: APP_URL || './' }, webpush: { headers: { Urgency: 'high', TTL: '3600' } } });
       sent++;
     } catch (e) {
       if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test(e.code || '')) { await d.ref.delete(); console.log(`${who}: removed an old browser`); }

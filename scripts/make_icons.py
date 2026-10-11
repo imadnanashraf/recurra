@@ -1,4 +1,4 @@
-"""Draws the Daily Prep icon: an open book on a calm teal background, with three dots
+"""Draws the Recurra icon: an open book on a calm teal background, with three dots
 spaced further and further apart (the idea of spaced repetition).
 Run once: python3 scripts/make_icons.py  → assets/icons/*.png and assets/android-res/**"""
 from pathlib import Path

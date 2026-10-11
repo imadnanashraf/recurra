@@ -1,5 +1,5 @@
 {
-  "name": "daily-prep-reminder",
+  "name": "recurra-reminder",
   "private": true,
   "type": "module",
   "dependencies": {

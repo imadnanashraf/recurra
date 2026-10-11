@@ -71,9 +71,9 @@ function openPrep(pid, screen) {
   const p = App.preps.find(x => x.id === pid);
   if (!p) return showPreps();
   App.prepId = pid; App.prep = p; App.subjects = p.subjects || [];
-  try { localStorage.setItem('dp-active-' + App.user.uid, pid); } catch (e) {}
+  try { localStorage.setItem('rc-active-' + App.user.uid, pid); } catch (e) {}
   if (App.profile.activePrep !== pid) { App.profile.activePrep = pid; Store.setProfile({ activePrep: pid }).catch(() => {}); }
-  Progress.open(`dp-progress-${App.user.uid}-${pid}`, p.resetAt || 0);
+  Progress.open(`rc-progress-${App.user.uid}-${pid}`, p.resetAt || 0);
   const base = Store.prepPath(pid);
   let gotBank = false, gotNotes = false;
   const done = () => { App.loaded = gotBank && gotNotes; rebuild(); refresh(); };
@@ -103,7 +103,7 @@ function onPreps(list, fromCache) {
   const cur = list.find(p => p.id === App.prepId);
   if (!cur) {
     let want = null;
-    try { want = localStorage.getItem('dp-active-' + App.user.uid); } catch (e) {}
+    try { want = localStorage.getItem('rc-active-' + App.user.uid); } catch (e) {}
     want = list.some(p => p.id === want) ? want : list.some(p => p.id === App.profile.activePrep) ? App.profile.activePrep : list[0].id;
     if (App.prepId) toast('That prep was deleted.');
     return openPrep(want, visible('preps') ? 'preps' : 'home');
@@ -659,7 +659,7 @@ async function resetPrep(pid) {
   toast('Progress reset.'); show('home');
 }
 async function deletePrep(pid) {
-  const base = Store.prepPath(pid), key = `dp-progress-${App.user.uid}-${pid}`;
+  const base = Store.prepPath(pid), key = `rc-progress-${App.user.uid}-${pid}`;
   await Progress.discard();                 // finish or cancel any upload first, so nothing comes back
   closePrep();
   try { localStorage.removeItem(key); } catch (e) {}
@@ -851,7 +851,7 @@ async function applyImport(btn) {
 }
 
 /* ---------- settings ---------- */
-const THEME_KEY = 'dp-theme';
+const THEME_KEY = 'rc-theme';
 function applyTheme() {
   let t = 'auto'; try { t = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);

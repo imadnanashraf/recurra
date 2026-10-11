@@ -1,5 +1,5 @@
 // Service worker: lets the website open offline, and shows reminder notifications.
-const CACHE = 'daily-prep-{{VERSION}}';
+const CACHE = 'recurra-{{VERSION}}';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest',
   'vendor/firebase-app-compat.js', 'vendor/firebase-auth-compat.js', 'vendor/firebase-firestore-compat.js', 'vendor/capacitor.js',
   'fonts/atkinson-400.woff2', 'fonts/atkinson-700.woff2', 'icons/icon-192.png'];
@@ -28,7 +28,7 @@ self.addEventListener('push', e => {
   let p = {};
   try { p = e.data ? e.data.json() : {}; } catch (err) { p = { data: { body: e.data && e.data.text() } }; }
   const d = Object.assign({}, p.notification || {}, p.data || {});
-  e.waitUntil(self.registration.showNotification(d.title || 'Daily Prep', {
+  e.waitUntil(self.registration.showNotification(d.title || 'Recurra', {
     body: d.body || 'Your daily review is ready whenever you are.',
     icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'daily-review', renotify: true,
     data: { url: d.url || './' },

@@ -36,21 +36,21 @@ jobs:
             echo "::error::Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets first (see README)."
             exit 1
           fi
-          echo "$KS" | base64 -d > "$RUNNER_TEMP/dailyprep.p12"
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/recurra.p12"
       - name: Prepare Android project
         env:
           BUILD_NUMBER: ${{ github.run_number }}
-          KEYSTORE_FILE: ${{ runner.temp }}/dailyprep.p12
+          KEYSTORE_FILE: ${{ runner.temp }}/recurra.p12
         run: npm run android:prepare
       - name: Build signed APK
         working-directory: android
         env:
-          KEYSTORE_FILE: ${{ runner.temp }}/dailyprep.p12
+          KEYSTORE_FILE: ${{ runner.temp }}/recurra.p12
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/daily-prep.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/recurra.apk"
       - name: Publish download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,7 +58,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           gh release delete android --yes --cleanup-tag || true
-          gh release create android "$RUNNER_TEMP/daily-prep.apk" \
-            --title "Daily Prep for Android $VERSION (build $RUN)" \
-            --notes "Install: download daily-prep.apk on your Android phone and open it. Updates install over the old version; your data stays in your account." \
+          gh release create android "$RUNNER_TEMP/recurra.apk" \
+            --title "Recurra for Android $VERSION (build $RUN)" \
+            --notes "Install: download recurra.apk on your Android phone and open it. Updates install over the old version; your data stays in your account." \
             --latest

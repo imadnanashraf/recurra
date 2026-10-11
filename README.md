@@ -1,11 +1,11 @@
-# Daily Prep
+# Recurra
 
 Daily revision for exams and interviews, built on what learning research supports:
 testing yourself (retrieval practice), spacing reviews just before you would forget, mixing subjects,
 "recall first, then check", rating how sure you were, short blocks with a one-minute break, and a calm, low-distraction screen.
 
 - **Website:** `https://<your-github-name>.github.io/<repo>/`
-- **Android app:** `https://github.com/<your-github-name>/<repo>/releases/download/android/daily-prep.apk`
+- **Android app:** `https://github.com/<your-github-name>/<repo>/releases/download/android/recurra.apk`
 - Both use the same account, so progress syncs between them.
 - Cost: ₹0 (GitHub, Firebase free plan, APK shared directly).
 
@@ -18,7 +18,7 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 
 ## Installing the Android app (you and friends)
 
-1. On the phone, open the APK link above and download `daily-prep.apk`.
+1. On the phone, open the APK link above and download `recurra.apk`.
 2. Open the file. If Android asks, allow "Install unknown apps" for your browser or file manager, then tap **Install**.
 3. To update later, download the same link again and install over the old one. Your data stays in your account.
 

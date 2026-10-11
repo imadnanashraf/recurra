@@ -8,8 +8,8 @@
 
 const DEVICE = (() => {
   try {
-    let d = localStorage.getItem('dp-device');
-    if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10); localStorage.setItem('dp-device', d); }
+    let d = localStorage.getItem('rc-device');
+    if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10); localStorage.setItem('rc-device', d); }
     return d;
   } catch (e) { return 't' + Math.random().toString(36).slice(2, 10); }
 })();

@@ -18,7 +18,7 @@ if (!g.includes('signingConfigs')) {
             if (System.getenv("KEYSTORE_FILE")) {
                 storeFile file(System.getenv("KEYSTORE_FILE"))
                 storePassword System.getenv("KEYSTORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS") ?: "dailyprep"
+                keyAlias System.getenv("KEY_ALIAS") ?: "recurra"
                 keyPassword System.getenv("KEYSTORE_PASSWORD")
             }
         }

@@ -173,11 +173,11 @@ function parseImport(text) {
 // ---- samples and AI prompts shown on the import screen ----
 const SAMPLES = {
   syllabus: {
-    type: 'syllabus', name: 'JKSSB SI Telecommunication', examDate: '2026-12-30',
+    type: 'syllabus', name: 'State Engineering Exam', examDate: '2027-03-15',
     marking: { correct: 2, wrong: -0.5, totalQuestions: 100, minutes: 120 },
     subjects: [
-      { code: 'CN', name: 'Computer Science & Networking Systems', marks: 20, part: 'B' },
-      { code: 'DE', name: 'Digital Electronics & Microprocessors', marks: 20, part: 'B' },
+      { code: 'CN', name: 'Computer Networks', marks: 20, part: 'B' },
+      { code: 'DE', name: 'Digital Electronics', marks: 20, part: 'B' },
     ],
   },
   mcq: {
