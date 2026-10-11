@@ -1,6 +1,7 @@
-"""Draws the Recurra icon: an open book on a calm teal background, with three dots
-spaced further and further apart (the idea of spaced repetition).
-Run once: python3 scripts/make_icons.py  → assets/icons/*.png and assets/android-res/**"""
+"""Draws the Recurra logo: the forgetting curve, lifted by each review.
+Memory fades (the curve drops), a review lifts it back up, and each fade is gentler
+than the last, ending in a dot: knowledge that stays. White on calm teal.
+Run: python3 scripts/make_icons.py → assets/icons/*, assets/android-res/**, src/logo.svg"""
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -9,35 +10,54 @@ TEAL = (47, 111, 115, 255)
 WHITE = (251, 252, 252, 255)
 S = 1024  # master size
 
-
-def book(draw, cx, cy, w, color):
-    """open book: two pages meeting at a spine, gently curved tops"""
-    h = w * 0.62
-    left = [(cx, cy - h * 0.38), (cx - w * 0.06, cy - h * 0.46), (cx - w * 0.5, cy - h * 0.5),
-            (cx - w * 0.5, cy + h * 0.42), (cx - w * 0.06, cy + h * 0.40), (cx, cy + h * 0.48)]
-    right = [(2 * cx - x, y) for x, y in left]
-    draw.polygon(left, fill=color)
-    draw.polygon(right, fill=color)
-    # spine gap
-    draw.line([(cx, cy - h * 0.36), (cx, cy + h * 0.46)], fill=(0, 0, 0, 0), width=max(2, int(w * 0.035)))
-    # spaced dots above the book
-    r = w * 0.045
-    xs = [cx - w * 0.30, cx - w * 0.17, cx + w * 0.06, cx + w * 0.40]
-    for x in xs:
-        draw.ellipse([x - r, cy - h * 0.82 - r, x + r, cy - h * 0.82 + r], fill=color)
+# The mark in a 64×64 box: three decays, each flatter, joined by review "lifts", then a dot.
+P0 = (12, 20)
+CURVES = [((16, 33), (19, 41), (25, 43)), ((30, 31), (34, 35), (39, 36)), ((44, 26), (48, 27.5), (52, 28))]
+LIFTS = [(25, 22), (39, 22)]
+DOT, DOT_R, STROKE = (52, 28), 4.4, 4.4
+SVG_PATH = 'M12 20C16 33 19 41 25 43L25 22C30 31 34 35 39 36L39 22C44 26 48 27.5 52 28'
+CENTER = (33.5, 31.5)   # visual centre of the mark in design units
 
 
-def make(size, bg=True, scale=0.62, radius=0.22, color=WHITE, mask_bg=False):
+def bezier(p0, p1, p2, p3, n=60):
+    out = []
+    for i in range(n + 1):
+        t = i / n
+        a, b, c, d = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3
+        out.append((a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]))
+    return out
+
+
+def mark_points():
+    pts, cur = [P0], P0
+    for i, (c1, c2, end) in enumerate(CURVES):
+        pts.extend(bezier(cur, c1, c2, end)[1:]); cur = end
+        if i < len(LIFTS):
+            pts.append(LIFTS[i]); cur = LIFTS[i]
+    return pts
+
+
+def draw_mark(img, cx, cy, size, color):
+    k = size / 64
+    tx = lambda p: (cx + (p[0] - CENTER[0]) * k, cy + (p[1] - CENTER[1]) * k)
+    d = ImageDraw.Draw(img)
+    pts = [tx(p) for p in mark_points()]
+    w = max(2, round(STROKE * k))
+    d.line(pts, fill=color, width=w, joint='curve')
+    r = w / 2
+    for p in [P0, (25, 43), (25, 22), (39, 36), (39, 22)]:   # round caps and corners
+        x, y = tx(p); d.ellipse([x - r, y - r, x + r, y + r], fill=color)
+    x, y = tx(DOT); dr = DOT_R * k
+    d.ellipse([x - dr, y - dr, x + dr, y + dr], fill=color)
+
+
+def make(size, bg=True, mark_scale=0.9, radius=0.23, full_bg=False, color=WHITE):
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     if bg:
-        if mask_bg:
-            d.rectangle([0, 0, S, S], fill=TEAL)
-        else:
-            d.rounded_rectangle([0, 0, S - 1, S - 1], radius=int(S * radius), fill=TEAL)
-    layer = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-    book(ImageDraw.Draw(layer), S / 2, S * 0.56, S * scale, color)
-    img.alpha_composite(layer)
+        if full_bg: d.rectangle([0, 0, S, S], fill=TEAL)
+        else: d.rounded_rectangle([0, 0, S - 1, S - 1], radius=int(S * radius), fill=TEAL)
+    draw_mark(img, S / 2, S / 2, S * mark_scale, color)
     return img.resize((size, size), Image.LANCZOS)
 
 
@@ -46,34 +66,45 @@ def main():
     icons.mkdir(parents=True, exist_ok=True)
     make(192).save(icons / 'icon-192.png')
     make(512).save(icons / 'icon-512.png')
-    make(512, mask_bg=True, scale=0.5).save(icons / 'maskable-512.png')
-    make(96, bg=False, scale=0.8).save(icons / 'badge-96.png')
+    make(512, full_bg=True, mark_scale=0.66).save(icons / 'maskable-512.png')
+    make(96, bg=False, mark_scale=1.15).save(icons / 'badge-96.png')
+    make(48).save(icons / 'favicon-48.png')
 
     res = ROOT / 'assets' / 'android-res'
-    dens = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
-    for name, k in dens.items():
+    for name, k in {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}.items():
         out = res / f'mipmap-{name}'
         out.mkdir(parents=True, exist_ok=True)
         make(int(48 * k)).save(out / 'ic_launcher.png')
-        circ = make(int(48 * k), mask_bg=True)
+        circ = make(int(48 * k), full_bg=True, mark_scale=0.72)
         m = Image.new('L', circ.size, 0)
         ImageDraw.Draw(m).ellipse([0, 0, circ.size[0] - 1, circ.size[1] - 1], fill=255)
         circ.putalpha(m)
         circ.save(out / 'ic_launcher_round.png')
-        make(int(108 * k), bg=False, scale=0.42).save(out / 'ic_launcher_foreground.png')
+        make(int(108 * k), bg=False, mark_scale=0.6).save(out / 'ic_launcher_foreground.png')
     (res / 'values').mkdir(parents=True, exist_ok=True)
     (res / 'values' / 'ic_launcher_background.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#2F6F73</color>\n</resources>\n')
     (res / 'drawable').mkdir(parents=True, exist_ok=True)
-    # status-bar icon must be a single-colour shape: a simple open book
-    (res / 'drawable' / 'ic_stat_notify.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
+    (res / 'drawable' / 'ic_stat_notify.xml').write_text(f'''<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF"
-        android:pathData="M11.3,6.6 L10.6,6.1 C8.4,5.1 5.6,4.8 3,5 L3,18.3 C5.6,18.1 8.4,18.4 10.6,19.4 L11.3,19.8 Z M12.7,6.6 L13.4,6.1 C15.6,5.1 18.4,4.8 21,5 L21,18.3 C18.4,18.1 15.6,18.4 13.4,19.4 L12.7,19.8 Z"/>
+    android:width="24dp" android:height="24dp" android:viewportWidth="64" android:viewportHeight="64">
+    <group android:translateX="0" android:translateY="0.5">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6.5" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:fillColor="#00000000" android:pathData="{SVG_PATH}"/>
+        <path android:fillColor="#FFFFFFFF" android:pathData="M52,28m-5.6,0a5.6,5.6 0,1 1,11.2 0a5.6,5.6 0,1 1,-11.2 0"/>
+    </group>
 </vector>
 ''')
-    print('icons written')
+    # same mark for the website; colours come from the theme
+    (ROOT / 'src' / 'logo.svg').write_text(f'''<svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="64" height="64" rx="15" fill="var(--accent)"/>
+  <g transform="translate({32 - CENTER[0]} {32 - CENTER[1]})">
+    <path d="{SVG_PATH}" fill="none" stroke="var(--accent-ink)" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="{DOT[0]}" cy="{DOT[1]}" r="{DOT_R}" fill="var(--accent-ink)"/>
+  </g>
+</svg>
+''')
+    print('logo and icons written')
 
 
 if __name__ == '__main__':

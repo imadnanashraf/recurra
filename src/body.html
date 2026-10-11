@@ -1,11 +1,18 @@
 <header class="topbar">
   <div class="topbar-in">
-    <button class="brand" id="brand" type="button">Recurra</button>
+    <button class="brand" id="brand" type="button" aria-label="Recurra home">{{LOGO}}<span>Recurra</span></button>
     <button class="prepbtn" id="prepBtn" type="button" hidden><span id="prepName"></span>▾</button>
     <div class="sync" id="sync">Starting…</div>
     <button class="avatarbtn" id="avatarBtn" type="button" aria-label="Your profile and settings" hidden></button>
   </div>
 </header>
+
+<nav class="tabbar" id="tabbar" aria-label="Main" hidden>
+  <button type="button" data-mode="home" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Today</span></button>
+  <button type="button" data-mode="topic" data-tab="topic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg><span>Practice</span></button>
+  <button type="button" data-mode="notes" data-tab="notes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/></svg><span>Notes</span></button>
+  <button type="button" data-mode="progress" data-tab="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Progress</span></button>
+</nav>
 
 <main>
   <!-- STARTUP / SETUP MESSAGE -->
@@ -15,8 +22,12 @@
 
   <!-- SIGN IN / CREATE ACCOUNT -->
   <section id="login" hidden>
+    <div class="hero">
+      <div class="hero-logo">{{LOGO}}</div>
+      <h1>Recurra</h1>
+      <p class="muted">Remember what you study. A few minutes a day, at the right time.</p>
+    </div>
     <h2 id="authTitle">Sign in</h2>
-    <p class="muted" id="authSub">Your progress syncs between your phone and laptop.</p>
     <form class="card form setup" id="loginForm">
       <button class="btn" type="button" id="googleBtn">Continue with Google</button>
       <div class="or" id="orLine">or with email</div>
@@ -48,16 +59,9 @@
     <p class="hello" id="hello"></p>
     <div class="countdown" id="countdown"></div>
     <div id="todayCard"></div>
-    <button class="streak" type="button" id="streak"></button>
+    <button class="streak" type="button" id="streak" data-mode="calendar"></button>
     <div class="stats" id="stats"></div>
-    <div class="more">
-      <button class="mode" type="button" data-mode="calendar"><strong>Calendar</strong><span>Streak and daily score</span></button>
-      <button class="mode" type="button" data-mode="topic"><strong>Practice a topic</strong><span>Right after studying it</span></button>
-      <button class="mode" type="button" data-mode="notes"><strong>Revision notes</strong><span>Confusions, tricks, traps</span></button>
-      <button class="mode" type="button" data-mode="progress"><strong>Progress</strong><span>Subject by subject</span></button>
-      <button class="mode" type="button" data-mode="import"><strong>Add questions or notes</strong><span>Paste JSON or pick a file</span></button>
-      <button class="mode" type="button" data-mode="settings"><strong>Settings</strong><span>Reminders, account</span></button>
-    </div>
+    <button class="btn wide" type="button" data-mode="import">+ Add questions or notes</button>
   </section>
 
   <!-- PREPS: switch, create, export, reset, delete -->
@@ -241,7 +245,7 @@
   <section id="progress" hidden>
     <div class="head-row">
       <h2>Progress</h2>
-      <button class="btn ghost" type="button" data-back>← Back</button>
+      <button class="btn" type="button" data-mode="calendar">Calendar</button>
     </div>
     <div class="stats" id="pStats"></div>
     <div class="table-wrap"><table id="pTable"></table></div>

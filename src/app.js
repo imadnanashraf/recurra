@@ -19,6 +19,10 @@ const visible = id => !$(id).hidden;
 function show(id) {
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
+  const tabs = !!App.prep && !['boot', 'login', 'quiz', 'break'].includes(id);
+  $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
+  const tab = { home: 'home', picker: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress' }[id];
+  document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
 }
@@ -934,8 +938,9 @@ const MODES = {
   import: () => openImport('active', 'mcq'),
   settings: () => { renderSettings(); show('settings'); },
 };
-document.querySelector('.more').addEventListener('click', e => { const b = e.target.closest('.mode'); if (b) MODES[b.dataset.mode](); });
-$('streak').addEventListener('click', MODES.calendar);
+// any button with data-mode opens that screen (tab bar, home buttons, progress → calendar)
+MODES.home = () => show('home');
+document.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b && MODES[b.dataset.mode]) MODES[b.dataset.mode](); });
 document.addEventListener('click', e => { if (e.target.closest('[data-back]')) goHome(); });
 $('brand').addEventListener('click', () => { if (App.user) goHome(); });
 $('prepBtn').addEventListener('click', showPreps);

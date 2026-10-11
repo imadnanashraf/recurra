@@ -2,8 +2,10 @@
    Layout: one centred reading column (max 680px). During review ("focus mode") the top bar and menus disappear.
    Colour: soft, low-saturation. Mistakes are amber ("not yet"), never alarm red. Red is kept only for delete buttons.
    Type: Atkinson Hyperlegible (designed for legibility), 17px base, question text larger. */
-@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/atkinson-400.woff2") format("woff2"); }
-@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/atkinson-700.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 200 800; font-style: normal; font-display: swap; src: url("fonts/ahn-latin.woff2") format("woff2-variations"), url("fonts/ahn-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 200 800; font-style: normal; font-display: swap; src: url("fonts/ahn-latin-ext.woff2") format("woff2-variations"), url("fonts/ahn-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
   --bg: #eef2f1;
@@ -21,7 +23,7 @@
   --miss-soft: #f6e8d3;
   --danger: #b4443a;
   --danger-soft: #f6e1de;
-  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-body: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --f-num: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;   /* plain zero for big numbers */
   --f-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r: 12px;
@@ -43,11 +45,11 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.55; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 18px; line-height: 1.6; -webkit-tap-highlight-color: transparent; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-h1, h2, h3 { font-weight: 700; line-height: 1.2; margin: 0; text-wrap: balance; }
+h1, h2, h3 { font-weight: 750; line-height: 1.2; margin: 0; text-wrap: balance; }
 h2 { font-size: 1.6rem; }
 h3 { font-size: 1.15rem; }
 p { margin: 0; }
@@ -57,8 +59,28 @@ a { color: var(--accent); }
 /* ---------- top bar ---------- */
 .topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
 .topbar-in { max-width: 680px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
-.brand { flex: none; font-weight: 700; font-size: 1.1rem; background: none; border: 0; padding: 0; color: var(--ink); }
-.brand span { color: var(--accent); }
+.brand { flex: none; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.12rem; letter-spacing: -.01em; background: none; border: 0; padding: 0; color: var(--ink); }
+.brand .logo { width: 30px; height: 30px; display: block; }
+@media (max-width: 420px) { .brand span { display: none; } }
+.hero { display: grid; justify-items: center; text-align: center; gap: 6px; padding-block: 8px 4px; }
+.hero-logo .logo { width: 72px; height: 72px; display: block; }
+.hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -.02em; }
+.hero p { max-width: 24em; }
+.btn.wide { width: 100%; }
+
+/* ---------- tab bar: bottom on phones, under the header on wide screens ---------- */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--surface); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+.tabbar button { display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 6px 0; color: var(--muted); font-size: .76rem; font-weight: 700; border-radius: 10px; min-height: 52px; }
+.tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar button[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+body.has-tabs main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 760px) {
+  .tabbar { position: sticky; top: 57px; bottom: auto; max-width: 680px; margin: 0 auto; border: 0; border-bottom: 1px solid var(--line); background: var(--bg); grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px; padding: 6px 16px; }
+  .tabbar button { grid-auto-flow: column; gap: 8px; padding: 6px 14px; min-height: 40px; font-size: .9rem; }
+  .tabbar svg { width: 20px; height: 20px; }
+  body.has-tabs main { padding-bottom: 48px; }
+}
 .prepbtn { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 6px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; font-weight: 700; font-size: .92rem; max-width: 22rem; }
 .prepbtn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sync { flex: none; margin-left: auto; font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -83,6 +105,7 @@ section { display: grid; gap: 18px; }
 .hello { font-size: 1.15rem; font-weight: 700; margin-bottom: -6px; }
 .verify { background: var(--miss-soft); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; font-size: .95rem; }
 .verify .btns .btn { min-height: 38px; padding: 6px 14px; }
+.verify .msg:empty, .card .msg:empty { display: none; }
 .pw { position: relative; }
 .pw input { padding-right: 70px !important; }
 .pwtoggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--accent); font-weight: 700; font-size: .85rem; padding: 6px 8px; }
@@ -178,7 +201,7 @@ body.focus main { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
 .signal { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
 .signal i { width: 4px; background: var(--line); border-radius: 1px; }
 .signal i.on { background: var(--good); }
-.qtext { font-size: 1.3rem; font-weight: 700; line-height: 1.45; max-width: 36em; }
+.qtext { font-size: 1.32rem; font-weight: 650; line-height: 1.45; max-width: 36em; }
 .recall { display: grid; gap: 10px; justify-items: start; background: var(--sunken); border-radius: var(--r); padding: 16px; }
 .recall p { color: var(--muted); }
 .opts { display: grid; gap: 10px; }

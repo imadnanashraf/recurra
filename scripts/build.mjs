@@ -15,7 +15,7 @@ mkdirSync(join(out, 'fonts'), { recursive: true });
 const html = [
   src('head.html').replace('{{VERSION}}', pkg.version),
   '<style>\n', src('styles.css'), '</style>\n</head>\n<body>\n',
-  src('body.html'),
+  src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
   src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'),
   '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('app.js'),
@@ -27,8 +27,9 @@ writeFileSync(join(out, 'index.html'), html);
 const nm = p => join(root, 'node_modules', p);
 for (const part of ['app', 'auth', 'firestore', 'messaging']) copyFileSync(nm(`firebase/firebase-${part}-compat.js`), join(out, 'vendor', `firebase-${part}-compat.js`));
 copyFileSync(nm('@capacitor/core/dist/capacitor.js'), join(out, 'vendor', 'capacitor.js'));
-copyFileSync(nm('@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-400-normal.woff2'), join(out, 'fonts', 'atkinson-400.woff2'));
-copyFileSync(nm('@fontsource/atkinson-hyperlegible/files/atkinson-hyperlegible-latin-700-normal.woff2'), join(out, 'fonts', 'atkinson-700.woff2'));
+const AHN = '@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-';
+copyFileSync(nm(AHN + 'latin-wght-normal.woff2'), join(out, 'fonts', 'ahn-latin.woff2'));
+copyFileSync(nm(AHN + 'latin-ext-wght-normal.woff2'), join(out, 'fonts', 'ahn-latin-ext.woff2'));
 
 // app files
 cpSync(join(root, 'templates'), join(out, 'templates'), { recursive: true });

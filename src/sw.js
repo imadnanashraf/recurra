@@ -2,7 +2,7 @@
 const CACHE = 'recurra-{{VERSION}}';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest',
   'vendor/firebase-app-compat.js', 'vendor/firebase-auth-compat.js', 'vendor/firebase-firestore-compat.js', 'vendor/capacitor.js',
-  'fonts/atkinson-400.woff2', 'fonts/atkinson-700.woff2', 'icons/icon-192.png'];
+  'fonts/ahn-latin.woff2', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

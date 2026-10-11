@@ -1,0 +1,7 @@
+<svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="64" height="64" rx="15" fill="var(--accent)"/>
+  <g transform="translate(-1.5 0.5)">
+    <path d="M12 20C16 33 19 41 25 43L25 22C30 31 34 35 39 36L39 22C44 26 48 27.5 52 28" fill="none" stroke="var(--accent-ink)" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="52" cy="28" r="4.4" fill="var(--accent-ink)"/>
+  </g>
+</svg>
