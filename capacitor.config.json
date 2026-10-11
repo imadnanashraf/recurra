@@ -1,0 +1,10 @@
+{
+  "appId": "app.dailyprep.study",
+  "appName": "Daily Prep",
+  "webDir": "www",
+  "backgroundColor": "#eef2f1",
+  "android": { "allowMixedContent": false, "adjustMarginsForEdgeToEdge": "auto" },
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#2F6F73" }
+  }
+}

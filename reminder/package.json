@@ -1,8 +1,8 @@
 {
-  "name": "si-telecom-reminder",
+  "name": "daily-prep-reminder",
   "private": true,
   "type": "module",
   "dependencies": {
-    "firebase-admin": "12.1.0"
+    "firebase-admin": "12.7.0"
   }
 }

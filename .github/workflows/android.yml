@@ -1,0 +1,64 @@
+name: Build Android app
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'assets/**', 'scripts/**', 'templates/**', 'package.json', 'package-lock.json', 'capacitor.config.json', 'config.js', '.github/workflows/android.yml']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # to publish the APK as a download
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --no-audit --no-fund
+      - name: Check signing key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KS" ] || [ -z "$PW" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets first (see README)."
+            exit 1
+          fi
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/dailyprep.p12"
+      - name: Prepare Android project
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          KEYSTORE_FILE: ${{ runner.temp }}/dailyprep.p12
+        run: npm run android:prepare
+      - name: Build signed APK
+        working-directory: android
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/dailyprep.p12
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/daily-prep.apk"
+      - name: Publish download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.run_number }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release delete android --yes --cleanup-tag || true
+          gh release create android "$RUNNER_TEMP/daily-prep.apk" \
+            --title "Daily Prep for Android $VERSION (build $RUN)" \
+            --notes "Install: download daily-prep.apk on your Android phone and open it. Updates install over the old version; your data stays in your account." \
+            --latest

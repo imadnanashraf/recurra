@@ -1,0 +1,25 @@
+{
+  "type": "prep",
+  "name": "JKSSB SI Telecom",
+  "examDate": "2026-12-30",
+  "marking": { "correct": 2, "wrong": -0.5, "totalQuestions": 100, "minutes": 120 },
+  "subjects": [
+    { "code": "GK", "name": "General Knowledge & Current Affairs", "marks": 20, "part": "A" },
+    { "code": "JK", "name": "General Knowledge with Special Reference to J&K UT", "marks": 10, "part": "A" },
+    { "code": "EN", "name": "General English & Communication Skills", "marks": 10, "part": "A" },
+    { "code": "GI", "name": "General Intelligence & Reasoning", "marks": 10, "part": "A" },
+    { "code": "NUM", "name": "Basic Numeracy", "marks": 10, "part": "A" },
+    { "code": "MATH", "name": "Engineering Mathematics & Signal Fundamentals", "marks": 10, "part": "B" },
+    { "code": "EDC", "name": "Electronic Devices, Analog Circuits & Network Theory", "marks": 20, "part": "B" },
+    { "code": "DE", "name": "Digital Electronics & Microprocessors", "marks": 20, "part": "B" },
+    { "code": "COM", "name": "Communication System", "marks": 20, "part": "B" },
+    { "code": "CN", "name": "Computer Science & Networking Systems", "marks": 20, "part": "B" },
+    { "code": "CYB", "name": "Cyber Security & Legal Framework", "marks": 10, "part": "B" },
+    { "code": "IT", "name": "IT System & e-Governance", "marks": 10, "part": "B" },
+    { "code": "DB", "name": "Database Management System", "marks": 10, "part": "B" },
+    { "code": "IOT", "name": "IoT, Embedded System & Mechatronics", "marks": 10, "part": "B" },
+    { "code": "AI", "name": "Artificial Intelligence, Data Science & Automation", "marks": 10, "part": "B" }
+  ],
+  "questions": [],
+  "notes": []
+}

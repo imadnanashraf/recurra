@@ -2,10 +2,11 @@ name: Study reminder
 
 on:
   schedule:
-    # Times are in UTC. 06:21, 10:21, 14:21, 16:21 UTC = 11:51 am, 3:51 pm, 7:51 pm, 9:51 pm India time.
-    # GitHub may run these a few minutes late.
-    - cron: '21 6,10,14,16 * * *'
-  workflow_dispatch: {}   # lets you press "Run workflow" to test it
+    # Every hour at :30 UTC, which is on the hour in India (UTC+5:30).
+    # Each person chooses their hours in Settings; the job only notifies at those hours.
+    # GitHub may run scheduled jobs a few minutes late.
+    - cron: '30 * * * *'
+  workflow_dispatch: {}
 
 jobs:
   remind:
@@ -17,11 +18,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install --no-audit --no-fund
       - run: node remind.mjs
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          USER_UID: ${{ secrets.USER_UID }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}

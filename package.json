@@ -1,0 +1,18 @@
+{
+  "name": "daily-prep",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Daily spaced-repetition MCQ review for exams and interviews. Web app and Android app, synced with Firebase.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "android:prepare": "node scripts/build.mjs && npx cap add android && node scripts/patch-android.mjs && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.6.9",
+    "@capacitor/cli": "7.6.9",
+    "@capacitor/core": "7.6.9",
+    "@capacitor/local-notifications": "7.0.7",
+    "@fontsource/atkinson-hyperlegible": "5.2.8",
+    "firebase": "11.10.0"
+  }
+}
