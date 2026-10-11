@@ -1046,7 +1046,7 @@ $('loginForm').addEventListener('submit', async e => {
 $('forgotBtn').addEventListener('click', async () => {
   const email = $('loginEmail').value.trim();
   if (!email) return msg('loginMsg', 'Type your email above first.', 'err');
-  try { await App.fb.auth.sendPasswordResetEmail(email); msg('loginMsg', 'Password reset email sent. Check your inbox (and spam).', 'ok'); }
+  try { await App.fb.auth.sendPasswordResetEmail(email); msg('loginMsg', `If an account exists for ${email}, a reset link is on its way (check spam too). No email after a few minutes? You may not have an account yet. Tap "New here? Create an account".`, 'ok'); }
   catch (err) { msg('loginMsg', authError(err), 'err'); }
 });
 $('googleBtn').addEventListener('click', async () => {
