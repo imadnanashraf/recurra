@@ -981,7 +981,7 @@ svg.chart { display: block; max-width: 100%; height: auto; overflow: visible; to
 .seg.seg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ntools select { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: .92rem; min-height: 44px; width: 100%; }
 @media (min-width: 600px) { .ntools { grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); align-items: center; } .seg.seg3 { max-width: 26rem; } }
-.toc-head { display: flex; align-items: center; justify-content: space-between; margin: 2px 2px -8px; }
+.toc-head { display: flex; align-items: center; justify-content: space-between; margin: 2px 2px 2px; }
 .toc-head .btn { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); }
 .toc-head .btn .ic, .readall-bar .btn .ic, .reader-bar .btn .ic { width: 18px; height: 18px; }
 
@@ -2138,6 +2138,10 @@ body.kb-open .tabbar { display: none !important; }
 .sel-mode .bq-topic .linkbtn, .sel-mode [data-readall] { visibility: hidden; }
 body.selecting .tabbar { display: none !important; }
 body.selecting main { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+/* pop-up messages sit above whatever bar is at the bottom (tab bar on phones, selection bar while selecting) */
+@media (max-width: 759px) { body.has-tabs .toast, body.has-tabs .undo-bar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+body.selecting .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+body.selecting .undo-bar { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 .sel-bar { position: fixed; z-index: 30; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); margin: 0 auto; max-width: 620px; display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 16px 40px -16px rgba(10, 30, 60, .5); animation: riseIn .25s var(--ease-out, ease) both; }
 .sel-bar[hidden] { display: none; }
