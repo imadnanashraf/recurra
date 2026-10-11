@@ -933,6 +933,7 @@ function renderSettings() {
   $('installCard').hidden = !Install.prompt || !!App.viewAs;
   $('remCard').hidden = !!App.viewAs; $('accCard').hidden = !!App.viewAs;
   $('adminOpen').hidden = !isAdminUser(App.authUser) || !!App.viewAs;
+  if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
@@ -1221,9 +1222,45 @@ $('photoRemove').addEventListener('click', async () => {
   try { await Store.setProfile({ photo: '' }); App.profile.photo = ''; paintAvatars(); msg('profMsg', 'Photo removed.', 'ok'); }
   catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
 });
-$('pwReset').addEventListener('click', async () => {
-  try { await App.fb.auth.sendPasswordResetEmail(App.user.email); msg('accMsg', `We emailed a link to ${App.user.email} to set a new password.`, 'ok'); Activity.log('password_reset_sent'); }
-  catch (e) { msg('accMsg', authError(e), 'err'); }
+// change your own password: current password + new one, done on the spot (no email)
+const pwField = (id, label, ac) => `<label for="${id}">${label}</label><div class="pw"><input id="${id}" type="password" autocomplete="${ac}" minlength="6"><button class="pwtoggle" type="button" data-pw="${id}" aria-label="Show password">Show</button></div>`;
+$('pwReset').addEventListener('click', () => {
+  msg('accMsg', '');
+  $('accConfirm').innerHTML = `<form class="pwform form" id="pwForm" novalidate>
+      <strong>Change your password</strong>
+      ${pwField('pwCur', 'Current password', 'current-password')}
+      ${pwField('pwNew', 'New password', 'new-password')}
+      ${pwField('pwNew2', 'Confirm new password', 'new-password')}
+      <p class="muted small">At least 6 characters.</p>
+      <div class="btns grid"><button class="btn" type="button" id="pwCancel">Cancel</button><button class="btn primary" type="submit">Change password</button></div>
+      <button class="linkbtn" type="button" id="pwForgot">Forgot your current password? Email me a reset link</button>
+    </form>`;
+  $('pwCur').focus();
+  $('pwCancel').onclick = () => { $('accConfirm').innerHTML = ''; };
+  $('pwForgot').onclick = async () => {
+    try { await App.fb.auth.sendPasswordResetEmail(App.user.email); $('accConfirm').innerHTML = ''; msg('accMsg', `We emailed a link to ${App.user.email} to set a new password.`, 'ok'); Activity.log('password_reset_sent'); }
+    catch (e) { msg('accMsg', authError(e), 'err'); }
+  };
+  $('pwForm').onsubmit = async e => {
+    e.preventDefault();
+    const cur = $('pwCur').value, nw = $('pwNew').value;
+    if (!cur) return msg('accMsg', 'Enter your current password.', 'err');
+    if (nw.length < 6) return msg('accMsg', 'Use a new password of at least 6 characters.', 'err');
+    if (nw !== $('pwNew2').value) return msg('accMsg', 'The two new passwords do not match.', 'err');
+    if (nw === cur) return msg('accMsg', 'The new password is the same as the current one.', 'err');
+    const btn = $('pwForm').querySelector('[type=submit]'); btn.disabled = true; msg('accMsg', 'Changing…');
+    try {
+      const u = App.fb.auth.currentUser;
+      await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, cur));
+      await u.updatePassword(nw);
+      $('accConfirm').innerHTML = '';
+      msg('accMsg', 'Password changed. Use the new one next time you sign in.', 'ok');
+      Activity.log('password_changed');
+    } catch (err) {
+      btn.disabled = false;
+      msg('accMsg', /wrong-password|invalid-credential|invalid-login/.test(err.code || '') ? 'Your current password is wrong.' : authError(err), 'err');
+    }
+  };
 });
 // delete account: locked now, erased for good after 30 days (by the hourly account job)
 $('accDelete').addEventListener('click', () => {
@@ -1294,8 +1331,11 @@ async function startAccount(user, screen) {
     try { localStorage.setItem('rc-opened-' + user.uid, String(Date.now())); } catch (e) {}
     App.signingIn = false;
     // if the admin turns this account off (or it is being deleted), sign out on every device straight away
+    const started = Date.now();
     App.profileUnsub = Store.watchDoc(Store.base(), p => {
-      if (!App.viewAs && App.authUser && isBlocked(p.status)) { App.blockMsg = blockedText(p); App.fb.auth.signOut(); }
+      if (App.viewAs || !App.authUser) return;
+      if (isBlocked(p.status)) { App.blockMsg = blockedText(p); App.fb.auth.signOut(); }
+      else if ((p.signOutAt || 0) > started) { App.blockMsg = 'Your password was changed by the admin. Sign in with the new password.'; App.fb.auth.signOut(); }
     });
     Activity.start();
   }
@@ -1339,8 +1379,10 @@ function updateAdminTab() {
   catch (e) { $('bootMsg').textContent = 'Could not start. Check your internet connection and reload the page.'; return; }
   Store.fs = App.fb.fs;
   App.fb.auth.onAuthStateChanged(async user => {
+    const prev = App.authUser;
     App.authUser = user; App.viewAs = null;
     if (!user) {
+      if (!prev && !App.blockMsg && visible('login')) return;      // already signed out: keep the message on screen
       stopAccount(); Activity.stop();
       App.user = null; App.preps = []; App.prepsLoaded = false; App.profile = {};
       updatePrepButton(); setSync(); paintAvatars(); renderViewAs(); updateAdminTab();

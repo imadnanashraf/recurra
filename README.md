@@ -23,6 +23,10 @@ testing yourself (retrieval practice), spacing reviews just before you would for
   open their account, send a password reset email, rename, turn sign-in off/on, delete in 30 days, cancel deletion, delete now.
 - **Activity log:** sign-ins, app opens, preps, imports, study sessions, pauses, reminders, account and admin actions,
   each with website / installed app / Android app, device, IP address and rough place (from ipapi.co). Filter by person, kind, place, dates or text. Kept for one year.
+- **Passwords:** anyone can change their own password in Settings (current password + new one, no email). The admin can set
+  someone's password on their page; the account job applies it (under a minute with a GitHub key saved in Settings → Admin,
+  otherwise within 10 minutes), deletes it from the database straight away and signs that person out everywhere.
+  Passwords themselves are kept only by Firebase Authentication as salted scrypt hashes; the app never stores or sees them.
 - **Deleting an account** (Settings → Delete account): the person is signed out and locked out at once; everything is erased after 30 days.
   The admin can cancel within those 30 days, or delete at once.
 - The database rules (`firestore.rules`) enforce all of this. The **Database rules** job publishes them when the file changes;

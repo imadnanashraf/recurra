@@ -13,7 +13,7 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(uid)) && profile(uid).data.get('status', 'active') in ['deleting', 'deleted', 'disabled'];
     }
     // fields only the admin (or the account job) may set
-    function adminFields() { return ['status', 'deleteAt', 'deleteRequestedAt', 'disabledAt', 'deletedAt', 'authDisabled', 'test']; }
+    function adminFields() { return ['status', 'deleteAt', 'deleteRequestedAt', 'disabledAt', 'deletedAt', 'authDisabled', 'test', 'signOutAt']; }
 
     match /users/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
@@ -31,6 +31,10 @@ service cloud.firestore {
         allow write: if isAdmin() || (signedIn() && request.auth.uid == uid && !locked(uid));
       }
     }
+
+    // jobs the admin hands to the account job (e.g. "set this password"), and the admin's GitHub key: admin only
+    match /adminTasks/{id} { allow read, write: if isAdmin(); }
+    match /adminConfig/{id} { allow read, write: if isAdmin(); }
 
     // activity log: anyone signed in can add entries about themselves; only the admin can read them
     match /logs/{id} {

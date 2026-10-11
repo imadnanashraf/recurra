@@ -107,6 +107,7 @@ function renderPerson(note) {
   const act = [];
   if (!self && !gone) act.push(`<button class="mode" type="button" data-au="open"><strong>Open their account</strong><span>See and change their preps, questions and progress as they see them</span></button>`);
   if (u.email && !gone) act.push(`<button class="mode" type="button" data-au="reset"><strong>Send a password reset email</strong><span>They get a link at ${esc(u.email)} to set a new password</span></button>`);
+  if (!self && !gone) act.push(`<div class="au-rename"><label for="auPass">Set a new password</label><div class="row-inline"><div class="pw"><input id="auPass" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters"><button class="pwtoggle" type="button" data-pw="auPass" aria-label="Show password">Show</button></div><button class="btn" type="button" data-au="setpw">Set</button></div><small class="muted">They are signed out on every device and use this password from now on. Tell them the new password yourself.</small></div>`);
   if (!gone) act.push(`<div class="au-rename"><label for="auName">Name</label><div class="row-inline"><input id="auName" maxlength="40" value="${esc(u.name || '')}"><button class="btn" type="button" data-au="rename">Save</button></div></div>`);
   if (!self && !gone) {
     const btns = [];
@@ -148,6 +149,27 @@ async function adminSet(u, fields, action, detail) {
   await Store.fs.doc(`users/${u.uid}`).set(fields, { merge: true });
   Object.assign(u, fields);
   await Activity.log(action, detail || {}, whoOf(u));
+  if ('status' in fields) kickJob();          // block or unblock the login now instead of at the next scheduled run
+}
+// Starts the account job on GitHub straight away, using the admin's GitHub key (saved in Settings → Admin)
+async function kickJob() {
+  try {
+    const d = await Store.fs.doc('adminConfig/github').get();
+    const token = d.exists && (d.data() || {}).token;
+    if (!token) return false;
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/accounts.yml/dispatches`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }, body: JSON.stringify({ ref: 'main' }),
+    });
+    return r.status === 204;
+  } catch (e) { return false; }
+}
+function watchTask(ref, u) {
+  if (typeof ref.onSnapshot !== 'function') return;
+  const stop = ref.onSnapshot(s => {
+    const t = s.exists ? (s.data() || {}) : {};
+    if (t.status === 'done') { stop(); if (Admin.current === u && visible('adminUser')) msg('auMsg', `Password changed. ${personName(u)} has been signed out and must use the new password.`, 'ok'); else toast('Password changed.'); }
+    if (t.status === 'failed') { stop(); if (Admin.current === u && visible('adminUser')) msg('auMsg', `Could not set the password: ${t.error || 'unknown error'}.`, 'err'); }
+  }, () => {});
 }
 // delete all of a person's data now; the profile becomes a short "deleted" marker until the job removes the login
 async function adminDeleteNow(u) {
@@ -179,6 +201,19 @@ $('adminUser').addEventListener('click', async e => {
       await App.fb.auth.sendPasswordResetEmail(u.email);
       await Activity.log('admin_reset_sent', {}, whoOf(u));
       return msg('auMsg', `Sent. ${personName(u)} will get a link at ${u.email} to set a new password.`, 'ok');
+    }
+    if (a === 'setpw') {
+      const pw = $('auPass').value;
+      if (pw.length < 6) return msg('auMsg', 'Use a password of at least 6 characters.', 'err');
+      return confirm(`Set this as <b>${esc(personName(u))}</b>'s new password? They will be signed out on every device.`, 'Set password', async () => {
+        const ref = Store.fs.collection('adminTasks').doc();
+        await ref.set({ type: 'setPassword', uid: u.uid, email: u.email || '', password: pw, status: 'pending', at: Date.now(), by: App.authUser.email });
+        await Activity.log('admin_password_set', {}, whoOf(u));
+        box.innerHTML = ''; $('auPass').value = '';
+        const fast = await kickJob();
+        msg('auMsg', fast ? 'Setting the password… this usually takes under a minute.' : 'Saved. It is applied at the next scheduled run, within about 10 minutes. Add a GitHub key in Settings → Admin to make it take under a minute.', 'ok');
+        watchTask(ref, u);
+      });
     }
     if (a === 'rename') {
       const name = $('auName').value.trim(); if (!name) return msg('auMsg', 'Name cannot be empty.', 'err');
@@ -253,3 +288,21 @@ function renderLogs() {
 ['logFrom', 'logTo'].forEach(id => $(id).addEventListener('change', () => loadLogs(true)));
 $('logMore').addEventListener('click', () => { Admin.logLimit += 300; loadLogs(); });
 $('logList').addEventListener('click', e => { const b = e.target.closest('[data-loguid]'); if (b && Admin.users.some(u => u.uid === b.dataset.loguid)) openPerson(b.dataset.loguid); });
+
+/* ---------- GitHub key for instant admin actions (Settings → Admin) ---------- */
+async function renderAdminKey() {
+  if (!isAdminUser(App.authUser) || App.viewAs) return;
+  let has = false;
+  try { const d = await Store.fs.doc('adminConfig/github').get(); has = !!(d.exists && (d.data() || {}).token); } catch (e) {}
+  $('ghKeyState').innerHTML = has ? '<span class="badge good">Key saved</span> Password changes and turning accounts off take under a minute.' : '<span class="badge warn">No key</span> Password changes and turning accounts off wait for the next run (up to 10 minutes).';
+}
+$('ghKeySave').addEventListener('click', async () => {
+  const token = $('ghKey').value.trim();
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(token)) return msg('ghKeyMsg', 'That does not look like a GitHub key. It starts with github_pat_.', 'err');
+  try {
+    await Store.fs.doc('adminConfig/github').set({ token, savedAt: Date.now() });
+    $('ghKey').value = '';
+    msg('ghKeyMsg', (await kickJob()) ? 'Saved and tested: the account job started.' : 'Saved, but GitHub refused it. Check the key has "Actions: Read and write" for the recurra repository.', 'ok');
+    renderAdminKey();
+  } catch (e) { msg('ghKeyMsg', 'Could not save. Check your internet.', 'err'); }
+});

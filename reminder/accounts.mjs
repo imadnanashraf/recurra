@@ -26,6 +26,26 @@ for (const d of locked.docs) {
     off++;
   }
 }
+// tasks from the admin panel (set a password); the password is removed from the database as soon as it is used
+let tasksDone = 0;
+const tasks = await db.collection('adminTasks').where('status', '==', 'pending').get();
+for (const t of tasks.docs) {
+  const x = t.data();
+  try {
+    if (x.type === 'setPassword') {
+      await auth.updateUser(x.uid, { password: x.password });
+      await auth.revokeRefreshTokens(x.uid);
+      await db.doc(`users/${x.uid}`).set({ signOutAt: Date.now() }, { merge: true });   // their open app signs out now
+    }
+    await t.ref.update({ status: 'done', doneAt: Date.now(), password: admin.firestore.FieldValue.delete() });
+    tasksDone++;
+  } catch (e) {
+    await t.ref.update({ status: 'failed', error: e.message || String(e), password: admin.firestore.FieldValue.delete() });
+  }
+}
+const oldTasks = await db.collection('adminTasks').where('doneAt', '<', now - DAY).limit(200).get();
+for (const d of oldTasks.docs) await d.ref.delete();
+
 const restored = await db.collection('users').where('authDisabled', '==', true).get();
 for (const d of restored.docs) {
   if (LOCKED.includes(d.data().status)) continue;
@@ -35,4 +55,4 @@ for (const d of restored.docs) {
 }
 const old = await db.collection('logs').where('at', '<', now - 365 * DAY).limit(400).get();
 if (!old.empty) { const b = db.batch(); old.docs.forEach(d => b.delete(d.ref)); await b.commit(); }
-console.log(`Accounts: ${erased} erased, ${off} logins turned off, ${on} turned back on, ${old.size} old log entries removed.`);
+console.log(`Accounts: ${tasksDone} admin tasks done, ${erased} erased, ${off} logins turned off, ${on} turned back on, ${old.size} old log entries removed.`);

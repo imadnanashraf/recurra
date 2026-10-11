@@ -5,6 +5,7 @@
    IP address and rough place). Only the superadmin can read the logs.
    ===================================================================== */
 const ADMIN_EMAIL = 'adnan.ashraf19@gmail.com';
+const REPO = 'imadnanashraf/recurra';   // where the account job runs (GitHub Actions)
 const DAY_MS = 864e5, DELETE_WAIT_DAYS = 30;
 const isAdminUser = u => !!(u && (u.email || '').toLowerCase() === ADMIN_EMAIL && u.emailVerified);
 const BLOCKED = ['deleting', 'deleted', 'disabled'];
@@ -98,6 +99,7 @@ const ACTIONS = {
   signed_out: ['Sign-in', 'Signed out'],
   app_opened: ['Sign-in', 'Opened the app'],
   password_reset_sent: ['Account', 'Asked for a password reset email'],
+  password_changed: ['Account', 'Changed their password'],
   profile_updated: ['Account', d => `Changed their ${d.what || 'profile'}`],
   reminders_changed: ['Account', d => d.on ? 'Turned daily reminders on' : 'Turned daily reminders off'],
   delete_requested: ['Account', d => `Asked to delete the account (erased on ${fmtDate(d.deleteAt)})`],
@@ -111,6 +113,7 @@ const ACTIONS = {
   day_paused: ['Study', d => d.paused ? `Paused today in "${d.prep}"` : `Resumed today in "${d.prep}"`],
   admin_opened_account: ['Admin', 'Admin opened this account'],
   admin_reset_sent: ['Admin', 'Admin sent a password reset email'],
+  admin_password_set: ['Admin', 'Admin set a new password'],
   admin_renamed: ['Admin', d => `Admin renamed the account to "${d.name}"`],
   admin_disabled: ['Admin', 'Admin turned the account off'],
   admin_enabled: ['Admin', 'Admin turned the account back on'],

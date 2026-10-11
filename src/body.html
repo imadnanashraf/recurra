@@ -197,6 +197,18 @@
         <h3>Admin</h3>
         <p class="muted small">People, accounts and the activity log. Only you can see this.</p>
         <div class="btns"><button class="btn primary" type="button" data-mode="admin">Open admin panel</button></div>
+        <details class="ghkey">
+          <summary>Instant admin actions (GitHub key)</summary>
+          <p class="small" id="ghKeyState"></p>
+          <ol class="steps small">
+            <li>Open <b>github.com/settings/personal-access-tokens/new</b>.</li>
+            <li>Name it <b>Recurra admin</b>. Repository access: <b>Only select repositories → recurra</b>.</li>
+            <li>Repository permissions → <b>Actions: Read and write</b>. Nothing else.</li>
+            <li>Generate, copy it, paste it here and Save.</li>
+          </ol>
+          <div class="row-inline"><input id="ghKey" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"><button class="btn" type="button" id="ghKeySave">Save</button></div>
+          <p class="msg" id="ghKeyMsg"></p>
+        </details>
       </div>
       <div class="card" id="accCard">
         <h3>Account</h3>

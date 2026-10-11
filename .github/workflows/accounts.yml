@@ -1,14 +1,18 @@
 name: Accounts
 
-# Every hour: turn off logins of locked accounts, erase accounts whose 30 days are up
+# Every 10 minutes (and straight away when the admin presses a button): set passwords the admin chose, turn off logins of locked accounts, erase accounts whose 30 days are up
 # (or that the admin deleted now), turn restored logins back on, trim the activity log.
 on:
   schedule:
-    - cron: '15 * * * *'
+    - cron: '*/10 * * * *'
   push:
     branches: [main]
     paths: ['reminder/accounts.mjs', '.github/workflows/accounts.yml']
   workflow_dispatch: {}
+
+concurrency:
+  group: accounts
+  cancel-in-progress: false
 
 jobs:
   accounts:

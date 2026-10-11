@@ -932,3 +932,11 @@ svg.chart { display: block; max-width: 100%; height: auto; overflow: visible; to
 .delete-box input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; letter-spacing: .08em; }
 .delete-box label { font-size: .88rem; font-weight: 700; }
 @media (max-width: 1023px) { #logUser { grid-column: 1 / -1; } }
+.pwform { display: grid; gap: 8px; background: var(--sunken); border-radius: 12px; padding: 14px; }
+.pwform .linkbtn { justify-self: start; font-size: .9rem; }
+.au-rename .pw { flex: 1 1 12rem; }
+.au-rename .pw input { width: 100%; }
+.au-rename small { display: block; margin-top: 4px; font-size: .82rem; }
+.ghkey summary { cursor: pointer; font-weight: 700; font-size: .95rem; padding: 4px 0; }
+.ghkey[open] { display: grid; gap: 8px; }
+.ghkey input { flex: 1 1 12rem; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
