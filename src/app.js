@@ -29,6 +29,7 @@ function show(id) {
 function goHome() { if (App.prep) show('home'); else showPreps(); }
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.hidden = false;
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 3000);
 }
 function setSync(state) {
@@ -152,13 +153,13 @@ function renderHome() {
       : `<span class="what">Exam date passed</span>`;
   } else $('countdown').innerHTML = `<span class="what">${esc(p0.name)}</span><span class="meta">No exam date set</span>`;
 
-  if (!App.loaded) { $('todayCard').innerHTML = `<div class="empty">Loading your questions…</div>`; return; }
+  if (!App.loaded) { $('todayCard').innerHTML = `<div class="skeleton" aria-label="Loading"><i class="big"></i><i></i><i style="width:70%"></i><i class="btnph"></i></div>`; return; }
   const p = syncDay(), n = p.due.length + p.fresh.length, d = Progress.today(), pct = dayPct(d);
   let card;
   if (!App.questions.length) {
-    card = `<div class="today"><div class="top"><div class="what"><strong>No questions yet</strong>
-      <span>Add questions made from your notes. They show up here by themselves.</span></div></div>
-      <button class="go" type="button" id="addBtn">Add questions</button></div>`;
+    card = `<div class="today"><div class="empty-state">${ART.empty}<strong>No questions yet</strong>
+      <p>Add questions made from your notes. From then on, they show up here by themselves, right when you need them.</p></div>
+      <button class="go" type="button" id="addBtn">${icon('plus')}Add questions</button></div>`;
   } else if (n && d.paused) {
     card = `<div class="today paused"><div class="top"><span class="big">II</span>
       <div class="what"><strong>Paused for today</strong><span>No reminders today. Your ${plural(n, 'question')} wait for tomorrow, and the pause ends by itself at midnight.</span></div></div>
@@ -167,15 +168,16 @@ function renderHome() {
     card = `<div class="today"><div class="top"><span class="big">${n}</span>
       <div class="what"><strong>${d.n ? 'Left today' : 'Today’s review'}</strong><span>${timeText(n)}</span></div></div>
       <div class="split"><span>${p.due.length} to revise</span><span>${p.fresh.length} new</span>${d.n ? `<span>${d.n} done today · ${pct}% right</span>` : ''}</div>
-      <div class="row2"><button class="go" type="button" id="goBtn">${d.n ? 'Continue' : 'Start'}</button>
-      <button class="pausebtn" type="button" id="pauseBtn">Pause today</button></div></div>`;
+      <div class="row2"><button class="go" type="button" id="goBtn">${icon('play')}${d.n ? 'Continue' : 'Start'}</button>
+      <button class="pausebtn" type="button" id="pauseBtn">${icon('pause')}Pause today</button></div></div>`;
   } else {
     const nx = Progress.meta.next;
-    card = `<div class="today done"><div class="top"><span class="big">${pct === null ? '✓' : pct + '%'}</span>
+    card = `<div class="today done"><div class="top">${ART.done}<span class="big">${pct === null ? '' : pct + '%'}</span>
       <div class="what"><strong>Done for today</strong><span>${plural(d.n || 0, 'question')} answered${pct === null ? '' : `, ${pct}% right first time`}.${nx && nx.count ? ` Tomorrow: about ${plural(nx.count, 'question')}, ${nx.mins} min.` : ''}</span></div></div>
       <button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div>`;
   }
   $('todayCard').innerHTML = card;
+  countUp($('todayCard').querySelector('.big'));
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('goBtn', () => startSession('Today’s review', [...p.due, ...p.fresh], true));
   on('extraBtn', startExtra);
@@ -189,6 +191,25 @@ function renderHome() {
     <div class="stat"><b>${o.total ? Math.round(100 * o.seen / o.total) : 0}%</b><small>Seen at least once</small></div>
     <div class="stat"><b>${o.strong}</b><small>Strong in memory</small></div>
     <div class="stat"><b>${o.acc === null ? '–' : o.acc + '%'}</b><small>Accuracy</small></div>`;
+  $('stats').querySelectorAll('b').forEach(countUp);
+}
+// numbers count up from where they were (only when they change, so nothing jumps around while you read)
+const lastNumbers = new Map();
+function countUp(el) {
+  if (!el) return;
+  const m = el.textContent.match(/^(\d+)(.*)$/); if (!m) return;
+  const to = Number(m[1]), suffix = m[2], key = (el.closest('[id]') || {}).id + ':' + [...el.parentNode.children].indexOf(el) + ':' + suffix;
+  const from = lastNumbers.has(key) ? lastNumbers.get(key) : 0;
+  lastNumbers.set(key, to);
+  if (from === to || prefersReduced()) return;
+  const t0 = performance.now(), dur = 520;
+  el.textContent = from + suffix;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e) + suffix;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 const DEFAULT_SPQ = 40;
@@ -274,7 +295,7 @@ function openSubjectPicker() {
       <span class="code">${esc(s.code)}</span>
       <span class="name">${esc(s.name)}<small>${subjectMeta(s)}</small></span>
       <span class="n">${n ? n + ' Qs' : 'No Qs yet'}</span></button>`;
-  }).join('') : `<div class="empty">No subjects yet. Add a syllabus or questions first.</div>`;
+  }).join('') : `<div class="empty-state">${ART.empty}<strong>No subjects yet</strong><p>Add a syllabus or some questions first.</p></div>`;
   show('picker');
 }
 function openTopicPicker(code) {
@@ -331,8 +352,9 @@ function renderQuestion() {
     s && `<span class="label" style="display:inline-flex;gap:6px;align-items:center">Memory ${levelBars(s.lv)}</span>`,
   ].filter(Boolean).join('');
   $('qText').innerHTML = rich(q.question);
+  replay($('qText'), 'in'); replay($('qRecall'), 'in');
   $('qOpts').innerHTML = it.opts.map((o, k) => `
-    <button class="opt" type="button" data-k="${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
+    <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
   $('qRecall').hidden = it.phase !== 'recall';
   $('qOpts').hidden = it.phase === 'recall';
   $('qConf').hidden = true;
@@ -341,6 +363,7 @@ function renderQuestion() {
   setKeyHint();
   if (it.phase === 'recall') $('showOpts').focus({ preventScroll: true });
 }
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
   $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: answer · S: don\'t know', conf: 'Keys 1 sure · 2 not sure · 3 guessed', done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
@@ -350,6 +373,7 @@ function showOptions() {
   if (it.phase !== 'recall') return;
   it.phase = 'options';
   $('qRecall').hidden = true; $('qOpts').hidden = false; setKeyHint();
+  Native.tap();
 }
 // k = option index, or null for "Don't know"
 function pick(k) {
@@ -376,6 +400,7 @@ function finish(k, conf) {
     z.firstCount++;
   }
   Progress.record(q, it.result, it.retry, conf);
+  Native.answer(it.result === 'correct');
   let again = false;
   if (it.result !== 'correct' && (z.retries[q.id] || 0) < SCHEDULE.retriesInSession) {
     z.retries[q.id] = (z.retries[q.id] || 0) + 1;
@@ -414,7 +439,7 @@ function finish(k, conf) {
   $('qFeedback').innerHTML = `<div class="feedback ${cls}"><div class="verdict">${verdict}<small>${note}</small></div><dl>
     ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl></div>`;
   $('skipBtn').hidden = true; $('nextBtn').hidden = false;
-  $('nextBtn').textContent = z.i === z.queue.length - 1 ? 'Finish' : 'Next';
+  $('nextBtn').innerHTML = z.i === z.queue.length - 1 ? `${icon('check')}Finish` : `Next${icon('next')}`;
   setKeyHint();
   $('nextBtn').focus({ preventScroll: true });
 }
@@ -472,7 +497,7 @@ function showBreak() {
   $('bWins').innerHTML = `<h2>Block done: ${right} of ${ids.length} right</h2><p class="muted">${gains || 'Every attempt strengthens memory, right or wrong.'}</p>`;
   show('break');
   Break.timers.forEach(clearInterval); Break.timers = [];
-  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduce = prefersReduced();
   const start = Date.now();
   const tick = () => {
     const t = (Date.now() - start) / 1000, c = t % 10, left = Math.max(0, 60 - Math.floor(t));
@@ -520,6 +545,7 @@ function renderResult() {
         ${f.q.hint ? `<span class="muted small">Hint: ${rich(f.q.hint)}</span>` : ''}
       </div>`).join('') : '';
   Reminders.refreshSoon();
+  Native.done();
   show('result');
 }
 
@@ -562,7 +588,7 @@ function renderNotes() {
     const rows = ordered.filter(k => !NOTE_SKIP.has(k) && n[k] && (Array.isArray(n[k]) ? n[k].length : true)).map(k => `
       <div class="${/trap/i.test(k) ? 'trap' : ''}"><dt>${esc(labelOf(k))}</dt><dd>${Array.isArray(n[k]) ? `<ul>${n[k].map(x => `<li>${rich(x)}</li>`).join('')}</ul>` : rich(n[k])}</dd></div>`).join('');
     return `<article class="note"><span class="mono muted">${esc(name(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}</span><h3>${rich(n.title)}</h3><dl>${rows}</dl></article>`;
-  }).join('') : `<div class="empty">No revision notes yet. Add them from Home → Add questions or notes.</div>`;
+  }).join('') : `<div class="empty-state">${ART.notes}<strong>No revision notes yet</strong><p>Short notes on the things you mix up will live here. Add them from Today, then “Add questions or notes”.</p></div>`;
 }
 $('notesFilter').addEventListener('change', renderNotes);
 
@@ -579,6 +605,7 @@ function renderPreps() {
   const none = !App.preps.length;
   $('prepsTitle').textContent = none ? 'Welcome' : 'Your preps';
   $('prepsIntro').hidden = !none;
+  if (none && !$('welcomeArt').innerHTML) $('welcomeArt').innerHTML = ART.welcome;
   $('prepsBack').hidden = none || !App.prep;
   $('prepList').hidden = none;
   $('prepList').innerHTML = App.preps.map(p => {
@@ -686,7 +713,7 @@ function exportPrep() {
     questions: Object.values(App.bank), notes: Object.values(App.notesMap) };
   const slug = (p.name || 'prep').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prep';
   download(`${slug}.json`, JSON.stringify(data, null, 2));
-  toast('Downloaded. Your friend can add it with New prep → From a syllabus or prep file.');
+  toast('Downloaded. Your friend can add it with New prep, then “From a syllabus or prep file”.');
 }
 
 /* ---------- import screen ---------- */
@@ -741,8 +768,8 @@ function doCheck() {
   if (!allowed.includes(parsed.kind)) {
     App.imp.checked = null; renderPreview();
     return msg('impMsg', App.imp.target === 'new'
-      ? `This is a ${KIND_LABEL[parsed.kind]} file. Create the prep first (from a syllabus or an empty prep), then add it from Home → Add questions or notes.`
-      : 'This is a whole prep file. Add it from the Preps screen → From a syllabus or prep file.', 'err');
+      ? `This is a ${KIND_LABEL[parsed.kind]} file. Create the prep first (from a syllabus or an empty prep), then add it from Today with “Add questions or notes”.`
+      : 'This is a whole prep file. Add it from the preps list (tap the prep name at the top), then “From a syllabus or prep file”.', 'err');
   }
   if (parsed.kind !== App.imp.kind) { App.imp.kind = parsed.kind; renderImport(); }
   App.imp.checked = checkImport(parsed, App.imp.target);
@@ -865,6 +892,7 @@ const THEME_KEY = 'rc-theme';
 function applyTheme() {
   let t = 'auto'; try { t = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
   if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  Native.statusBar();
   return t;
 }
 function hourLabel(h) { return h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`; }
@@ -874,9 +902,11 @@ function renderSettings() {
   $('profName').value = displayName();
   $('pwReset').hidden = !usesPassword();
   $('accConfirm').innerHTML = ''; msg('accMsg', ''); msg('profMsg', '');
+  $('installCard').hidden = !Install.prompt;
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
+  $('optHaptic').checked = pf.haptics !== false; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
   $('remBox').hidden = !rm.on; $('remTest').hidden = !rm.on;
@@ -928,6 +958,13 @@ $('remTest').addEventListener('click', async () => {
   catch (e) { msg('remMsg', REM_ERRORS[e.message] || 'Could not send a test.', 'err'); }
 });
 $('signOut').addEventListener('click', () => App.fb && App.fb.auth.signOut());
+$('installBtn').addEventListener('click', async () => {
+  if (!Install.prompt) return;
+  Install.prompt.prompt();
+  try { const r = await Install.prompt.userChoice; if (r && r.outcome === 'accepted') toast('Recurra is installed.'); } catch (e) {}
+  Install.prompt = null; $('installCard').hidden = true;
+});
+$('optHaptic').addEventListener('change', () => savePrefs({ haptics: $('optHaptic').checked }));
 
 /* ---------- navigation ---------- */
 const MODES = {
@@ -1138,6 +1175,7 @@ $('accDelete').addEventListener('click', () => {
 
 /* ---------- start ---------- */
 (async function init() {
+  document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon); });
   applyTheme();
   if (NATIVE) { $('googleBtn').hidden = true; $('orLine').hidden = true; }
   else if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

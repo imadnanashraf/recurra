@@ -17,7 +17,8 @@
 <main>
   <!-- STARTUP / SETUP MESSAGE -->
   <section id="boot">
-    <div class="empty" id="bootMsg">Loading…</div>
+    <div class="boot-logo">{{LOGO}}</div>
+    <div class="empty" id="bootMsg">Getting things ready…</div>
   </section>
 
   <!-- SIGN IN / CREATE ACCOUNT -->
@@ -68,9 +69,9 @@
   <section id="preps" hidden>
     <div class="head-row">
       <h2 id="prepsTitle">Your preps</h2>
-      <button class="btn ghost" type="button" data-back id="prepsBack">← Back</button>
+      <button class="btn ghost" type="button" data-back id="prepsBack"><span data-icon="back"></span>Back</button>
     </div>
-    <p class="muted" id="prepsIntro" hidden>A prep is one exam or goal, with its own syllabus, questions, daily review and streak. Create your first one.</p>
+    <div class="empty-state" id="prepsIntro" hidden><span id="welcomeArt"></span><strong>Let's set up your first prep</strong><p>A prep is one exam or goal, with its own syllabus, questions, daily review and streak.</p></div>
     <div class="list" id="prepList"></div>
     <div class="card" id="prepActions"></div>
     <h3>New prep</h3>
@@ -94,7 +95,7 @@
   <section id="import" hidden>
     <div class="head-row">
       <h2 id="impTitle">Add content</h2>
-      <button class="btn ghost" type="button" id="impBack">← Back</button>
+      <button class="btn ghost" type="button" id="impBack"><span data-icon="back"></span>Back</button>
     </div>
     <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
     <div class="card" id="impHelp"></div>
@@ -120,7 +121,7 @@
   <section id="settings" hidden>
     <div class="head-row">
       <h2>Settings</h2>
-      <button class="btn ghost" type="button" data-back>← Back</button>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
     <div class="card form profile">
       <h3>Profile</h3>
@@ -151,6 +152,7 @@
       <h3>Study</h3>
       <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
       <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
+      <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
     </div>
     <div class="card form">
       <h3>Appearance</h3>
@@ -159,6 +161,11 @@
         <button class="chip" type="button" data-theme-set="light">Light</button>
         <button class="chip" type="button" data-theme-set="dark">Night (low glare)</button>
       </div>
+    </div>
+    <div class="card install" id="installCard" hidden>
+      {{LOGO}}
+      <div style="display:grid;gap:6px;flex:1"><strong>Install Recurra</strong><span class="muted small">Open it from your home screen or desktop like any app, even offline.</span></div>
+      <button class="btn primary" type="button" id="installBtn"><span data-icon="install"></span>Install</button>
     </div>
     <div class="card">
       <h3>Account</h3>
@@ -176,7 +183,7 @@
   <section id="picker" hidden>
     <div class="head-row">
       <h2 id="pickerTitle">Choose a subject</h2>
-      <button class="btn ghost" type="button" data-back>← Back</button>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
     <div class="list" id="pickerList"></div>
   </section>
@@ -210,7 +217,7 @@
     <div class="qactions">
       <button class="btn" type="button" id="skipBtn">Don't know</button>
       <span class="hint-keys" id="keyHint"></span>
-      <button class="btn primary" type="button" id="nextBtn" hidden>Next →</button>
+      <button class="btn primary" type="button" id="nextBtn" hidden>Next</button>
     </div>
   </section>
 
@@ -231,9 +238,11 @@
   <!-- RESULT -->
   <section id="result" hidden>
     <div class="head-row">
-      <h2 id="rTitle">Session finished</h2>
+      <span></span>
       <button class="btn ghost" type="button" data-back>Home</button>
     </div>
+    <svg class="done-mark" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="var(--good-soft)"/><path class="draw" d="M42 61l12 12 24-26" fill="none" stroke="var(--good)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2 id="rTitle">Session complete</h2>
     <div class="wins-list" id="rWins"></div>
     <div class="stats" id="rScore"></div>
     <p id="rNext" class="muted"></p>
@@ -256,14 +265,14 @@
   <section id="calendar" hidden>
     <div class="head-row">
       <h2>Calendar</h2>
-      <button class="btn ghost" type="button" data-back>← Back</button>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
     <div class="stats" id="cStats"></div>
     <div class="cal">
       <div class="cal-head">
-        <button class="btn ghost" type="button" id="calPrev" aria-label="Previous month">←</button>
+        <button class="btn ghost" type="button" id="calPrev" aria-label="Previous month"><span data-icon="back"></span></button>
         <h3 id="calTitle"></h3>
-        <button class="btn ghost" type="button" id="calNext" aria-label="Next month">→</button>
+        <button class="btn ghost" type="button" id="calNext" aria-label="Next month"><span data-icon="next"></span></button>
       </div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
@@ -278,7 +287,7 @@
   <section id="notes" hidden>
     <div class="head-row">
       <h2>Revision Notes</h2>
-      <button class="btn ghost" type="button" data-back>← Back</button>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
     <select id="notesFilter" aria-label="Filter notes by subject"></select>
     <div id="notesList" style="display:grid;gap:12px"></div>

@@ -105,3 +105,31 @@ const Reminders = {
     if (list.length) await LN.schedule({ notifications: list });
   },
 };
+
+/* =====================================================================
+   PART 6 — NATIVE FEEL (Android app) and INSTALL (website)
+   ===================================================================== */
+const plugin = name => NATIVE && window.capacitorExports ? capacitorExports.registerPlugin(name) : null;
+const HapticsP = plugin('Haptics'), StatusBarP = plugin('StatusBar');
+const quiet = fn => { try { const r = fn(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* plugin missing */ } };
+const Native = {
+  vibrate() { return !!HapticsP && prefs().haptics !== false; },
+  tap() { if (this.vibrate()) quiet(() => HapticsP.impact({ style: 'LIGHT' })); },
+  answer(right) { if (this.vibrate()) quiet(() => HapticsP.impact({ style: right ? 'MEDIUM' : 'LIGHT' })); },
+  done() { if (this.vibrate()) quiet(() => HapticsP.notification({ type: 'SUCCESS' })); },
+  // the phone's status bar takes the app's background colour and the right icon colour
+  statusBar() {
+    if (!StatusBarP) return;
+    const t = document.documentElement.getAttribute('data-theme');
+    const dark = t === 'dark' || (t !== 'light' && !!window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || (dark ? '#141716' : '#eef2f1');
+    quiet(() => StatusBarP.setBackgroundColor({ color: bg }));
+    quiet(() => StatusBarP.setStyle({ style: dark ? 'DARK' : 'LIGHT' }));
+  },
+};
+if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', () => Native.statusBar()); }
+
+// "Install Recurra" on the website (Chrome, Edge, Android browsers)
+const Install = { prompt: null };
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); Install.prompt = e; const c = document.getElementById('installCard'); if (c) c.hidden = false; });
+window.addEventListener('appinstalled', () => { Install.prompt = null; const c = document.getElementById('installCard'); if (c) c.hidden = true; });
