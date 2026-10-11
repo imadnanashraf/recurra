@@ -37,7 +37,7 @@ Google AI key. These 5 run on **your** free Google AI key, kept secret inside th
 Do the Cloudflare steps first, then:
 
 1. Open <https://aistudio.google.com/apikey> and sign in with your Google account.
-2. Tap **Create API key** (pick the suggested project if asked) and **Copy** it. Do **not** turn on billing:
+2. If a key is already listed, open it; otherwise tap **Create API key** (keep the suggested project, then **Create key**). **Copy** it: new keys start with `AQ.` (old `AIza` keys stopped working unless restricted). Do **not** turn on billing:
    without billing, Google can never charge you; at worst the free uploads pause for the day.
 3. GitHub → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
    name `GEMINI_API_KEY`, value: the key.
