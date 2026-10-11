@@ -11,7 +11,7 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 
 ## Using it
 
-1. Create an account (or sign in), then create a **prep** (one exam or goal): from a ready template, a syllabus file, or empty.
+1. Create an account (or sign in), then create a **prep** (one exam or goal): empty, or from a syllabus file. Every account starts blank; your preps, questions and progress are saved to your account only.
 2. Home → **Add questions or notes** → **Copy AI prompt** → paste it into ChatGPT, Claude or Gemini together with your notes (English or Hinglish) → paste the JSON reply back → **Check** → **Add**.
 3. Every day: open the app and press **Start**. The app decides what to ask.
 4. Settings → **Daily reminders**: pick your hours. On Android the phone schedules them itself. In a laptop browser they arrive as browser notifications.
@@ -28,7 +28,7 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 |---|---|
 | `src/` | The app (HTML, CSS, JavaScript). `scripts/build.mjs` joins it into `www/`. |
 | `assets/` | App icons. |
-| `templates/` | Ready syllabi shown when creating a prep. Add a file and list it in `templates/index.json`. |
+| `samples/` | Example syllabus files you can paste in with **From a syllabus or prep file**. Not shown in the app. |
 | `reminder/` | The hourly reminder job for browser notifications. |
 | `config.js` | Your Firebase settings (public by design; data is protected by `firestore.rules`). |
 | `.github/workflows/web.yml` | Publishes the website on every change. |

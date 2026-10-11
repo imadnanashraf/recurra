@@ -601,13 +601,6 @@ function renderNotes() {
 $('notesFilter').addEventListener('change', renderNotes);
 
 /* ---------- preps screen ---------- */
-const TEMPLATES = { list: null };
-async function loadTemplates() {
-  if (TEMPLATES.list) return TEMPLATES.list;
-  try { const r = await fetch('templates/index.json', { cache: 'no-store' }); TEMPLATES.list = r.ok ? await r.json() : []; }
-  catch (e) { TEMPLATES.list = []; }
-  return TEMPLATES.list;
-}
 function showPreps() { renderPreps(); show('preps'); }
 function renderPreps() {
   const none = !App.preps.length;
@@ -632,11 +625,6 @@ function renderPreps() {
         <button class="btn danger" type="button" data-act="delete">Delete prep</button>
       </div><div id="prepConfirm"></div>`;
   }
-  loadTemplates().then(list => {
-    $('tplBox').hidden = !list.length;
-    $('tplList').innerHTML = list.map((t, i) => `<button class="row topic" type="button" data-tpl="${i}">
-      <span class="name">${esc(t.name)}<span class="meta">${esc(t.note || '')}</span></span><span class="n">Use</span></button>`).join('');
-  });
 }
 $('prepList').addEventListener('click', e => {
   const b = e.target.closest('[data-pid]'); if (!b) return;
@@ -660,17 +648,6 @@ $('prepActions').addEventListener('click', async e => {
     if (act === 'reset-yes') await resetPrep(App.prepId);
     if (act === 'delete-yes') await deletePrep(App.prepId);
   } catch (err) { console.warn(err); toast('That did not work. Check your internet and try again.'); b.disabled = false; }
-});
-$('tplList').addEventListener('click', async e => {
-  const b = e.target.closest('[data-tpl]'); if (!b) return;
-  const t = TEMPLATES.list[Number(b.dataset.tpl)];
-  b.disabled = true;
-  try {
-    const r = await fetch('templates/' + t.file, { cache: 'no-store' });
-    const parsed = parseImport(await r.text());
-    const checked = checkImport(parsed, 'new');
-    await createFromChecked(checked);
-  } catch (err) { console.warn(err); toast('Could not load that template.'); b.disabled = false; }
 });
 $('newFromFile').addEventListener('click', () => openImport('new', 'syllabus'));
 $('newPrepForm').addEventListener('submit', async e => {

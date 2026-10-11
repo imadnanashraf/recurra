@@ -32,7 +32,6 @@ copyFileSync(nm(AHN + 'latin-wght-normal.woff2'), join(out, 'fonts', 'ahn-latin.
 copyFileSync(nm(AHN + 'latin-ext-wght-normal.woff2'), join(out, 'fonts', 'ahn-latin-ext.woff2'));
 
 // app files
-cpSync(join(root, 'templates'), join(out, 'templates'), { recursive: true });
 cpSync(join(root, 'assets', 'icons'), join(out, 'icons'), { recursive: true });
 cpSync(join(root, 'assets', 'fx'), join(out, 'fx'), { recursive: true });
 copyFileSync(join(root, 'src', 'manifest.webmanifest'), join(out, 'manifest.webmanifest'));

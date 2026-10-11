@@ -89,13 +89,8 @@
     <div class="list" id="prepList"></div>
     <div class="card" id="prepActions"></div>
     <h3>New prep</h3>
-    <div id="tplBox" class="card" hidden>
-      <strong>Start from a ready syllabus</strong>
-      <div class="list" id="tplList"></div>
-    </div>
-    <button class="mode" type="button" id="newFromFile"><strong>From a syllabus or prep file</strong><span>Paste JSON made with the AI prompt, or a prep a friend exported</span></button>
     <form class="card form" id="newPrepForm">
-      <strong>Empty prep</strong>
+      <strong>Start from scratch</strong>
       <label for="newPrepName">Name</label>
       <input id="newPrepName" required maxlength="60" placeholder="e.g. Networking">
       <label for="newPrepDate">Exam date (optional)</label>
@@ -103,6 +98,7 @@
       <div class="btns"><button class="btn primary" type="submit">Create prep</button></div>
       <p class="msg" id="newPrepMsg"></p>
     </form>
+    <button class="mode" type="button" id="newFromFile"><strong>From a syllabus or prep file</strong><span>Paste JSON made with the AI prompt, or a prep a friend exported</span></button>
   </section>
 
   <!-- IMPORT -->
