@@ -1685,3 +1685,7 @@ body.lt-focus main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px
 /* safety net: animations (confetti, pop-ups) can never make the page scroll sideways */
 html, body { overflow-x: clip; }
 .newbdgs { overflow-x: clip; }
+/* only brand-new messages slide in; redraws never re-animate old ones */
+.bubble { animation: none; }
+.msg-row.new .bubble { animation: msgIn .22s var(--ease-out, ease) both; }
+.reacts button { animation: none; }

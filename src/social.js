@@ -380,7 +380,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape' && !$('photoView').hid
 function openThread(id) {
   closeThread();
   const f = friendship(id); if (!f) return;
-  Social.open = id; Social.msgs = []; Social.sel = null; Social.seenIds = null;
+  Social.open = id; Social.msgs = []; Social.sel = null; Social.seenIds = null; Social.lastSig = null; Social.shown = null;
   $('msgList').innerHTML = '<p class="muted small center">Loading…</p>'; $('msgText').value = ''; sizeComposer();
   paintThreadHead(); show('thread'); document.body.classList.add('in-thread'); fitThread();
   Social.msgUnsub = Store.fs.collection(`chats/${id}/messages`).orderBy('at').limitToLast(300).onSnapshot(s => {
@@ -417,7 +417,7 @@ function paintThreadHead() {
   const blocked = f.status === 'blocked';
   $('msgForm').hidden = blocked || f.status !== 'accepted';
   $('threadNote').hidden = !blocked; $('threadNote').textContent = blocked ? (f.blockedBy === meUid() ? 'You blocked this person. Unblock them from the friends list to chat again.' : 'You can’t send messages in this chat.') : '';
-  if (Social.msgs.length) renderMessages();
+  renderMessages();                                   // redraws only if something shown in the list changed (see below)
 }
 function statusLine(f, p) {
   if (typingNow(f, otherOf(f))) return '<span class="typing-text">typing…</span>';
@@ -449,6 +449,11 @@ function renderMessages() {
   const f = friendship(Social.open); if (!f) return;
   const me = meUid(), other = otherOf(f), theirRead = f['read_' + other] || 0, P = Social.people[other] || { uid: other };
   const list = Social.msgs;
+  // nothing visible changed (for example only "typing…" or "online" did): leave the list alone, no flicker
+  const sig = JSON.stringify([list.map(m => [m.id, m.text, m.status, Object.entries(m).filter(([k]) => k.startsWith('re_'))]), list.filter(m => m.from === me).map(m => theirRead >= (m.at || 0)), Social.sel, P.photo || '', f.status, dayLabel(Date.now())]);
+  if (sig === Social.lastSig && $('msgList').children.length) return;
+  Social.lastSig = sig;
+  const shown = Social.shown || new Set(), firstPaint = !Social.shown;
   let html = '', day = '';
   if (!list.length) html = `<div class="chat-hello"><span>👋</span><p>You and ${esc(friendName(other))} are friends now. Say hello!</p><div class="hello-chips">${['Hi! 👋', 'Ready to study? 📚', 'Quiz later? 🏁'].map(t => `<button type="button" class="chip" data-quick="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>`;
   list.forEach((m, k) => {
@@ -463,7 +468,8 @@ function renderMessages() {
     const rc = {}; reacts.forEach(([key, v]) => { (rc[v] = rc[v] || []).push(key.slice(3)); });
     const time = new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     const tick = mine ? `<svg class="mtick${theirRead >= at ? ' seen' : ''}" viewBox="0 0 22 12" role="img" aria-label="${theirRead >= at ? 'Seen' : 'Sent'}"><path d="M1 6.5l3.5 3.5L11 3"/>${theirRead >= at ? '<path d="M8 9.5l1 1L16 3"/>' : ''}</svg>` : '';
-    html += `<div class="msg-row ${mine ? 'mine' : 'theirs'}${first ? ' gfirst' : ''}${last ? ' glast' : ''}${sel ? ' sel' : ''}${big ? ' bigemoji' : ''}" data-mid="${esc(m.id)}">
+    const isNew = !firstPaint && !shown.has(m.id);
+    html += `<div class="msg-row ${mine ? 'mine' : 'theirs'}${first ? ' gfirst' : ''}${last ? ' glast' : ''}${sel ? ' sel' : ''}${big ? ' bigemoji' : ''}${isNew ? ' new' : ''}" data-mid="${esc(m.id)}">
       ${!mine ? (last ? `<span class="avwrap" data-photo="${esc(other)}">${pAvatar(P, 'tiny')}</span>` : '<span class="av-gap"></span>') : ''}
       <div class="bwrap">
         ${sel ? `<div class="react-bar" role="toolbar" aria-label="React">${REACTS.map(r => `<button type="button" data-react="${r}" class="${m['re_' + me] === r ? 'on' : ''}">${r}</button>`).join('')}${!card && m.text ? '<button type="button" data-mcopy title="Copy">⧉</button>' : ''}${mine ? `<button type="button" class="del" data-mdel="${esc(m.id)}" title="Delete">🗑</button>` : ''}</div>` : ''}
@@ -472,7 +478,10 @@ function renderMessages() {
       </div></div>`;
   });
   html += `<div class="msg-row theirs typing-row glast" id="typingRow"${typingNow(f, other) ? '' : ' hidden'}><span class="avwrap">${pAvatar(P, 'tiny')}</span><div class="bwrap"><div class="bubble typing-bubble" aria-label="typing"><span class="dots"><i></i><i></i><i></i></span></div></div></div>`;
-  $('msgList').innerHTML = html;
+  const box = $('msgList'), keep = box.scrollTop, atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = html;
+  if (!atEnd) box.scrollTop = keep;                    // stay where you were reading
+  Social.shown = new Set(list.map(m => m.id));
 }
 function markRead() {
   const f = friendship(Social.open);
