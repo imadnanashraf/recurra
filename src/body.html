@@ -437,6 +437,7 @@
         <button type="button" data-bv="recent" aria-pressed="false">Newest</button>
       </div>
       <select id="bankFilter" aria-label="Filter questions by subject"></select>
+      <button class="btn sel-toggle" type="button" data-seltoggle>Select</button>
     </div>
     <div id="bankIndex"></div>
     <div id="bankReader" hidden></div>
@@ -459,6 +460,7 @@
         <button type="button" data-nv="recent" aria-pressed="false">Newest</button>
       </div>
       <select id="notesFilter" aria-label="Filter notes by subject"></select>
+      <button class="btn sel-toggle" type="button" data-seltoggle>Select</button>
     </div>
     <div id="notesIndex"></div>
     <div id="notesReader" hidden></div>
@@ -551,5 +553,9 @@
 <!-- ANDROID: a new app must be installed (cannot be closed) -->
 <div class="sheet upd-gate" id="updGate" hidden></div>
 <div class="web-upd" id="webUpd" role="status" hidden></div>
+<!-- SELECTING questions or notes: the bar at the bottom, the Yes/No and Club box, and Undo -->
+<div class="sel-bar" id="selBar" role="toolbar" aria-label="Selected items" hidden></div>
+<div class="sheet" id="selSheet" role="dialog" aria-modal="true" hidden></div>
+<div class="undo-bar" id="undoBar" role="status" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="lt-pop" id="ltPop" aria-live="polite"></div>

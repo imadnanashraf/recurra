@@ -26,6 +26,7 @@ function inApp() {
   return NATIVE || isStandalone() || /; wv\)/.test(navigator.userAgent || '');
 }
 function show(id) {
+  if (typeof Sel !== 'undefined' && Sel.on && id !== Sel.kind) selStop();         // leaving the list ends selecting
   if (typeof Focus !== 'undefined') { Focus.wanted = id === 'quiz' || id === 'break' || (id === 'room' && document.body.classList.contains('lt-focus')); if (Focus.wanted) Focus.start(); else Focus.stop(); }
   if (id !== 'room' && typeof leaveRoom === 'function' && LT.rid) leaveRoom();
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
