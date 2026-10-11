@@ -143,9 +143,9 @@ function greeting() {
 const Spark = { quote: null, scene: null };
 function renderSpark() {
   if (!Spark.quote) { Spark.quote = pickQuote(); Spark.scene = pickScene(); }
-  $('spark').innerHTML = `${SCENES[Spark.scene]}<span><q>${esc(Spark.quote)}</q></span>`;
+  $('spark').innerHTML = `${sceneHtml(Spark.scene)}<q>${esc(Spark.quote)}</q><small>Tap for another</small>`;
 }
-$('spark').addEventListener('click', () => { Spark.scene = Spark.scene === 'cats' ? 'bots' : 'cats'; Spark.quote = pickQuote(); renderSpark(); });
+$('spark').addEventListener('click', () => { Spark.scene = nextScene(Spark.scene); Spark.quote = pickQuote(); renderSpark(); });
 function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;

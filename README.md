@@ -52,3 +52,7 @@ npm ci
 npm run build              # website into www/
 npm run android:prepare    # Android project (needs Android Studio / JDK 21 to build the APK)
 ```
+
+## Credits
+
+Characters in the Today scenes: [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (MIT licence, copy in `assets/fx/`).
