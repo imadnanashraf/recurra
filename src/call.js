@@ -184,7 +184,7 @@ function paintCall() {
   const p = Social.people[c.other] || { uid: c.other }, name = friendName(c.other) || 'Your friend', video = c.kind === 'video';
   const status = { starting: video ? 'Starting camera…' : 'Starting…', ringing: 'Ringing…', incoming: video ? 'Video call' : 'Voice call', connecting: 'Connecting…', weak: 'Reconnecting…', live: c.startedAt ? fmtDur((Date.now() - c.startedAt) / 1000) : 'Connected', ended: c.endText || 'Call ended' }[c.state] || '';
   const showVideo = video && c.state !== 'ended';
-  const key = [c.state, c.kind, !!c.remote, !!c.stream, c.muted, c.camOff, c.facing].join('|');
+  const key = [c.state, c.kind, !!c.remote, !!c.stream, c.muted, c.camOff, c.facing, name, p.photo || ''].join('|');   // redraw when the name or photo arrives
   if (v.dataset.key === key) { const st = $('cvStatus'); if (st) st.textContent = status; return; }
   v.dataset.key = key;
   const remoteLive = showVideo && c.remote && c.state === 'live';

@@ -27,7 +27,7 @@ const Push = {
         if (!(window.APP_CONFIG && APP_CONFIG.androidPush)) return;         // this app was built without Firebase for Android
         const PN = window.capacitorExports && capacitorExports.registerPlugin('PushNotifications');
         if (!PN) return;
-        try { await PN.createChannel({ id: 'messages', name: 'Messages', description: 'Messages and friend requests', importance: 4, visibility: 1 }); await PN.createChannel({ id: 'tests', name: 'Live tests', description: 'Invites to live tests', importance: 5, visibility: 1 }); await PN.createChannel({ id: 'calls', name: 'Calls', description: 'Voice and video calls from friends', importance: 5, visibility: 1, vibration: true }); } catch (e) {}
+        try { await PN.createChannel({ id: 'messages', name: 'Messages', description: 'Messages and friend requests', importance: 4, visibility: 1 }); await PN.createChannel({ id: 'tests', name: 'Live tests', description: 'Invites to live tests', importance: 5, visibility: 1 }); await PN.createChannel({ id: 'calls_ring', name: 'Calls', description: 'Voice and video calls from friends (rings)', importance: 5, visibility: 1, vibration: true, sound: 'ring' }); try { await PN.deleteChannel({ id: 'calls' }); } catch (e) {} } catch (e) {}
         const perm = await PN.requestPermissions(); if (perm.receive !== 'granted') return;
         PN.addListener('registration', t => { if (t && t.value) Store.fs.doc(`users/${meUid()}/devices/a${hashId(t.value)}`).set({ token: t.value, kind: 'android', updated: Date.now() }).catch(() => {}); });
         PN.addListener('pushNotificationActionPerformed', a => { const w = a && a.notification && a.notification.data && a.notification.data.where; if (w) Route.set(w); });
