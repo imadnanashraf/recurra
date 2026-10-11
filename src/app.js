@@ -859,6 +859,7 @@ function renderImport() {
   const { target, kind } = App.imp;
   const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
   $('impTitle').textContent = target === 'new' ? 'New prep from a file' : `Add to ${App.prep ? App.prep.name : ''}`;
+  $('impText').placeholder = { mcq: '{ "type": "mcq", "questions": [ ... ] }', notes: '{ "type": "notes", "notes": [ ... ] }', syllabus: '{ "type": "syllabus", "subjects": [ ... ] }', prep: '{ "type": "prep", ... }' }[kind] || '';
   $('impKinds').innerHTML = kinds.map(k => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${k === kind}">${KIND_LABEL[k]}</button>`).join('');
   const perSubject = target !== 'new' && (kind === 'mcq' || kind === 'notes'), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
   if (perSubject && !sub) App.imp.subject = null;
@@ -939,7 +940,10 @@ function renderSubjectsCard() {
   box.classList.toggle('needs', none && needs);
   box.innerHTML = `<div class="subj-head"><strong>Subjects in this prep</strong><span class="muted small">${subs.length ? plural(subs.length, 'subject') : 'none yet'}</span></div>
     ${none ? `<p class="small subj-note">${needs ? 'Add at least one subject first. The AI prompt lists your subjects, so every question and note lands in the right subject.' : 'Add subjects here one by one, or import a whole syllabus below.'}</p>`
-      : `<div class="subj-chips">${subs.map(s => `<span class="subj-chip${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b>${esc(s.code)}</b>${esc(s.name)}${(s.topics || []).length ? `<small>${s.topics.length} topics</small>` : s.marks ? `<small>${s.marks} marks</small>` : ''}</button>${used(s.code) ? '' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</span>`).join('')}</div>`}
+      : `<ol class="subj-list">${subs.map(s => {
+          const nq = App.questions.filter(q => q.code === s.code).length, nt = (s.topics || []).length;
+          const meta = [s.part && `Part ${esc(s.part)}`, s.marks ? `${s.marks} marks` : '', nt ? plural(nt, 'topic') : '', nq ? plural(nq, 'Q') : ''].filter(Boolean).join(' · ');
+          return `<li class="subj-row${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b class="sc-code">${esc(s.code)}</b><span class="sc-name">${esc(s.name)}<small>${meta || 'Tap to add marks or part'}</small></span></button>${used(s.code) ? '<span class="sc-lock" title="Has questions or notes, so it can\'t be removed" aria-hidden="true"></span>' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</li>`; }).join('')}</ol>`}
     <details class="subj-add"${none || editing ? ' open' : ''}><summary>${editing ? `Edit ${esc(editing.name)}` : none ? 'Add a subject' : 'Add another subject'}</summary>
       <div class="subj-form">
         <label>Subject name<input id="sName" maxlength="80" placeholder="e.g. Computer Networks" value="${esc(editing ? editing.name : '')}"></label>
