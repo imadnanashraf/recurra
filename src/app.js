@@ -139,9 +139,17 @@ function greeting() {
   const h = new Date().getHours();
   return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
+// a fresh line and a little scene each time the app opens (kept for this visit, so it doesn't flicker)
+const Spark = { quote: null, scene: null };
+function renderSpark() {
+  if (!Spark.quote) { Spark.quote = pickQuote(); Spark.scene = pickScene(); }
+  $('spark').innerHTML = `${SCENES[Spark.scene]}<span><q>${esc(Spark.quote)}</q></span>`;
+}
+$('spark').addEventListener('click', () => { Spark.scene = Spark.scene === 'cats' ? 'bots' : 'cats'; Spark.quote = pickQuote(); renderSpark(); });
 function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
+  if (!$('spark').innerHTML) renderSpark();
   renderVerify();
   const p0 = App.prep, ex = examMs();
   if (ex) {
@@ -1030,42 +1038,95 @@ function renderVerify() {
 }
 
 let authMode = 'signin';
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function setAuthMode(m) {
   authMode = m;
-  const up = m === 'signup';
-  $('authTitle').textContent = up ? 'Create your account' : 'Sign in';
-  $('loginBtn').textContent = up ? 'Create account' : 'Sign in';
-  $('authToggle').textContent = up ? 'Already have an account? Sign in' : 'New here? Create an account';
+  const up = m === 'signup', reset = m === 'reset';
+  $('authTitle').textContent = reset ? 'Reset your password' : up ? 'Create your account' : 'Sign in';
+  $('loginBtn').textContent = reset ? 'Send reset link' : up ? 'Create account' : 'Sign in';
+  $('authToggle').textContent = reset ? 'Back to sign in' : up ? 'Already have an account? Sign in' : 'New here? Create an account';
   $('loginPass').autocomplete = up ? 'new-password' : 'current-password';
-  $('nameRow').hidden = !up; $('confirmRow').hidden = !up; $('forgotBtn').hidden = up;
-  $('loginName').required = up; $('loginPass2').required = up;
+  $('nameRow').hidden = !up; $('confirmRow').hidden = !up; $('forgotBtn').hidden = up || reset;
+  $('passRow').hidden = reset; $('resetIntro').hidden = !reset;
+  $('googleBtn').hidden = reset || NATIVE; $('orLine').hidden = reset || NATIVE;
+  $('loginForm').hidden = false; $('resetDone').hidden = true; $('authTitle').hidden = false;
   msg('loginMsg', '');
 }
+// clear, specific messages (works best with Firebase "email enumeration protection" turned off)
 function authError(e) {
   const c = (e && e.code) || '';
-  if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return 'Wrong email or password.';
+  if (/user-not-found/.test(c)) return 'No account uses this email. Check the spelling, or create an account.';
+  if (/wrong-password/.test(c)) return 'Wrong password. Try again, or reset it.';
+  if (/invalid-credential|invalid-login/.test(c)) return 'Email or password is wrong.';
   if (/email-already-in-use/.test(c)) return 'This email already has an account. Sign in instead.';
   if (/weak-password/.test(c)) return 'Use a password of at least 6 characters.';
-  if (/invalid-email/.test(c)) return 'That email address does not look right.';
+  if (/invalid-email|missing-email/.test(c)) return 'Enter a valid email address, like name@gmail.com.';
+  if (/user-disabled/.test(c)) return 'This account has been turned off.';
   if (/operation-not-allowed|configuration-not-found/.test(c)) return 'This sign-in method is not turned on in Firebase yet.';
-  if (/unauthorized-domain/.test(c)) return 'This website is not on the Firebase "Authorized domains" list yet.';
+  if (/unauthorized-domain|unauthorized-continue-uri/.test(c)) return 'This website is not on the Firebase "Authorized domains" list yet.';
   if (/requires-recent-login/.test(c)) return 'For safety, sign out and sign in again, then try once more.';
-  if (/network/.test(c)) return 'No internet connection.';
+  if (/network/.test(c)) return 'No internet connection. Check it and try again.';
   if (/popup-closed|cancelled-popup/.test(c)) return '';
-  if (/too-many-requests/.test(c)) return 'Too many tries. Wait a few minutes.';
-  return 'Something went wrong. Try again.';
+  if (/too-many-requests/.test(c)) return 'Too many attempts. Please wait a few minutes and try again.';
+  return 'Something went wrong. Please try again.';
+}
+// an error with an action button ("Create an account" / "Reset password")
+function authErrorWithAction(e, email) {
+  msg('loginMsg', authError(e), 'err');
+  const c = (e && e.code) || '', box = $('loginMsg');
+  const add = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'linkbtn'; b.textContent = label; b.style.marginLeft = '6px'; b.onclick = fn; box.appendChild(b); };
+  if (/user-not-found/.test(c)) add('Create an account', () => { setAuthMode('signup'); $('loginEmail').value = email; $('loginName').focus(); });
+  if (/wrong-password|invalid-credential/.test(c) && authMode === 'signin') add('Reset password', () => { setAuthMode('reset'); $('loginEmail').value = email; });
 }
 $('authToggle').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+$('forgotBtn').addEventListener('click', () => { const e = $('loginEmail').value; setAuthMode('reset'); $('loginEmail').value = e; $('loginEmail').focus(); });
 document.addEventListener('click', e => {
   const b = e.target.closest('.pwtoggle'); if (!b) return;
   const inp = $(b.dataset.pw), show = inp.type === 'password';
   inp.type = show ? 'text' : 'password'; b.textContent = show ? 'Hide' : 'Show';
   b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
 });
+
+// password reset: link goes to the email, works once, expires in an hour, brings you back to Recurra
+const Reset = { email: '', timer: null };
+async function sendReset(email) {
+  const back = /^https?:/.test(location.href) && !NATIVE ? { url: location.origin + location.pathname, handleCodeInApp: false } : undefined;
+  try { await App.fb.auth.sendPasswordResetEmail(email, back); }
+  catch (e) { if (back && /unauthorized-continue-uri|invalid-continue-uri|missing-continue-uri/.test(e.code || '')) await App.fb.auth.sendPasswordResetEmail(email); else throw e; }
+}
+function showResetDone(email) {
+  Reset.email = email;
+  $('resetEmail').textContent = email;
+  $('loginForm').hidden = true; $('authTitle').hidden = true; $('resetDone').hidden = false;
+  let left = 60; const btn = $('resetAgain');
+  btn.disabled = true; btn.textContent = `Resend in ${left}s`;
+  clearInterval(Reset.timer);
+  Reset.timer = setInterval(() => {
+    left--;
+    if (left <= 0) { clearInterval(Reset.timer); btn.disabled = false; btn.textContent = 'Resend'; }
+    else btn.textContent = `Resend in ${left}s`;
+  }, 1000);
+}
+$('resetAgain').addEventListener('click', async () => {
+  $('resetAgain').disabled = true;
+  try { await sendReset(Reset.email); toast('Sent again.'); showResetDone(Reset.email); }
+  catch (e) { $('resetAgain').disabled = false; toast(authError(e)); }
+});
+$('resetBack').addEventListener('click', () => { clearInterval(Reset.timer); setAuthMode('signin'); $('loginEmail').value = Reset.email; $('loginPass').focus(); });
+
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   const email = $('loginEmail').value.trim(), pass = $('loginPass').value;
   msg('loginMsg', '');
+  if (!EMAIL_RE.test(email)) return msg('loginMsg', 'Enter a valid email address, like name@gmail.com.', 'err');
+  if (authMode === 'reset') {
+    $('loginBtn').disabled = true;
+    try { await sendReset(email); showResetDone(email); }
+    catch (err) { authErrorWithAction(err, email); }
+    $('loginBtn').disabled = false;
+    return;
+  }
+  if (!pass) return msg('loginMsg', 'Enter your password.', 'err');
   if (authMode === 'signup') {
     const name = $('loginName').value.trim();
     if (!name) return msg('loginMsg', 'Please enter your name.', 'err');
@@ -1082,14 +1143,8 @@ $('loginForm').addEventListener('submit', async e => {
       try { await u.updateProfile({ displayName: App.pendingName }); } catch (err) {}
       try { await u.sendEmailVerification(); } catch (err) {}
     }
-  } catch (err) { msg('loginMsg', authError(err), 'err'); }
+  } catch (err) { authErrorWithAction(err, email); }
   $('loginBtn').disabled = false;
-});
-$('forgotBtn').addEventListener('click', async () => {
-  const email = $('loginEmail').value.trim();
-  if (!email) return msg('loginMsg', 'Type your email above first.', 'err');
-  try { await App.fb.auth.sendPasswordResetEmail(email); msg('loginMsg', `If an account exists for ${email}, a reset link is on its way (check spam too). No email after a few minutes? You may not have an account yet. Tap "New here? Create an account".`, 'ok'); }
-  catch (err) { msg('loginMsg', authError(err), 'err'); }
 });
 $('googleBtn').addEventListener('click', async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
