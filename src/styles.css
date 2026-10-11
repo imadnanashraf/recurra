@@ -766,3 +766,22 @@ body.focus { background: var(--bg); }
 @keyframes njPuff1 { 0% { opacity: .8; transform: scale(1.1); } 5% { opacity: 0; transform: scale(1.4); } 20% { opacity: 0; transform: scale(.3); } 23% { opacity: 1; transform: scale(1); } 32% { opacity: 0; transform: scale(1.4); }
   93% { opacity: 0; transform: scale(.3); } 96% { opacity: 1; transform: scale(1); } 100% { opacity: .8; transform: scale(1.1); } }
 @keyframes njPuff2 { 0%, 45% { opacity: 0; transform: scale(.3); } 48% { opacity: 1; transform: scale(1); } 57% { opacity: 0; transform: scale(1.4); } 70% { opacity: 0; transform: scale(.3); } 73% { opacity: 1; transform: scale(1); } 82%, 100% { opacity: 0; transform: scale(1.4); } }
+
+/* retro pixel game: the level scrolls, the cat runs, hops the slime, jumps for the coin */
+.stage svg.retro { position: absolute; left: 0; right: 0; bottom: 4%; width: 100%; height: auto; filter: drop-shadow(0 6px 8px rgba(28, 48, 84, .18)); }
+.retro .rt-world { animation: rtWorld 4s linear infinite; }
+@keyframes rtWorld { from { transform: none; } to { transform: translateX(-160px); } }
+.retro .rt-clouds { animation: rtWorld 16s linear infinite; } .retro .rt-hills { animation: rtWorld 9s linear infinite; }
+.retro .rt-la { animation: rtLegA .3s steps(1) infinite; } .retro .rt-lb { animation: rtLegB .3s steps(1) infinite; }
+@keyframes rtLegA { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes rtLegB { 0% { opacity: 0; } 50% { opacity: 1; } }
+.retro .rt-cat { animation: rtJump 4s infinite; }
+@keyframes rtJump { 0%, 27%, 44%, 55%, 70%, 100% { transform: none; animation-timing-function: ease-out; }
+  35.5% { transform: translateY(-18px); animation-timing-function: ease-in; } 62.5% { transform: translateY(-23px); animation-timing-function: ease-in; }
+  10%, 20%, 80%, 90% { transform: translateY(-1px); } }
+.retro .rt-spin { animation: rtSpin .8s ease-in-out infinite alternate; }
+@keyframes rtSpin { from { transform: scaleX(1); } to { transform: scaleX(.25); } }
+.retro .rt-coin { animation: rtCoin 4s linear infinite; }
+@keyframes rtCoin { 0%, 61.5% { opacity: 1; transform: none; } 64% { opacity: 1; transform: translateY(-5px) scale(1.4); } 68%, 99.9% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: none; } }
+.retro .rt-plus { opacity: 0; animation: rtPlus 4s ease-out infinite; }
+@keyframes rtPlus { 0%, 62% { opacity: 0; transform: none; } 65% { opacity: 1; } 80% { opacity: 1; transform: translateY(-5px); } 86%, 100% { opacity: 0; transform: translateY(-6px); } }

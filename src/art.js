@@ -116,6 +116,41 @@ function rig(cls, kind, x, b, w, faces, flip = false) {
     `${extra}<i class="leg l1"></i><i class="leg l2"></i><i class="body"></i><i class="arm al"></i><i class="arm ar"></i>` +
     `<span class="head">${head}</span>${tongue}</span></span>`;
 }
+// Pixel art drawn from text grids: each character is one pixel, '.' is empty. One <path> per colour keeps it light.
+function pix(rows, pal, ox = 0, oy = 0) {
+  const paths = {};
+  rows.forEach((r, y) => [...r].forEach((c, x) => { if (pal[c]) (paths[c] = paths[c] || []).push(`M${ox + x} ${oy + y}h1v1h-1z`); }));
+  return Object.entries(paths).map(([c, d]) => `<path fill="${pal[c]}" d="${d.join('')}"/>`).join('');
+}
+const PAL = { K: '#3a2a3a', O: '#f6a43c', L: '#ffe2a8', P: '#ff7f9c', W: '#ffffff', G: '#5fd38d', g: '#2fa866', Y: '#ffd23f', y: '#e8a400', B: '#c8743a', b: '#8c4a22', C: '#ffffff', c: '#d7e9ff', H: '#7ccf6b', h: '#57b04f' };
+const RETRO = {
+  catTop: ['........K...K.', '.......KOK.KOK', '.......KOOKOOK', 'KK.....KOOOOOK', 'KOK....KOKOOKO', '.KOK...KOOPPOK', '..KO.KKKOOOOK.', '..KKOOOOOOOOK.', '...KOOLLLLOOK.', '...KOOOOOOOOK.'],
+  legsA: ['...KOK...KOK..', '...KK.....KK..'],
+  legsB: ['.....KOKKOK...', '.....KK..KK...'],
+  slime: ['...KKKK...', '..KGGGGK..', '.KGWKGWKK.', '.KGGGGGGGK', 'KGGGGGGGGK', 'KgGGGGGGgK', '.KKKKKKKK.'],
+  coin: ['.KKKK.', 'KYYYYK', 'KYWYyK', 'KYWYyK', 'KYYYyK', '.KKKK.'],
+  cloud: ['....CCCC......', '..CCCCCCCC.CC.', '.CCCCCCCCCCCCC', 'CCCCCCCCCCCCCC', '.cccccccccccc.'],
+  hill: ['......HH......', '....HHHHHH....', '...HHHHhHHH...', '..HHHHHHHHHH..', '.HHhHHHHHHhHH.', 'HHHHHHHHHHHHHH'],
+};
+function retroScene() {
+  const world = x => `<g transform="translate(${x} 0)">${pix(RETRO.slime, PAL, 90, 41)}</g>`;
+  const coin = (x, cls) => `<g class="${cls}" style="transform-origin:${x + 3}px 15px"><g class="rt-spin" style="transform-origin:${x + 3}px 15px">${pix(RETRO.coin, PAL, x, 12)}</g></g>`;
+  return `<svg class="retro" viewBox="10 8 120 52" shape-rendering="crispEdges" aria-hidden="true">
+    <defs><clipPath id="rtClip"><rect x="10" y="8" width="120" height="52" rx="6"/></clipPath>
+      <linearGradient id="rtSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd0ff"/><stop offset="1" stop-color="#d8f1ff"/></linearGradient>
+      <pattern id="rtBrick" width="16" height="12" patternUnits="userSpaceOnUse"><rect width="16" height="12" fill="#c8743a"/><rect width="16" height="2" fill="#7bd06a"/><rect y="2" width="16" height="1" fill="#4fa847"/>
+        <rect y="7" width="16" height="1" fill="#8c4a22"/><rect x="7" y="3" width="1" height="4" fill="#8c4a22"/><rect x="15" y="8" width="1" height="4" fill="#8c4a22"/><rect x="3" y="4" width="2" height="1" fill="#e39a5a"/></pattern></defs>
+    <g clip-path="url(#rtClip)">
+      <rect x="10" y="8" width="120" height="52" fill="url(#rtSky)"/>
+      <g class="rt-clouds">${pix(RETRO.cloud, PAL, 18, 13)}${pix(RETRO.cloud, PAL, 92, 10)}${pix(RETRO.cloud, PAL, 178, 13)}${pix(RETRO.cloud, PAL, 252, 10)}</g>
+      <g class="rt-hills">${pix(RETRO.hill, PAL, 10, 42)}${pix(RETRO.hill, PAL, 84, 42)}${pix(RETRO.hill, PAL, 170, 42)}${pix(RETRO.hill, PAL, 244, 42)}</g>
+      <g class="rt-world">${world(0)}${world(160)}<rect y="48" width="320" height="12" fill="url(#rtBrick)"/>${coin(140, 'rt-coin')}${coin(300, '')}</g>
+      <g class="rt-cat"><g>${pix(RETRO.catTop, PAL, 30, 36)}</g><g class="rt-la">${pix(RETRO.legsA, PAL, 30, 46)}</g><g class="rt-lb">${pix(RETRO.legsB, PAL, 30, 46)}</g></g>
+      <text class="rt-plus" x="45" y="19" font-size="8" font-weight="800" fill="#fff" stroke="#3a2a3a" stroke-width="1.6" paint-order="stroke" font-family="monospace" shape-rendering="auto">+1</text>
+    </g>
+    <rect x="11" y="9" width="118" height="50" rx="5.5" fill="none" stroke="rgba(30,50,90,.18)" stroke-width="2" shape-rendering="auto"/>
+  </svg>`;
+}
 const SCENES = {
   snow: { label: 'A robot and a polar bear walk in and have a snowball fight', html: () =>
     rig('sf-robot', 'robot', 6, 6, 30, ['robot']) + rig('sf-bear', 'bear', 64, 6, 30, ['polar_bear'], true) +
@@ -127,6 +162,7 @@ const SCENES = {
     rig('cf-left', 'cat', 18, 6, 30, ['grinning_cat', 'weary_cat', 'cat_with_tears_of_joy']) +
     rig('cf-right', 'cat', 50, 6, 30, ['grinning_cat_with_smiling_eyes', 'smiling_cat_with_heart_eyes', 'pouting_cat', 'cat_with_tears_of_joy'], true) +
     actor('cf-pow', 30, 56, 16, fxImg('collision'), false) + actor('cf-heart', 44, 84, 10, fxImg('red_heart'), false) },
+  retro: { label: 'A pixel cat runs through a little game level, hops over a slime and grabs a coin', html: () => retroScene() },
   panda: { label: 'A panda dozing over a book until the alarm rings', html: () =>
     actor('pa-panda', 28, 34, 40, fxImg('panda'), false) + actor('pa-book', 34, 0, 28, fxImg('open_book')) +
     actor('pa-zzz', 64, 72, 14, fxImg('zzz'), false) + actor('pa-alarm', 76, 6, 18, fxImg('alarm_clock')) +
