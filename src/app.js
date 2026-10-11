@@ -1253,6 +1253,7 @@ $('pwReset').addEventListener('click', () => {
       const u = App.fb.auth.currentUser;
       await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, cur));
       await u.updatePassword(nw);
+      Store.setProfile({ pwChangedAt: Date.now(), pwChangedOn: DEVICE }).catch(() => {});   // other devices sign out
       $('accConfirm').innerHTML = '';
       msg('accMsg', 'Password changed. Use the new one next time you sign in.', 'ok');
       Activity.log('password_changed');
@@ -1336,6 +1337,7 @@ async function startAccount(user, screen) {
       if (App.viewAs || !App.authUser) return;
       if (isBlocked(p.status)) { App.blockMsg = blockedText(p); App.fb.auth.signOut(); }
       else if ((p.signOutAt || 0) > started) { App.blockMsg = 'Your password was changed by the admin. Sign in with the new password.'; App.fb.auth.signOut(); }
+      else if ((p.pwChangedAt || 0) > started && p.pwChangedOn !== DEVICE) { App.blockMsg = 'Your password was changed. Sign in with the new password.'; App.fb.auth.signOut(); }
     });
     Activity.start();
   }

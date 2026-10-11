@@ -103,6 +103,7 @@ function renderPerson(note) {
     <div><dt>Last used on</dt><dd>${esc([u.lastPlatform, u.lastDevice].filter(Boolean).join(' · ') || '–')}</dd></div>
     <div><dt>IP address</dt><dd class="mono">${esc(u.lastIp || '–')}</dd></div>
     <div><dt>Place</dt><dd>${esc(u.lastPlace || '–')}</dd></div>
+    <div><dt>Password</dt><dd>${u.pwChangedAt ? `Last changed by them: ${esc(fmtTime(u.pwChangedAt))}` : 'Not changed by them in the app'}${u.passwordSetAt ? `<br>Last set by admin: ${esc(fmtTime(u.passwordSetAt))}` : ''}</dd></div>
   </dl>`;
   const act = [];
   if (!self && !gone) act.push(`<button class="mode" type="button" data-au="open"><strong>Open their account</strong><span>See and change their preps, questions and progress as they see them</span></button>`);
