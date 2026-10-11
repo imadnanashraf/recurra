@@ -72,52 +72,66 @@ const MOUNTAIN_COLORS = { night: ['#22305f', '#18224a', '#101834'], dawn: ['#8b8
 function cloudPath(x, y, s) {
   return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 30 Q0 12 18 12 Q22 0 38 2 Q52 -6 64 6 Q82 4 84 20 Q98 22 96 34 Q94 42 82 42 L10 42 Q0 42 0 30z"/></g>`;
 }
+const rnd = (i, salt) => { const v = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453; return v - Math.floor(v); };   // the same 'random' every time
 function renderSky() {
-  const box = $('sky'); if (!box) return;
+  const box = $('sky'), room = $('skyRoom'); if (!box) return;
   const now = Date.now(), P = skyPhase(now), wx = Sky.wx, kind = wxKind(wx && wx.code);
   const gloomy = ['overcast', 'rain', 'drizzle', 'thunder', 'snow', 'fog'].includes(kind);
   const [c1, c2, c3] = SKY_COLORS[P.phase], [m1, m2, m3] = MOUNTAIN_COLORS[P.phase];
-  const arcY = t => 175 - Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 135;   // low at the edges, high at noon / midnight
+  // the sky fills the whole width behind the greeting and ends just under the top of the scene card
+  const spark = $('spark'), home = $('home');
+  if (spark && home && !home.hidden) {
+    const h = spark.getBoundingClientRect().top - box.getBoundingClientRect().top + 36;
+    if (h > 120) box.style.setProperty('--sky-h', Math.round(h) + 'px');
+  }
+  box.className = `sky p-${P.phase} w-${kind}`;
+  if (!box.firstElementChild) box.innerHTML = '<div class="sky-bg"></div>';
+  const bg = box.firstElementChild, r = bg.getBoundingClientRect();
+  const H = SKY_H, W = r.width > 0 && r.height > 0 ? Math.max(320, Math.round(H * r.width / r.height)) : SKY_W;
+  const arcY = t => 158 - Math.sin(Math.PI * Math.min(1, Math.max(0, t))) * 92;   // low at the edges, high at noon / midnight
   let body = '';
   if (P.phase !== 'night') {
-    const x = 70 + (SKY_W - 140) * P.sun, y = arcY(P.sun);
-    body = `<g class="sky-sun${gloomy ? ' dim' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="46" class="halo"/><circle r="30" class="core"/></g>`;
+    const x = 40 + (W - 80) * P.sun, y = arcY(P.sun);
+    body = `<g class="sky-sun${gloomy ? ' dim' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="40" class="halo"/><circle r="24" class="core"/></g>`;
   } else {
-    const x = SKY_W - 70 - (SKY_W - 140) * P.moon, y = arcY(P.moon);       // the moon goes right → left
-    body = `<g class="sky-moon${gloomy ? ' dim' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="40" class="halo"/><circle r="22" class="core"/><circle r="22" cx="10" cy="-6" class="bite" fill="${c1}"/></g>`;
+    const x = W - 40 - (W - 80) * P.moon, y = arcY(P.moon);       // the moon goes right → left
+    body = `<g class="sky-moon${gloomy ? ' dim' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="34" class="halo"/><circle r="19" class="core"/><circle r="19" cx="9" cy="-5" class="bite" fill="${c1}"/></g>`;
   }
-  // stars at night (a few gently twinkle)
   let stars = '';
-  if (P.phase === 'night' && !gloomy) for (let i = 0; i < 26; i++) { const x = (i * 379) % SKY_W, y = 12 + (i * 97) % 120; stars += `<circle class="star${i % 4 === 0 ? ' tw' : ''}" cx="${x}" cy="${y}" r="${i % 3 ? 1.3 : 2}" style="animation-delay:${(i % 7) * 0.6}s"/>`; }
-  // clouds: more when it is cloudy
-  const n = kind === 'clear' ? 2 : kind === 'partly' ? 4 : 6;
+  const ns = Math.round(W / 30);
+  if (P.phase === 'night' && !gloomy) for (let i = 0; i < ns; i++) { const x = (i * 379) % W, y = 8 + (i * 97) % 130; stars += `<circle class="star${i % 4 === 0 ? ' tw' : ''}" cx="${x}" cy="${y}" r="${i % 3 ? 1.1 : 1.7}" style="animation-delay:${(i % 7) * 0.6}s"/>`; }
+  const n = Math.max(2, Math.round((kind === 'clear' ? 2 : kind === 'partly' ? 4 : 6) * Math.min(1.6, W / 700)));
   let clouds = '';
   for (let i = 0; i < n; i++) {
-    const y = 18 + (i * 31) % 80, s = 0.9 + ((i * 37) % 10) / 10, dur = 70 + (i * 23) % 60, delay = -((i * 41) % dur);
+    const y = 14 + (i * 31) % 90, s = 0.75 + ((i * 37) % 10) / 12, dur = 80 + (i * 23) % 70, delay = -((i * 41) % dur);
     clouds += `<g class="cloud" style="animation-duration:${dur}s;animation-delay:${delay}s">${cloudPath(0, y, s)}</g>`;
   }
-  // rain, drizzle, snow
   let fx = '';
   if (kind === 'rain' || kind === 'drizzle' || kind === 'thunder') {
-    const k = kind === 'drizzle' ? 26 : 60;
-    for (let i = 0; i < k; i++) fx += `<line class="drop" x1="${(i * 167) % SKY_W}" y1="-20" x2="${(i * 167) % SKY_W - 6}" y2="0" style="animation-delay:${-((i * 0.137) % 1).toFixed(2)}s;animation-duration:${(0.7 + (i % 5) * 0.08).toFixed(2)}s"/>`;
+    const k = Math.round((kind === 'drizzle' ? 26 : 60) * W / 1000) + 10;
+    for (let i = 0; i < k; i++) { const x = Math.round(rnd(i, 1) * W); fx += `<line class="drop" x1="${x}" y1="-20" x2="${x - 6}" y2="0" style="animation-delay:${(-rnd(i, 2)).toFixed(2)}s;animation-duration:${(0.7 + rnd(i, 3) * 0.35).toFixed(2)}s"/>`; }
   }
-  if (kind === 'snow') for (let i = 0; i < 40; i++) fx += `<circle class="flake" cx="${(i * 211) % SKY_W}" cy="-6" r="${2 + (i % 3)}" style="animation-delay:${-((i * 0.53) % 6).toFixed(2)}s;animation-duration:${(5 + (i % 4)).toFixed(1)}s"/>`;
-  const fog = kind === 'fog' ? '<rect class="fog f1" x="-200" y="110" width="1400" height="40" rx="20"/><rect class="fog f2" x="-200" y="150" width="1400" height="36" rx="18"/>' : '';
-  const label = wx ? `<span class="sky-label">${P.phase === 'night' && (kind === 'clear' || kind === 'partly') ? (kind === 'clear' ? '🌙' : '☁️') : WX_ICON[kind]} ${wx.temp}°${wx.city ? ` · ${esc(wx.city)}` : ''} · ${WX_TEXT[kind]}</span>` : '';
-  box.className = `sky p-${P.phase} w-${kind}`;
-  box.innerHTML = `<svg viewBox="0 0 ${SKY_W} ${SKY_H}" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  if (kind === 'snow') { const k = Math.round(40 * W / 1000) + 10; for (let i = 0; i < k; i++) { const d = 5 + rnd(i, 3) * 4; fx += `<circle class="flake" cx="${Math.round(rnd(i, 1) * W)}" cy="-6" r="${(1.5 + rnd(i, 4) * 2).toFixed(1)}" style="animation-delay:${(-rnd(i, 2) * d).toFixed(2)}s;animation-duration:${d.toFixed(1)}s"/>`; } }
+  const fog = kind === 'fog' ? `<rect class="fog f1" x="-200" y="120" width="${W + 400}" height="40" rx="20"/><rect class="fog f2" x="-200" y="158" width="${W + 400}" height="36" rx="18"/>` : '';
+  const sx = (W / 1000).toFixed(3);
+  bg.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="--sw:${W}px" aria-hidden="true">
       <defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset=".6" stop-color="${c2}"/><stop offset="1" stop-color="${c3}"/></linearGradient></defs>
-      <rect width="${SKY_W}" height="${SKY_H}" fill="url(#skyg)"/>
-      ${gloomy ? `<rect width="${SKY_W}" height="${SKY_H}" class="gloom"/>` : ''}
+      <rect width="${W}" height="${H}" fill="url(#skyg)"/>
+      ${gloomy ? `<rect width="${W}" height="${H}" class="gloom"/>` : ''}
       ${stars}${body}<g class="clouds">${clouds}</g>
-      <path fill="${m1}" d="M0 150 L90 105 L170 140 L270 80 L380 135 L470 95 L560 140 L660 70 L760 130 L860 90 L1000 140 L1000 220 L0 220z"/>
-      <path class="snowcap" d="M270 80 L250 92 L262 90 L272 98 L282 90 L292 92z M660 70 L640 84 L652 82 L662 90 L672 82 L684 86z"/>
-      <path fill="${m2}" d="M0 175 L120 130 L230 170 L340 120 L450 165 L560 125 L690 170 L800 128 L920 165 L1000 145 L1000 220 L0 220z"/>
-      <path fill="${m3}" d="M0 200 Q160 170 320 195 T640 192 T1000 190 L1000 220 L0 220z"/>
+      <g transform="translate(0 34) scale(${sx} .85)">
+        <path fill="${m1}" d="M0 150 L90 105 L170 140 L270 80 L380 135 L470 95 L560 140 L660 70 L760 130 L860 90 L1000 140 L1000 260 L0 260z"/>
+        <path class="snowcap" d="M270 80 L250 92 L262 90 L272 98 L282 90 L292 92z M660 70 L640 84 L652 82 L662 90 L672 82 L684 86z"/>
+        <path fill="${m2}" d="M0 175 L120 130 L230 170 L340 120 L450 165 L560 125 L690 170 L800 128 L920 165 L1000 145 L1000 260 L0 260z"/>
+        <path fill="${m3}" d="M0 200 Q160 170 320 195 T640 192 T1000 190 L1000 260 L0 260z"/>
+      </g>
       ${fog}<g class="weather">${fx}</g>
-      ${kind === 'thunder' ? '<rect class="flash" width="1000" height="220"/>' : ''}
-    </svg>${label}`;
+      ${kind === 'thunder' ? `<rect class="flash" width="${W}" height="${H}"/>` : ''}
+    </svg>`;
+  if (room) {
+    const icon = P.phase === 'night' && (kind === 'clear' || kind === 'partly') ? (kind === 'clear' ? '🌙' : '☁️') : WX_ICON[kind];
+    room.innerHTML = wx ? `<span class="sky-label">${icon} ${wx.temp}°${wx.city ? ` · ${esc(wx.city)}` : ''} · ${WX_TEXT[kind]}</span>` : '';
+  }
   box.setAttribute('aria-label', `${P.phase === 'night' ? 'Night sky' : 'Daytime sky'}${wx ? `, ${WX_TEXT[kind]}, ${wx.temp} degrees` : ''}`);
 }
 function startSky() {
@@ -125,3 +139,5 @@ function startSky() {
   clearInterval(Sky.timer);
   Sky.timer = setInterval(() => { if (visible('home') && !document.hidden) { renderSky(); loadWeather(); } }, 60e3);
 }
+let skyResize = 0;
+window.addEventListener('resize', () => { clearTimeout(skyResize); skyResize = setTimeout(() => { if (visible('home')) renderSky(); }, 150); });

@@ -4,7 +4,7 @@
    Coming back to the same tab while you are on it does not replay it.
    Pure SVG + CSS, no images, and nothing moves with "reduce motion".
    ===================================================================== */
-const Intro = { last: '' };
+const Intro = { last: '', at: 0 };
 const INTRO_ART = {
   // Practice: an arrow flies into the target
   practice: `<circle cx="40" cy="22" r="17" class="i-soft"/><circle cx="40" cy="22" r="11" class="i-ring"/><circle cx="40" cy="22" r="4.5" class="i-fill"/>
@@ -33,18 +33,27 @@ const INTRO_ART = {
   settings: `<g class="i-gear"><circle cx="40" cy="22" r="11" class="i-fill2"/>${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<rect x="37" y="5" width="6" height="8" rx="1.5" class="i-fill2" transform="rotate(${a} 40 22)"/>`).join('')}<circle cx="40" cy="22" r="4.5" class="i-hole"/></g>`,
 };
 // which picture each screen uses
+const INTRO_BOX = { practice: '20 0 76 44', syllabus: '4 0 68 44', notes: '8 0 78 44', progress: '8 0 62 44', tests: '14 0 76 44', chat: '4 0 84 44', help: '22 0 36 44', settings: '24 0 32 44' };   // trimmed to each drawing
 const INTRO_FOR = { picker: 'practice', bank: 'practice', syllabus: 'syllabus', notes: 'notes', progress: 'progress', calendar: 'progress', room: 'tests', chat: 'chat', help: 'help', settings: 'settings' };
-function playIntro(id) {
-  const kind = INTRO_FOR[id];
-  if (!kind) { Intro.last = id; return; }
-  const sec = $(id); if (!sec) return;
-  let el = sec.querySelector(':scope > .intro');
+// put the picture just before the heading, on the same line; returns it
+function introEl(id) {
+  const kind = INTRO_FOR[id], sec = $(id); if (!kind || !sec) return null;
+  const h = sec.querySelector('.head-row > h2'); if (!h) return null;
+  let el = h.parentNode.querySelector(':scope > .intro');
   if (!el) {
-    el = document.createElement('div'); el.className = 'intro'; el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = `<svg viewBox="0 0 96 44" class="i-${kind}">${INTRO_ART[kind]}</svg>`;
-    sec.prepend(el);
+    el = document.createElement('span'); el.className = 'intro'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<svg viewBox="${INTRO_BOX[kind]}" class="i-${kind}">${INTRO_ART[kind]}</svg>`;
+    h.before(el);
+    if (Intro.last === id && Date.now() - Intro.at < 700) el.classList.add('play');   // drawn just after arriving: still play it
   }
+  return el;
+}
+function playIntro(id) {
+  const el = introEl(id);
   if (Intro.last === id) return;          // same screen again (a refresh): don't replay
-  Intro.last = id;
+  Intro.last = id; Intro.at = Date.now();
+  if (!el) return;
   el.classList.remove('play'); void el.offsetWidth; el.classList.add('play');
 }
+// the Tests screen redraws itself: keep its picture (still, without replaying)
+if (typeof MutationObserver !== 'undefined' && $('roomView')) new MutationObserver(() => { if (!$('room').hidden) introEl('room'); }).observe($('roomView'), { childList: true });

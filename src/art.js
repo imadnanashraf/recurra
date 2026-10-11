@@ -183,6 +183,25 @@ const SCENES = {
   ninja: { label: 'A little ninja teleporting around a confused chick', html: () =>
     actor('nj-ninja', 8, 8, 32, fxImg('ninja')) + actor('nj-chick', 46, 8, 26, fxImg('baby_chick')) +
     actor('nj-puff1', 10, 20, 26, fxImg('cloud'), false) + actor('nj-puff2', 66, 20, 26, fxImg('cloud'), false) },
+  moon: { label: 'An astronaut sits on the moon, swinging their legs and waving', html: () =>
+    actor('mo-planet', 76, 60, 15, fxImg('ringed_planet'), false) +
+    actor('mo-s1', 6, 74, 6, fxImg('star'), false) + actor('mo-s2', 62, 88, 5, fxImg('star'), false) + actor('mo-s3', 92, 30, 4.5, fxImg('star'), false) +
+    actor('mo-moon', 22, 2, 36, fxImg('full_moon')) +
+    actor('mo-astro', 42, 58, 19, '<i class="leg2 la"></i><i class="leg2 lb"></i>' + fxImg('astronaut'), false) +
+    actor('mo-wave', 58, 86, 8, fxImg('waving_hand'), false) },
+  rocket: { label: 'An astronaut rides a rocket all the way to the moon', html: () =>
+    actor('rk-moon', 70, 46, 24, fxImg('full_moon'), false) + actor('rk-s1', 8, 80, 5, fxImg('star'), false) + actor('rk-s2', 50, 90, 4, fxImg('star'), false) +
+    actor('rk-ship', 6, 4, 22, fxImg('fire', 'rk-fire') + fxImg('rocket') + fxImg('astronaut', 'rk-rider'), false) +
+    actor('rk-spark', 64, 76, 13, fxImg('sparkles'), false) },
+  crash: { label: 'An astronaut flies a wobbly rocket, bonks into the moon and lands upside down', html: () =>
+    actor('cr-moon', 70, 46, 24, fxImg('full_moon'), false) + actor('cr-s1', 30, 86, 5, fxImg('star'), false) +
+    actor('cr-ship', 6, 4, 22, fxImg('fire', 'rk-fire') + fxImg('rocket') + fxImg('astronaut', 'rk-rider'), false) +
+    actor('cr-pow', 64, 58, 16, fxImg('collision'), false) + actor('cr-dizzy', 50, 30, 12, fxImg('dizzy'), false) },
+  flick: { label: 'A giant gives a little panda a flick on the head; the panda spins and sees stars', html: () =>
+    actor('fl-man', 54, 4, 44, fxImg('man')) + actor('fl-panda', 12, 6, 24, fxImg('panda')) +
+    actor('fl-hand', 34, 44, 16, fxImg('backhand_index_pointing_right', 'flip'), false) +
+    actor('fl-pow', 24, 56, 10, fxImg('collision'), false) +
+    actor('fl-orbit', 13, 58, 22, [1, 2, 3].map(i => `<i class="orb o${i}">${fxImg('star')}</i>`).join(''), false) },
 };
 const sceneOrder = Object.keys(SCENES);
 function sceneHtml(name) {

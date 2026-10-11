@@ -1693,9 +1693,15 @@ html, body { overflow-x: clip; }
 /* =====================================================================
    Sky on Today
    ===================================================================== */
-.sky { position: relative; height: 118px; border-radius: 20px; overflow: hidden; margin: -4px 0 4px; box-shadow: 0 8px 24px -14px rgba(20, 60, 120, .5); isolation: isolate; }
-.sky svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-@media (min-width: 700px) { .sky { height: 140px; } }
+#home { isolation: isolate; }
+#home > .sky { position: relative; height: 0; margin-bottom: -18px; animation: none !important; }
+.sky-bg { position: absolute; z-index: -1; top: -20px; left: 50%; width: 100vw; transform: translateX(-50%); height: var(--sky-h, 250px); overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.sky-bg svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#home > .hello { position: relative; color: #fff; text-shadow: 0 1px 10px rgba(10, 25, 60, .35); margin-bottom: -10px; }
+#home > .sky-room { height: 78px; }
+#home > .sky-room ~ .spark { margin-top: 30px; }
+@media (min-width: 1024px) { #home > .sky, #home > .sky-room { grid-column: 1 / -1; } #home > .sky-room ~ .spark { margin-top: 46px; } }
 .sky-sun .halo { fill: #fff3b0; opacity: .35; animation: sunGlow 6s ease-in-out infinite; }
 .sky-sun .core { fill: #ffd84d; }
 .p-dawn .sky-sun .core, .p-dusk .sky-sun .core { fill: #ffb347; }
@@ -1712,7 +1718,7 @@ html, body { overflow-x: clip; }
 .p-dusk .clouds .cloud, .p-dawn .clouds .cloud { fill: rgba(255, 236, 225, .85); }
 .w-overcast .clouds .cloud, .w-rain .clouds .cloud, .w-thunder .clouds .cloud, .w-drizzle .clouds .cloud { fill: rgba(205, 212, 225, .95); }
 .p-night.w-overcast .clouds .cloud, .p-night.w-rain .clouds .cloud { fill: rgba(120, 130, 160, .55); }
-@keyframes cloudDrift { from { transform: translateX(-140px); } to { transform: translateX(1080px); } }
+@keyframes cloudDrift { from { transform: translateX(-140px); } to { transform: translateX(calc(var(--sw, 1000px) + 40px)); } }
 .gloom { fill: rgba(70, 80, 100, .35); }
 .snowcap { fill: rgba(255, 255, 255, .85); }
 .p-night .snowcap { fill: rgba(220, 228, 255, .45); }
@@ -1726,13 +1732,14 @@ html, body { overflow-x: clip; }
 @keyframes fogDrift { to { transform: translateX(120px); } }
 .flash { fill: #fff; opacity: 0; animation: flash 9s infinite; }
 @keyframes flash { 0%, 92%, 100% { opacity: 0; } 93% { opacity: .55; } 94% { opacity: .1; } 95% { opacity: .4; } }
-.sky-label { position: absolute; left: 10px; bottom: 8px; padding: 3px 10px; border-radius: 99px; font-size: .74rem; font-weight: 700; color: #fff; background: rgba(10, 20, 40, .32); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sky-label { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: .74rem; font-weight: 700; color: #fff; background: rgba(10, 20, 40, .32); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .sky * { animation: none !important; } }
 
 /* ---------- tab intro: a small picture above the heading, plays once on arrival ---------- */
-.intro { height: 40px; margin: 2px 0 6px; }
-.intro svg { height: 40px; width: auto; display: block; overflow: visible; }
-body.lt-focus #room > .intro { display: none; }
+.head-row:has(> .intro) { align-items: center; }
+.head-row > .intro { flex: none; height: 30px; margin: -4px -2px -4px 0; }
+.intro svg { height: 100%; width: auto; display: block; overflow: visible; }
+@media (max-width: 380px) { .head-row > .intro { height: 28px; } }
 .intro .i-soft { fill: var(--accent-soft); }
 .intro .i-ring { fill: none; stroke: var(--accent); stroke-width: 3; }
 .intro .i-fill { fill: var(--accent); }
@@ -1788,3 +1795,69 @@ body.lt-focus #room > .intro { display: none; }
 @keyframes iBulb { 0% { fill: var(--sunken); } 100% { fill: var(--sun-soft); } }
 @keyframes iGear { from { transform: rotate(-120deg); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .intro.play * { animation: none !important; } }
+
+/* ---- astronaut on the moon: legs swing, a little wave, stars twinkle ---- */
+.stage .ac .leg2 { position: absolute; top: 78%; width: 19%; height: 62%; z-index: -1; border-radius: 40% 40% 46% 46% / 22% 22% 40% 40%;
+  background: linear-gradient(90deg, #e3e7f0, #ffffff 45%, #d5dbe7) top / 100% 72% no-repeat, linear-gradient(#5e6780, #3f465a) bottom / 100% 30% no-repeat; box-shadow: 0 2px 3px rgba(30, 40, 70, .25); transform-origin: 50% 6%; animation: moLeg 1.6s ease-in-out infinite alternate; }
+.stage .ac .la { left: 27%; } .stage .ac .lb { left: 54%; animation-delay: -.8s; }
+@keyframes moLeg { from { transform: rotate(-30deg); } to { transform: rotate(22deg); } }
+.mo-astro { animation: moBob 3.2s ease-in-out infinite; }
+@keyframes moBob { 50% { transform: translateY(-.6cqw) rotate(-2deg); } }
+.mo-moon { animation: moTurn 12s linear infinite; transform-origin: 50% 50%; }
+@keyframes moTurn { to { transform: rotate(360deg); } }
+.mo-moon-sh { opacity: .7; }
+.mo-wave { transform-origin: 30% 90%; filter: none; animation: moWave 4s ease-in-out infinite; }
+@keyframes moWave { 0%, 50%, 100% { opacity: 0; transform: scale(.4); } 56%, 90% { opacity: 1; transform: none; } 62%, 74% { transform: rotate(-18deg); } 68%, 80% { transform: rotate(14deg); } }
+.mo-planet { filter: none; animation: moFloat 6s ease-in-out infinite; }
+@keyframes moFloat { 50% { transform: translateY(-2cqw) rotate(8deg); } }
+.mo-s1, .mo-s2, .mo-s3, .rk-s1, .rk-s2, .cr-s1 { filter: none; animation: starTw 2.4s ease-in-out infinite; }
+.mo-s2, .rk-s2 { animation-delay: -.8s; } .mo-s3 { animation-delay: -1.6s; }
+@keyframes starTw { 50% { opacity: .35; transform: scale(.7) rotate(20deg); } }
+
+/* ---- rocket ride: lift off, fly over to the moon, park, sparkle ---- */
+.stage .ac img.rk-fire { inset: auto; left: -26%; top: 52%; width: 62%; height: 62%; transform: rotate(-135deg); transform-origin: 50% 50%; animation: rkFire .18s linear infinite alternate; }
+.stage .ac img.rk-rider { inset: auto; left: 22%; top: 2%; width: 44%; height: 44%; transform: rotate(-12deg); }
+@keyframes rkFire { from { transform: rotate(-135deg) scale(.85); } to { transform: rotate(-130deg) scale(1.08); } }
+.rk-ship, .cr-ship { transform-origin: 50% 50%; }
+.rk-ship { animation: rkFly 5.2s ease-in-out infinite; }
+@keyframes rkFly { 0% { opacity: 0; transform: translate(0, 4cqw); } 6% { opacity: 1; transform: none; } 10% { transform: translate(.4cqw, -.4cqw); } 13% { transform: translate(-.4cqw, 0); }
+  34% { transform: translate(16cqw, -20cqw) rotate(-16deg); } 52% { transform: translate(34cqw, -19cqw) rotate(6deg); } 62%, 90% { opacity: 1; transform: translate(40cqw, -12cqw); }
+  66% { transform: translate(41cqw, -12.6cqw) rotate(2deg); } 100% { opacity: 0; transform: translate(40cqw, -12cqw); } }
+.rk-ship-sh { display: none; }
+.rk-spark { opacity: 0; filter: none; animation: peSpark 5.2s ease-out infinite; animation-delay: 1.6s; }
+.rk-moon, .cr-moon { transform-origin: 50% 50%; animation: moTurn 16s linear infinite; }
+
+/* ---- crash: a wobbly flight, bonk on the moon, tumble down, dizzy ---- */
+.cr-ship { animation: crFly 5.6s ease-in-out infinite; }
+@keyframes crFly { 0% { opacity: 0; transform: translate(0, 4cqw); } 6% { opacity: 1; transform: none; }
+  18% { transform: translate(10cqw, -8cqw) rotate(14deg); } 28% { transform: translate(20cqw, -10cqw) rotate(-20deg); } 38% { transform: translate(30cqw, -16cqw) rotate(18deg); }
+  46% { transform: translate(43cqw, -18cqw) rotate(-4deg); animation-timing-function: ease-in; }
+  50% { transform: translate(38cqw, -16cqw) rotate(-40deg); animation-timing-function: ease-in; }
+  70% { transform: translate(30cqw, 0) rotate(-180deg); } 74% { transform: translate(30cqw, -2cqw) rotate(-186deg); } 78%, 94% { opacity: 1; transform: translate(30cqw, 0) rotate(-180deg); }
+  100% { opacity: 0; transform: translate(30cqw, 0) rotate(-180deg); } }
+.cr-ship .rk-fire { animation: crFire 5.6s linear infinite; }
+@keyframes crFire { 0%, 44% { opacity: 1; transform: rotate(-135deg); } 46%, 100% { opacity: 0; transform: rotate(-135deg) scale(.3); } }
+.cr-moon { transform-origin: 50% 50%; animation: crMoon 5.6s ease-out infinite; }
+@keyframes crMoon { 0%, 45%, 58%, 100% { transform: none; } 47% { transform: translate(1.4cqw, -.6cqw) rotate(6deg); } 50% { transform: translate(-1cqw, .4cqw) rotate(-4deg); } 54% { transform: translate(.5cqw, 0); } }
+.cr-pow { opacity: 0; filter: none; animation: crPow 5.6s ease-out infinite; }
+@keyframes crPow { 0%, 45% { opacity: 0; transform: scale(.2); } 47% { opacity: 1; transform: scale(1.2); } 56% { opacity: 1; transform: scale(1); } 62%, 100% { opacity: 0; transform: scale(.8); } }
+.cr-dizzy { opacity: 0; filter: none; animation: crDizzy 5.6s ease-in-out infinite; }
+@keyframes crDizzy { 0%, 74% { opacity: 0; transform: scale(.3); } 78% { opacity: 1; transform: scale(1.1) rotate(0); } 94% { opacity: 1; transform: rotate(300deg); } 100% { opacity: 0; transform: rotate(360deg); } }
+
+/* ---- the flick: a giant flicks a little panda, its head spins, stars circle ---- */
+.fl-man { transform-origin: 70% 100%; animation: flMan 5s ease-in-out infinite; }
+@keyframes flMan { 0%, 18%, 60%, 100% { transform: none; } 28%, 40% { transform: rotate(-7deg) translateX(-2cqw); } 70%, 86% { transform: scale(1.03, .97); } 74%, 82% { transform: scale(.98, 1.03); } }
+.fl-hand { opacity: 0; filter: none; transform-origin: 80% 60%; animation: flHand 5s ease-in-out infinite; }
+@keyframes flHand { 0%, 16% { opacity: 0; transform: translateX(22cqw) scale(.6); } 26% { opacity: 1; transform: translateX(2cqw); } 36% { transform: translateX(0) rotate(14deg); }
+  39% { transform: translateX(-2cqw) rotate(-26deg); animation-timing-function: ease-out; } 50% { opacity: 1; transform: translateX(6cqw) rotate(0); } 58%, 100% { opacity: 0; transform: translateX(22cqw) scale(.6); } }
+.fl-pow { opacity: 0; filter: none; animation: flPow 5s ease-out infinite; }
+@keyframes flPow { 0%, 38% { opacity: 0; transform: scale(.2); } 40% { opacity: 1; transform: scale(1.2); } 48% { opacity: 1; transform: none; } 54%, 100% { opacity: 0; } }
+.fl-panda { transform-origin: 50% 55%; animation: flPanda 5s ease-in-out infinite; }
+@keyframes flPanda { 0%, 38% { transform: none; } 41% { transform: translateY(1.5cqw) scale(1.1, .86); } 44% { transform: rotate(0); animation-timing-function: cubic-bezier(.2, .6, .4, 1); }
+  70% { transform: rotate(1080deg); } 76% { transform: rotate(1070deg); } 82% { transform: rotate(1086deg); } 88%, 100% { transform: rotate(1080deg); } }
+.fl-orbit { opacity: 0; filter: none; animation: flOrbit 5s ease-in-out infinite; }
+@keyframes flOrbit { 0%, 44% { opacity: 0; } 50%, 90% { opacity: 1; } 96%, 100% { opacity: 0; } }
+.stage .fl-orbit .orb { position: absolute; left: 36%; top: 36%; width: 28%; height: 28%; animation: orbit 1.1s linear infinite; }
+.stage .fl-orbit .o2 { animation-delay: -.37s; } .stage .fl-orbit .o3 { animation-delay: -.73s; }
+@keyframes orbit { 0% { transform: translate(143%, 0) scale(.9); } 12.5% { transform: translate(101%, 35%) scale(1); } 25% { transform: translate(0, 50%) scale(1.1); } 37.5% { transform: translate(-101%, 35%) scale(1); }
+  50% { transform: translate(-143%, 0) scale(.9); } 62.5% { transform: translate(-101%, -35%) scale(.75); } 75% { transform: translate(0, -50%) scale(.65); } 87.5% { transform: translate(101%, -35%) scale(.75); } 100% { transform: translate(143%, 0) scale(.9); } }

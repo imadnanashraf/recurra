@@ -167,7 +167,7 @@ function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
   if (!$('spark').innerHTML) renderSpark();
-  if (!Sky.timer) startSky(); else renderSky();
+  setTimeout(() => { if (!Sky.timer) startSky(); else renderSky(); }, 0);   // after the page is laid out, so the sky fits it
   renderVerify();
   const p0 = App.prep, ex = examMs();
   if (ex) {
