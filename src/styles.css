@@ -2068,3 +2068,14 @@ body.in-call { overflow: hidden; }
 .ai-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
 .ai-done { padding: 10px 12px; border-radius: 12px; background: var(--good-soft); color: var(--ink); font-size: .9rem; }
 @media (prefers-reduced-motion: reduce) { .ai-steps li.on .ai-dot { animation: none; border-color: var(--accent); } }
+/* upload status, short version */
+.ai-live { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--surface); }
+.ai-line { margin: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: .95rem; }
+.ai-line .ai-spin { width: 18px; height: 18px; border-width: 2.5px; }
+.ai-line.warn { color: var(--miss); }
+.ai-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.ai-seg > i { display: block; height: 5px; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+.ai-seg > i > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .35s; }
+.ai-livefoot { display: flex; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); }
+.ai-livefoot .ai-clock { margin: 0; font-size: .85rem; }
+.ai-livefoot .btn { margin-left: auto; }

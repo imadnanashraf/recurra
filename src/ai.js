@@ -210,20 +210,22 @@ async function aiWait(attempt) {
   for (let s = secs; s > 0 && !AI.stopped; s--) { AI.st.stage = 'wait'; AI.st.wait = s; aiPaintStatus(); await sleep(1000); }
 }
 function aiStop() { AI.stopped = true; if (AI.xhr) try { AI.xhr.abort(); } catch (e) {} }
-// the live status inside the card
+// the live status inside the card: one short line + a slim bar (4 parts: prepare, send, write, check)
 function aiPaintStatus() {
   const box = $('aiSteps'), st = AI.st; if (!box || !st) return;
   const order = ['prep', 'send', 'write', 'check'], at = st.stage === 'wait' ? 1 : order.indexOf(st.stage);
   const word = st.kind === 'mcq' ? 'question' : st.kind === 'notes' ? 'note' : 'subject';
-  const writing = Math.round((Date.now() - (st.tWrite || Date.now())) / 1000);
-  const detail = {
-    prep: st.n > 1 ? `File ${Math.min(st.i, st.n)} of ${st.n}` : 'Getting your file ready',
-    send: st.stage === 'wait' ? `Google is busy. Trying again in ${st.wait} s (try ${st.attempt + 1} of 3)` : `${Math.round(st.up * 100)}%${st.attempt > 1 ? ` · try ${st.attempt} of 3` : ''}`,
-    write: st.count ? `${plural(st.count, word)} so far…` : writing > 25 ? 'Still reading. Long files take a bit longer…' : 'Reading your file…',
-    check: 'Making sure everything is right',
-  };
-  const label = { prep: 'Preparing', send: 'Sending to Google', write: st.kind === 'mcq' ? 'Writing questions' : st.kind === 'notes' ? 'Writing notes' : 'Reading the syllabus', check: 'Checking' };
-  box.innerHTML = order.map((k, i) => `<li class="${i < at ? 'done' : i === at ? 'on' : ''}${k === 'send' && st.stage === 'wait' ? ' warn' : ''}"><span class="ai-dot">${i < at ? '✓' : ''}</span><div><b>${label[k]}</b>${i === at ? `<small>${esc(detail[k])}</small>${k === 'send' && st.stage === 'send' ? `<i class="ai-bar"><i style="width:${Math.round(st.up * 100)}%"></i></i>` : ''}` : ''}</div></li>`).join('');
+  const long = (Date.now() - (st.tWrite || Date.now())) > 25e3;
+  const line = {
+    prep: st.n > 1 ? `Preparing file ${Math.min(st.i, st.n)} of ${st.n}…` : 'Preparing your file…',
+    send: `Sending… ${Math.round(st.up * 100)}%`,
+    wait: `Google is busy, retrying in ${st.wait}s…`,
+    write: st.count ? `Writing… ${plural(st.count, word)} so far` : long ? 'Reading your file (long files take longer)…' : 'Google is reading your file…',
+    check: 'Almost done…',
+  }[st.stage];
+  const fill = k => k < at ? 1 : k > at ? 0 : st.stage === 'send' ? st.up : st.stage === 'prep' ? (st.n ? (st.i - 1) / st.n : 0) : .5;
+  box.innerHTML = `<p class="ai-line${st.stage === 'wait' ? ' warn' : ''}"><span class="ai-spin" aria-hidden="true"></span>${esc(line)}</p>
+    <div class="ai-seg" aria-hidden="true">${order.map((_, k) => `<i><i style="width:${Math.round(fill(k) * 100)}%"></i></i>`).join('')}</div>`;
   const c = $('aiClock'); if (c) c.textContent = fmtDur2(Math.round((Date.now() - st.t0) / 1000));
 }
 const fmtDur2 = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -241,10 +243,9 @@ function aiRender() {
     : mode === 'trial' ? `<span class="ai-free">🎁 ${left} of ${AI.FREE} free uploads left</span>`
     : AI.trialOn && AI.loaded ? `<span class="ai-free">Your ${AI.FREE} free uploads are used up</span>` : '';
   if (AI.busy) {
-    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div><span class="ai-clock" id="aiClock">0:00</span></div>
-      <ol class="ai-steps" id="aiSteps" aria-live="polite"></ol>
-      <p class="ai-note">Keep this screen open. It usually takes 20–60 seconds.</p>
-      <button class="btn" type="button" id="aiStop">Stop</button>`;
+    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div></div>
+      <div class="ai-live" id="aiSteps" aria-live="polite"></div>
+      <div class="ai-livefoot"><span class="ai-clock" id="aiClock">0:00</span><span>Keep this screen open</span><button class="btn small" type="button" id="aiStop">Stop</button></div>`;
     $('aiStop').onclick = aiStop;
     aiPaintStatus();
     return;
