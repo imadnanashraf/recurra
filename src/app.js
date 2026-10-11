@@ -16,6 +16,12 @@ const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 
+const APP_VERSION = '{{VERSION}}';
+// already in an app? (the Android app, the website saved to the home screen, or another app's built-in browser): no download link then
+function inApp() {
+  let standalone = false; try { standalone = matchMedia('(display-mode: standalone)').matches || !!navigator.standalone; } catch (e) {}
+  return NATIVE || standalone || /; wv\)/.test(navigator.userAgent || '');
+}
 function show(id) {
   if (typeof Focus !== 'undefined') { Focus.wanted = id === 'quiz' || id === 'break' || (id === 'room' && document.body.classList.contains('lt-focus')); if (Focus.wanted) Focus.start(); else Focus.stop(); }
   if (id !== 'room' && typeof leaveRoom === 'function' && LT.rid) leaveRoom();
@@ -27,7 +33,8 @@ function show(id) {
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   // the Android download: website only, and not for people who already use the Android app
-  if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => { a.hidden = NATIVE || (id === 'settings' && !!(App.profile && App.profile.usedAndroid)); });
+  if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => { a.hidden = inApp() || (id === 'settings' && !!(App.profile && App.profile.usedAndroid)); });
+  if (id === 'settings') $('appVer').textContent = `Recurra ${APP_VERSION} · ${platformLabel()}${NATIVE ? ` · build ${(window.APP_CONFIG && APP_CONFIG.webBuild) || '–'}` : ''}`;
   if (id === 'home') renderHome();
   if (typeof playIntro === 'function') playIntro(id);
 }
@@ -1720,12 +1727,16 @@ function updateAdminTab() {
   applyTheme();
   if (NATIVE) { $('googleBtn').hidden = true; $('orLine').hidden = true; }
   else if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  // the Android app download (website only): on the sign-in screen and in Settings
-  document.querySelectorAll('[data-getapp]').forEach(a => {
-    a.href = `https://github.com/${REPO}/releases/download/android/recurra.apk`;
-    a.hidden = NATIVE;
-    if (!/Android/i.test(navigator.userAgent)) a.querySelector('.ga-sub').textContent = 'Free · scan the code, or open this page on your Android phone';
+  // the Android app download link (only in a normal browser tab)
+  const apk = `https://github.com/${REPO}/releases/download/android/recurra.apk`, onAndroid = /Android/i.test(navigator.userAgent);
+  document.querySelectorAll('[data-getapp]').forEach(w => {
+    w.querySelectorAll('[data-apklink],[data-apkfile]').forEach(a => { a.href = apk; });
+    w.querySelector('[data-apklink]').addEventListener('click', e => {      // on a laptop: show the QR code to scan instead
+      if (onAndroid) return;
+      e.preventDefault(); w.classList.toggle('open');
+    });
   });
+  document.addEventListener('click', e => { if (!e.target.closest('[data-getapp]')) document.querySelectorAll('[data-getapp].open').forEach(w => w.classList.remove('open')); });
   const cfg = window.APP_CONFIG && window.APP_CONFIG.firebase;
   if (!cfg) { $('bootMsg').innerHTML = 'Setup is not finished: <code>config.js</code> has no Firebase settings yet. See README.md, step A5.'; return; }
   try { App.fb = await firebaseStart(cfg); }

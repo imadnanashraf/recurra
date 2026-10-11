@@ -4,7 +4,9 @@
    and rescheduled whenever something changes (finishing or pausing today removes today's).
    Web: the browser gets a push token; the GitHub reminder job sends at your chosen hours.
    ===================================================================== */
-const NATIVE = !!(window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform());
+// inside the Android app? (Capacitor says so, or the app's own bridge is there, or the page comes from the app's built-in address)
+const NATIVE = !!((window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) || window.androidBridge
+  || (location.protocol === 'https:' && location.hostname === 'localhost' && !location.port));
 const LN = NATIVE && window.capacitorExports ? capacitorExports.registerPlugin('LocalNotifications') : null;
 const DEFAULT_HOURS = [12, 16, 20, 22];
 

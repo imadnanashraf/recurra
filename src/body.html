@@ -71,26 +71,13 @@
         <button class="btn primary" type="button" id="resetBack">Back to sign in</button>
       </div>
     </div>
-    <a class="get-app" data-getapp href="#" target="_blank" rel="noopener" hidden>
-      <span class="ga-glow" aria-hidden="true"></span>
-      <span class="ga-body">
-        <span class="ga-kicker">Android app</span>
-        <b class="ga-title">Recurra in your pocket</b>
-        <span class="ga-text">Gentle daily reminders, calls with friends and quick reviews, even offline.</span>
-        <span class="ga-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></svg>Download for Android</span>
-        <small class="ga-sub">Free · about 6 MB · installs like any app</small>
-      </span>
-      <span class="ga-phone" aria-hidden="true">
-        <svg viewBox="0 0 120 210"><rect x="6" y="4" width="108" height="202" rx="20" class="ph-body"/><rect x="13" y="16" width="94" height="178" rx="13" class="ph-screen"/>
-          <rect x="13" y="16" width="94" height="62" rx="13" class="ph-sky"/><rect x="13" y="60" width="94" height="18" class="ph-sky"/>
-          <circle cx="86" cy="36" r="8" class="ph-sun"/><path d="M13 70 L35 52 L52 66 L70 48 L92 68 L107 58 L107 78 L13 78z" class="ph-mtn"/>
-          <rect x="21" y="86" width="78" height="40" rx="8" class="ph-card"/><rect x="28" y="94" width="34" height="6" rx="3" class="ph-l1"/><rect x="28" y="106" width="52" height="5" rx="2.5" class="ph-l2"/><rect x="28" y="115" width="40" height="5" rx="2.5" class="ph-l2"/>
-          <rect x="21" y="134" width="37" height="26" rx="7" class="ph-t1"/><rect x="62" y="134" width="37" height="26" rx="7" class="ph-t2"/>
-          <rect x="21" y="166" width="78" height="18" rx="9" class="ph-cta"/><rect x="48" y="9" width="24" height="4" rx="2" class="ph-notch"/></svg>
-        <span class="ga-bubble"><b>🔔</b> Time for a quick review</span>
-      </span>
-      <span class="ga-qr" aria-hidden="true">{{APKQR}}<small>Scan with your phone</small></span>
-    </a>
+    <div class="get-app" data-getapp hidden>
+      <a class="ga-link" data-apklink href="#" target="_blank" rel="noopener">
+        <span class="ga-ph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.6"/><path d="M10.6 18.4h2.8"/><path class="ga-wv" d="M4.2 9.2a4.6 4.6 0 0 0 0 5.6M19.8 9.2a4.6 4.6 0 0 1 0 5.6"/></svg></span>
+        <span>Get the Android app</span>
+      </a>
+      <span class="ga-pop" role="tooltip">{{APKQR}}<small>Scan with your Android phone</small><a data-apkfile href="#" target="_blank" rel="noopener">or download the file</a></span>
+    </div>
   </section>
 
   <!-- HOME -->
@@ -214,26 +201,13 @@
           <button class="chip" type="button" data-theme-set="dark">Night</button>
         </div>
       </div>
-      <a class="get-app in-settings" data-getapp href="#" target="_blank" rel="noopener" hidden>
-      <span class="ga-glow" aria-hidden="true"></span>
-      <span class="ga-body">
-        <span class="ga-kicker">Android app</span>
-        <b class="ga-title">Recurra in your pocket</b>
-        <span class="ga-text">Gentle daily reminders, calls with friends and quick reviews, even offline.</span>
-        <span class="ga-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></svg>Download for Android</span>
-        <small class="ga-sub">Free · about 6 MB · installs like any app</small>
-      </span>
-      <span class="ga-phone" aria-hidden="true">
-        <svg viewBox="0 0 120 210"><rect x="6" y="4" width="108" height="202" rx="20" class="ph-body"/><rect x="13" y="16" width="94" height="178" rx="13" class="ph-screen"/>
-          <rect x="13" y="16" width="94" height="62" rx="13" class="ph-sky"/><rect x="13" y="60" width="94" height="18" class="ph-sky"/>
-          <circle cx="86" cy="36" r="8" class="ph-sun"/><path d="M13 70 L35 52 L52 66 L70 48 L92 68 L107 58 L107 78 L13 78z" class="ph-mtn"/>
-          <rect x="21" y="86" width="78" height="40" rx="8" class="ph-card"/><rect x="28" y="94" width="34" height="6" rx="3" class="ph-l1"/><rect x="28" y="106" width="52" height="5" rx="2.5" class="ph-l2"/><rect x="28" y="115" width="40" height="5" rx="2.5" class="ph-l2"/>
-          <rect x="21" y="134" width="37" height="26" rx="7" class="ph-t1"/><rect x="62" y="134" width="37" height="26" rx="7" class="ph-t2"/>
-          <rect x="21" y="166" width="78" height="18" rx="9" class="ph-cta"/><rect x="48" y="9" width="24" height="4" rx="2" class="ph-notch"/></svg>
-        <span class="ga-bubble"><b>🔔</b> Time for a quick review</span>
-      </span>
-      <span class="ga-qr" aria-hidden="true">{{APKQR}}<small>Scan with your phone</small></span>
-    </a>
+      <div class="get-app in-settings" data-getapp hidden>
+      <a class="ga-link" data-apklink href="#" target="_blank" rel="noopener">
+        <span class="ga-ph" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.6"/><path d="M10.6 18.4h2.8"/><path class="ga-wv" d="M4.2 9.2a4.6 4.6 0 0 0 0 5.6M19.8 9.2a4.6 4.6 0 0 1 0 5.6"/></svg></span>
+        <span>Get the Android app</span>
+      </a>
+      <span class="ga-pop" role="tooltip">{{APKQR}}<small>Scan with your Android phone</small><a data-apkfile href="#" target="_blank" rel="noopener">or download the file</a></span>
+    </div>
       <div class="card install" id="installCard" hidden>
         {{LOGO}}
         <div style="display:grid;gap:6px;flex:1"><strong>Install Recurra</strong><span class="muted small">Open it from your home screen or desktop like any app, even offline.</span></div>
@@ -268,6 +242,7 @@
         <p class="msg" id="accMsg"></p>
       </div>
     </div>
+    <p class="app-ver" id="appVer"></p>
   </section>
 
   <!-- SUBJECT / TOPIC PICKER -->

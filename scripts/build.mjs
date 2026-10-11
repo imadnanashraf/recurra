@@ -25,13 +25,13 @@ function apkQr() {
 const html = [
   src('head.html').replace('{{VERSION}}', pkg.version),
   '<style>\n', src('styles.css'), '</style>\n</head>\n<body>\n',
-  src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()).replaceAll('{{APKQR}}', apkQr()),
+  src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()).replaceAll('{{APKQR}}', apkQr()).replaceAll('{{VERSION}}', pkg.version),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
   src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'), src('charts.js'),
   '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('sound.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('bank.js'), src('admin.js'), src('social.js'), src('livetest.js'), src('call.js'), src('push.js'), src('ai.js'), src('help.js'), src('sky.js'), src('intro.js'), src('update.js'),
   '</script>\n</body>\n</html>\n',
 ].join('');
-writeFileSync(join(out, 'index.html'), html);
+writeFileSync(join(out, 'index.html'), html.replaceAll('{{VERSION}}', pkg.version));
 
 // libraries (bundled, not loaded from the internet)
 const nm = p => join(root, 'node_modules', p);

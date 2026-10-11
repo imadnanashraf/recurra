@@ -2093,34 +2093,26 @@ body.in-call { overflow: hidden; }
 .upd-steps { text-align: left; margin: 4px 0 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; color: var(--muted); }
 body.upd-open .tabbar { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .upd-ic .a { animation: none; } }
-/* get the Android app (website): a soft banner with a little phone */
-.get-app { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px;
-  margin-top: 6px; padding: 20px 18px 20px 20px; border-radius: 22px; text-decoration: none; color: #fff; background: var(--hero);
-  box-shadow: 0 14px 34px -18px rgba(16, 90, 140, .7); transition: transform .2s var(--ease-out, ease), box-shadow .2s; animation: riseIn .4s var(--ease-out, ease) both; }
+/* get the Android app (website only): one light line with a little phone that buzzes now and then */
+.get-app { position: relative; display: flex; justify-content: center; margin: 4px 0 0; }
 .get-app[hidden] { display: none; }
-.get-app:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -18px rgba(16, 90, 140, .8); }
-.get-app:active { transform: scale(.99); }
-.ga-glow { position: absolute; z-index: -1; inset: -40% -10% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, .28), transparent); }
-.ga-body { display: grid; gap: 6px; justify-items: start; min-width: 0; }
-.ga-kicker { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; background: rgba(255, 255, 255, .2); }
-.ga-title { font-size: 1.25rem; line-height: 1.2; letter-spacing: -.01em; }
-.ga-text { font-size: .88rem; line-height: 1.45; color: rgba(255, 255, 255, .88); max-width: 30ch; }
-.ga-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 99px; background: #fff; color: #0d6e7a; font-weight: 800; font-size: .92rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .4); white-space: nowrap; }
-.ga-btn svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.get-app:hover .ga-btn svg { animation: gaDrop .8s ease-in-out; }
-@keyframes gaDrop { 50% { transform: translateY(3px); } }
-.ga-sub { font-size: .74rem; color: rgba(255, 255, 255, .75); }
-.ga-phone { position: relative; width: 96px; animation: gaFloat 5s ease-in-out infinite; }
-.ga-phone svg { width: 100%; display: block; filter: drop-shadow(0 12px 18px rgba(0, 20, 50, .35)); transform: rotate(6deg); }
-@keyframes gaFloat { 50% { transform: translateY(-6px); } }
-.ph-body { fill: #10202f; } .ph-screen { fill: #f4f7fb; } .ph-sky { fill: #8cc8f5; } .ph-sun { fill: #ffd84d; } .ph-mtn { fill: #5d9a8a; }
-.ph-card { fill: #fff; stroke: #e1e8f1; } .ph-l1 { fill: #142033; } .ph-l2 { fill: #d5dde8; } .ph-t1 { fill: #dcf5ef; } .ph-t2 { fill: #e6f0ff; } .ph-cta { fill: #0f9d8a; } .ph-notch { fill: #10202f; }
-.ga-bubble { position: absolute; z-index: 2; left: -78px; top: -4px; border: 1px solid rgba(15, 157, 138, .25); white-space: nowrap; font-size: .66rem; font-weight: 700; color: var(--ink); background: #fff; padding: 5px 9px; border-radius: 10px 10px 10px 2px;
-  box-shadow: 0 8px 18px -8px rgba(0, 20, 50, .45); animation: gaPop 5s ease-in-out infinite; }
-@keyframes gaPop { 0%, 12% { opacity: 0; transform: translateY(6px) scale(.9); } 20%, 75% { opacity: 1; transform: none; } 85%, 100% { opacity: 0; transform: translateY(-4px); } }
-.ga-qr { display: none; justify-items: center; gap: 6px; padding: 10px; border-radius: 16px; background: rgba(255, 255, 255, .16); }
-.ga-qr svg { width: 104px; height: 104px; border-radius: 8px; display: block; }
-.ga-qr small { font-size: .72rem; color: rgba(255, 255, 255, .85); font-weight: 650; }
-@media (min-width: 900px) and (hover: hover) { .get-app { gap: 22px; padding: 22px 24px; } .ga-qr { display: grid; } .ga-phone { display: none; } }
-@media (max-width: 360px) { .ga-phone { width: 76px; } .ga-bubble { display: none; } }
-@media (prefers-reduced-motion: reduce) { .ga-phone, .ga-bubble, .get-app { animation: none; } .ga-bubble { opacity: 1; } }
+.get-app.in-settings { justify-content: flex-start; margin: 0 0 4px; }
+.ga-link { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; color: var(--accent); font-weight: 750; font-size: .95rem; text-decoration: none; transition: background .2s; }
+.ga-link:hover, .get-app.open .ga-link { background: var(--accent-soft); }
+.ga-ph { display: inline-grid; width: 26px; height: 26px; place-items: center; }
+.ga-ph svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 60%; animation: gaBuzz 4.5s ease-in-out infinite; }
+.ga-ph .ga-wv { opacity: 0; animation: gaWave 4.5s ease-out infinite; }
+@keyframes gaBuzz { 0%, 70%, 100% { transform: none; } 73% { transform: rotate(-13deg); } 76% { transform: rotate(12deg); } 79% { transform: rotate(-10deg); } 82% { transform: rotate(8deg); } 85% { transform: rotate(-4deg); } 88% { transform: none; } }
+@keyframes gaWave { 0%, 70% { opacity: 0; } 74%, 86% { opacity: .9; } 94%, 100% { opacity: 0; } }
+.ga-pop { position: absolute; z-index: 6; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(6px); display: grid; justify-items: center; gap: 6px; padding: 12px 12px 10px;
+  border-radius: 16px; background: var(--surface); box-shadow: var(--shadow), 0 16px 40px -18px rgba(10, 30, 60, .45); border: 1px solid var(--line); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.get-app.in-settings .ga-pop { left: 0; transform: translateY(6px); }
+.ga-pop svg { width: 132px; height: 132px; display: block; border-radius: 8px; }
+.ga-pop small { font-size: .78rem; font-weight: 700; color: var(--ink); }
+.ga-pop a { font-size: .74rem; color: var(--muted); }
+.get-app.open .ga-pop { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
+.get-app.in-settings.open .ga-pop { transform: none; }
+@media (hover: hover) { .get-app:hover .ga-pop { opacity: 1; pointer-events: auto; transform: translateX(-50%); } .get-app.in-settings:hover .ga-pop { transform: none; } }
+.app-ver { margin: 6px 0 0; text-align: center; font-size: .76rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .ga-ph svg, .ga-ph .ga-wv { animation: none; } }
+.ga-pop::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 12px; }
