@@ -12,7 +12,7 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replac
 const getState = id => Progress.get(id);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const todayKey = () => dayKey(Date.now());
-const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'bank', 'chat', 'thread', 'room', 'admin', 'adminUser'];
+const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'bank', 'chat', 'thread', 'room', 'help', 'admin', 'adminUser'];
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 

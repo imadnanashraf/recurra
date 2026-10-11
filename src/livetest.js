@@ -268,6 +268,7 @@ function renderResults() {
     <div class="btns">${notMine.length ? `<button class="btn primary" type="button" data-ltaddwrong>Add the ${plural(notMine.length, 'question')} I got wrong to my prep</button>` : ''}
       <button class="btn" type="button" data-lthistory>My test history</button><button class="btn ghost" type="button" data-ltback>Done</button></div>
     ${myWrong.length && myWrong.length > notMine.length ? `<p class="muted small center">Questions you got wrong that are already in your prep will come back sooner in your revision.</p>` : ''}</div>`;
+  if (r.host === meUid() && r.status !== 'done') Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'done' }, { merge: true }).catch(() => {});
   if (mineP && !LT.saved) { saveHistory(R, stats, traps); Sound.play(myRank === 0 ? 'win' : 'finish'); }
 }
 async function saveHistory(R, stats, traps) {

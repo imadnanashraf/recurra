@@ -154,6 +154,7 @@
       <h2>Settings</h2>
       <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
+    <button class="card help-link" type="button" data-mode="help"><span>❓</span><span class="pmain"><b>Help and questions</b><small>How everything works, in easy English</small></span><span data-icon="next"></span></button>
     <div class="masonry">
       <div class="card form profile">
         <h3>Profile</h3>
@@ -350,6 +351,20 @@
       <div id="sylHero"></div>
       <div class="syl-grid" id="sylList"></div>
     </div>
+  </section>
+
+  <!-- HELP: tutorials and frequent questions -->
+  <section id="help" hidden>
+    <div class="head-row">
+      <h2>Help</h2>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
+    </div>
+    <div class="help-hero card"><span>👋</span><div><b>How can we help?</b><small>Short guides in easy English. Search a word, or open a topic below.</small></div></div>
+    <div class="nsearch" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="helpSearch" type="search" placeholder="Search help: share, test, password…" autocomplete="off" aria-label="Search help">
+    </div>
+    <div id="helpList" class="help-list"></div>
   </section>
 
   <!-- FRIENDS AND CHAT -->

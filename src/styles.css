@@ -1575,3 +1575,23 @@ svg.mtick { width: 18px; height: 11px; fill: none; stroke: currentColor; stroke-
 svg.mtick.seen { stroke: #bff1ff; opacity: 1; }
 :root[data-theme="dark"] svg.mtick.seen { stroke: #0b4a5c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) svg.mtick.seen { stroke: #0b4a5c; } }
+
+/* help */
+main > section#help { max-width: 760px; }
+.help-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; font: inherit; color: var(--ink); cursor: pointer; margin-bottom: 14px; width: 100%; }
+.help-link > span:first-child { font-size: 1.6rem; }
+.help-link .ic { width: 20px; height: 20px; color: var(--muted); }
+.help-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; background: linear-gradient(var(--accent-soft), var(--surface) 85%); }
+.help-hero > span { font-size: 2rem; }
+.help-hero div { display: grid; } .help-hero small { color: var(--muted); }
+.help-list { display: grid; gap: 16px; }
+.help-group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.help-group h3 span { font-size: 1.2rem; }
+.help-item { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+.help-item summary { cursor: pointer; padding: 13px 16px; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.help-item summary::-webkit-details-marker { display: none; }
+.help-item summary::after { content: "+"; font-size: 1.3rem; color: var(--accent); transition: transform .2s; flex: none; }
+.help-item[open] summary::after { transform: rotate(45deg); }
+.help-item[open] { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: var(--shadow); }
+.help-a { padding: 0 16px 14px; line-height: 1.55; animation: riseIn .2s var(--ease-out, ease) both; }
+.help-a p { margin: 0 0 8px; } .help-a ol, .help-a ul { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 4px; }
