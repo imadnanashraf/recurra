@@ -18,9 +18,12 @@ const visible = id => !$(id).hidden;
 
 const APP_VERSION = '{{VERSION}}';
 // already in an app? (the Android app, the website saved to the home screen, or another app's built-in browser): no download link then
+function isStandalone() { try { return matchMedia('(display-mode: standalone)').matches || !!navigator.standalone; } catch (e) { return false; } }
+// the website saved to an Android home screen: it should point to the real app (updates, calls, notifications)
+const webAppOnAndroid = () => !NATIVE && ON_ANDROID && isStandalone();
 function inApp() {
-  let standalone = false; try { standalone = matchMedia('(display-mode: standalone)').matches || !!navigator.standalone; } catch (e) {}
-  return NATIVE || standalone || /; wv\)/.test(navigator.userAgent || '');
+  if (webAppOnAndroid()) return false;
+  return NATIVE || isStandalone() || /; wv\)/.test(navigator.userAgent || '');
 }
 function show(id) {
   if (typeof Focus !== 'undefined') { Focus.wanted = id === 'quiz' || id === 'break' || (id === 'room' && document.body.classList.contains('lt-focus')); if (Focus.wanted) Focus.start(); else Focus.stop(); }
@@ -33,7 +36,11 @@ function show(id) {
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   // the Android download: website only, and not for people who already use the Android app
-  if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => { a.hidden = inApp() || (id === 'settings' && !!(App.profile && App.profile.usedAndroid)); });
+  if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
+    a.hidden = inApp() || (id === 'settings' && !webAppOnAndroid() && !!(App.profile && App.profile.usedAndroid));
+    const t = a.querySelector('.ga-link > span:last-child');
+    if (t) t.textContent = webAppOnAndroid() ? 'You’re using the website version. Get the real Android app' : 'Get the Android app';
+  });
   if (id === 'settings') $('appVer').textContent = `Recurra ${APP_VERSION} · ${platformLabel()}${NATIVE ? ` · build ${(window.APP_CONFIG && APP_CONFIG.webBuild) || '–'}` : ''}`;
   if (id === 'home') renderHome();
   if (typeof playIntro === 'function') playIntro(id);
@@ -1281,7 +1288,7 @@ function renderSettings() {
   $('profName').textContent = displayName(); $('profHandle').textContent = App.profile.username ? '@' + App.profile.username : 'No username yet';
   $('pwReset').hidden = !usesPassword();
   $('accConfirm').innerHTML = ''; msg('accMsg', ''); msg('profMsg', '');
-  $('installCard').hidden = !Install.prompt || !!App.viewAs;
+  $('installCard').hidden = !Install.prompt || !!App.viewAs || ON_ANDROID;
   $('remCard').hidden = !!App.viewAs; $('accCard').hidden = !!App.viewAs;
   $('adminOpen').hidden = !isAdminUser(App.authUser) || !!App.viewAs;
   if (!$('adminOpen').hidden) renderAdminKey();

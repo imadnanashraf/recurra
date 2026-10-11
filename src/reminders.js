@@ -133,5 +133,7 @@ if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); 
 
 // "Install Recurra" on the website (Chrome, Edge, Android browsers)
 const Install = { prompt: null };
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); Install.prompt = e; const c = document.getElementById('installCard'); if (c) c.hidden = false; });
+// "Install" (save the website as an app) is for laptops only: on an Android phone people get the real Android app instead
+const ON_ANDROID = /Android/i.test(navigator.userAgent || '');
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); if (ON_ANDROID) return; Install.prompt = e; const c = document.getElementById('installCard'); if (c) c.hidden = false; });
 window.addEventListener('appinstalled', () => { Install.prompt = null; const c = document.getElementById('installCard'); if (c) c.hidden = true; });
