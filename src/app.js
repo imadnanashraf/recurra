@@ -12,7 +12,7 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replac
 const getState = id => Progress.get(id);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const todayKey = () => dayKey(Date.now());
-const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'admin', 'adminUser'];
+const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'bank', 'admin', 'adminUser'];
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 
@@ -21,7 +21,7 @@ function show(id) {
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
   const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
-  const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
+  const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
@@ -68,6 +68,7 @@ function refresh() {
   else if (visible('import') && App.imp && App.imp.target !== 'new' && !$('impSubjects').contains(document.activeElement)) renderSubjectsCard();
   else if (visible('notes')) renderNotes();
   else if (visible('syllabus')) renderSyllabus();
+  else if (visible('bank') && typeof renderBank === 'function') renderBank();
   updateTabs();
 }
 function closePrep() {
@@ -310,7 +311,7 @@ function subjectMeta(s) {
 function openSubjectPicker() {
   App.pick = { mode: 'subject' };
   $('pickerTitle').textContent = 'Practice a subject';
-  $('pickerList').innerHTML = (App.subjects.length ? sylLinkRow() : '') + (App.subjects.length ? App.subjects.map(s => {
+  $('pickerList').innerHTML = (App.subjects.length ? sylLinkRow() + bankLinkRow() : '') + (App.subjects.length ? App.subjects.map(s => {
     const pool = App.questions.filter(q => q.code === s.code), n = pool.length, o = summary(pool), pct = n ? Math.round(100 * o.strong / n) : 0;
     return `<button class="row" type="button" data-code="${esc(s.code)}" ${n ? '' : 'disabled'}>
       <span class="code">${esc(s.code)}</span>
@@ -627,7 +628,7 @@ addEventListener('resize', () => { clearTimeout(chartResize); chartResize = setT
 
 /* ---------- revision notes ---------- */
 const NOTE_LABELS = { keyDifference: 'Key difference', points: 'Points', memoryTrick: 'Memory trick', examTrap: 'Exam trap', related: 'Related' };
-const NOTE_SKIP = new Set(['id', 'subject', 'code', 'topic', 'title', 'added']);
+const NOTE_SKIP = new Set(['id', 'subject', 'code', 'topic', 'subtopic', 'title', 'added']);
 const labelOf = k => NOTE_LABELS[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
 // Notes are numbered like a book: chapter = subject (in syllabus order), then topic A–Z, then title A–Z → 1.1, 1.2, 2.1 …
 const NotesUI = { view: 'contents', q: '', open: null, all: false };
@@ -1052,24 +1053,27 @@ function checkImport(parsed, target) {
       wrongSubjects[key].n++;
     });
   }
-  const topicCheck = items => {
-    const allowed = !sub ? [] : App.imp.topic ? [App.imp.topic] : sub.topics || [];
-    const off = [];
-    if (allowed.length) items.forEach(it => {
+  // topics never block: an item goes to the syllabus topic it resembles, else to "Others" (its own name kept as the subtopic)
+  const topicSort = items => {
+    const topics = sub ? sub.topics || [] : [], others = [];
+    if (topics.length) items.forEach(it => {
       if (it.subject !== sub.code) return;     // already reported as another subject
-      const i = topicIndex(it, allowed);
-      if (i < 0) {
-        const elsewhere = App.imp.topic ? (sub.topics || []).find(t => topicIndex(it, [t]) >= 0) : null;
-        off.push({ title: it.question || it.title, topic: it.topic, elsewhere });
-      } else it.topic = allowed[i];              // the syllabus spelling, so it matches everywhere
+      const i = topicIndex(it, topics);
+      if (i >= 0) { it.topic = topics[i]; return; }   // the syllabus spelling, so it matches everywhere
+      const own = isCatchAll(it.topic) ? '' : String(it.topic || '').trim();
+      if (own && !it.subtopic) it.subtopic = own;
+      else if (own && normTopic(it.subtopic) !== normTopic(own)) it.subtopic = `${own} · ${it.subtopic}`;
+      it.topic = OTHERS;
+      others.push(it.subtopic || 'no topic');
     });
-    return off;
+    return others;
   };
-  const blockedBy = off => (Object.keys(wrongSubjects).length || off.length) ? { blocked: true, wrongSubjects: Object.values(wrongSubjects), offTopic: off, subject: sub } : {};
+  const blockedBy = () => Object.keys(wrongSubjects).length ? { blocked: true, wrongSubjects: Object.values(wrongSubjects), subject: sub } : {};
   if (parsed.kind === 'mcq') {
     const r = cleanQuestions(d.questions || [], subjects, today);
-    const off = topicCheck(r.questions), block = blockedBy(off);
+    const block = blockedBy();
     if (block.blocked) return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block };
+    const others = topicSort(r.questions);
     let fresh = 0, updated = 0, same = 0;
     r.questions.forEach(q => {
       const old = App.bank[q.id];
@@ -1077,13 +1081,14 @@ function checkImport(parsed, target) {
       else if (JSON.stringify({ ...old, added: '' }) === JSON.stringify({ ...q, added: '' })) same++;
       else updated++;
     });
-    return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same };
+    return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same, others };
   }
   const r = cleanNotes(d.notes || [], subjects, today);
-  { const off = topicCheck(r.notes), block = blockedBy(off); if (block.blocked) return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block }; }
+  { const block = blockedBy(); if (block.blocked) return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block }; }
+  const others = topicSort(r.notes);
   let fresh = 0, updated = 0, same = 0;
   r.notes.forEach(n => { const old = App.notesMap[n.id]; if (!old) fresh++; else if (JSON.stringify({ ...old, added: '' }) === JSON.stringify({ ...n, added: '' })) same++; else updated++; });
-  return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same };
+  return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same, others };
 }
 
 function renderPreview() {
@@ -1095,19 +1100,11 @@ function renderPreview() {
   if (c.blocked) {
     const word = c.kind === 'mcq' ? 'question' : 'note', sub = c.subject;
     box.classList.add('blocked');
-    parts.push(`<strong class="msg err">Nothing was added</strong><span>Everything you paste here must be for <b>${esc(sub.name)}</b>${App.imp.topic ? `, topic <b>${esc(App.imp.topic)}</b>` : ''}.</span>`);
+    parts.push(`<strong class="msg err">Nothing was added</strong><span>Everything you paste here must be for <b>${esc(sub.name)}</b>.</span>`);
     c.wrongSubjects.forEach(w => parts.push(`<div class="block-row"><span>${plural(w.n, word)} ${w.n === 1 ? 'is' : 'are'} meant for <b>${esc(w.name)}</b>${w.code ? '' : ', which is not a subject in this prep'}.</span>
       ${w.code ? `<button class="btn" type="button" data-impswitch="${esc(w.code)}">Switch to ${esc(w.name)}</button>` : ''}</div>`));
-    if (c.offTopic.length) {
-      const names = [...new Set(c.offTopic.map(o => !o.topic || o.topic === 'General' ? 'no topic' : o.topic))];
-      const where = c.offTopic.find(o => o.elsewhere);
-      parts.push(`<div class="block-row"><span>${plural(c.offTopic.length, word)} ${c.offTopic.length === 1 ? 'does' : 'do'} not fit ${App.imp.topic ? `the topic “${esc(App.imp.topic)}”` : `any topic of ${esc(sub.name)}`}: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}. ${App.imp.topic ? '' : c.offTopic.length === 1 ? 'It may be meant for another subject.' : 'They may be meant for another subject.'}</span>
-        ${App.imp.topic ? `<button class="btn" type="button" data-impwhole>Use the whole subject instead</button>${where ? `<span class="muted small">Some are about “${esc(where.elsewhere)}”.</span>` : ''}`
-          : `<button class="btn" type="button" data-impaddtopics="${esc(JSON.stringify(names.filter(n => n !== 'no topic')))}">${names.filter(n => n !== 'no topic').length ? `Add ${plural(names.filter(n => n !== 'no topic').length, 'topic')} to ${esc(sub.name)}'s syllabus` : ''}</button>`}</div>`);
-    }
     parts.push(`<span class="muted small">Fix the pasted text or ask the AI again with the prompt above, then tap Check.</span>`);
     box.innerHTML = parts.join('');
-    box.querySelectorAll('[data-impaddtopics]').forEach(b => { if (!b.textContent.trim()) b.remove(); });
     return;
   }
   box.classList.remove('blocked');
@@ -1115,6 +1112,10 @@ function renderPreview() {
     const word = c.kind === 'mcq' ? 'question' : 'note';
     parts.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.same ? `, ${c.same} already in the app` : ''}</strong>`);
     if (c.updated) parts.push(`<span class="muted">Updated ${word}s keep your progress.</span>`);
+    if (c.others && c.others.length) {
+      const names = [...new Set(c.others)];
+      parts.push(`<div class="others-note"><span>${plural(c.others.length, word)} did not match a syllabus topic, so ${c.others.length === 1 ? 'it goes' : 'they go'} under <b>Others</b>: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}.</span><small class="muted">If one belongs to another subject, don't add; switch subject instead. You can turn any of these into a syllabus topic later from the Syllabus tab.</small></div>`);
+    }
     canAdd = c.fresh + c.updated > 0; addLabel = `Add ${plural(c.fresh + c.updated, word)}`;
     if (c.kind === 'mcq') parts.push(c.questions.slice(0, 3).map(q => `<div class="qpreview"><span class="mono muted">${esc(q.subject)} · ${esc(q.topic)}</span><span>${esc(q.question)}</span><span class="muted">Answer: ${esc(q.answer)}</span></div>`).join(''));
     else parts.push(c.notes.slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
@@ -1139,14 +1140,6 @@ function renderPreview() {
 $('impPreview').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.impswitch) { App.imp.subject = b.dataset.impswitch; App.imp.topic = ''; App.imp.focus = null; renderImport(); doCheck(); }
-  if ('impwhole' in b.dataset) { App.imp.topic = ''; renderImport(); doCheck(); }
-  if (b.dataset.impaddtopics) {
-    const add = JSON.parse(b.dataset.impaddtopics), code = App.imp.subject;
-    const next = App.subjects.map(s => s.code === code ? { ...s, topics: [...(s.topics || []), ...add.filter(t => !(s.topics || []).some(x => normTopic(x) === normTopic(t)))] } : s);
-    b.disabled = true;
-    try { await saveSubjects(next); toast(`Added ${plural(add.length, 'topic')} to the syllabus.`); renderImport(); doCheck(); }
-    catch (err) { b.disabled = false; toast('Could not save. Check your internet.'); }
-  }
 });
 
 async function applyImport(btn) {

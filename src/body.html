@@ -344,8 +344,32 @@
       <h2>Syllabus</h2>
       <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
     </div>
-    <div id="sylHero"></div>
-    <div class="syl-grid" id="sylList"></div>
+    <div class="syl-layout">
+      <div id="sylHero"></div>
+      <div class="syl-grid" id="sylList"></div>
+    </div>
+  </section>
+
+  <!-- QUESTION BANK: every MCQ, browsable like the notes -->
+  <section id="bank" hidden>
+    <div class="head-row">
+      <h2>Question bank</h2>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
+    </div>
+    <div class="nsearch" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="bankSearch" type="search" placeholder="Search questions, answers, explanations…" autocomplete="off" spellcheck="false" aria-label="Search questions">
+    </div>
+    <div class="ntools" id="bankTools">
+      <div class="seg seg3" id="bankView" role="group" aria-label="Order">
+        <button type="button" data-bv="contents" aria-pressed="true">Contents</button>
+        <button type="button" data-bv="weak" aria-pressed="false">Weakest</button>
+        <button type="button" data-bv="recent" aria-pressed="false">Newest</button>
+      </div>
+      <select id="bankFilter" aria-label="Filter questions by subject"></select>
+    </div>
+    <div id="bankIndex"></div>
+    <div id="bankReader" hidden></div>
   </section>
 
   <!-- NOTES: search, a book-style index, a reader -->

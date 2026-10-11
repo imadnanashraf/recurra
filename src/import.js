@@ -289,7 +289,7 @@ function promptForSubject(kind, prepName, subject, allowed, pinned, focus) {
   if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
   const json = JSON.stringify(sample, null, 2);
   const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
-    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   Leave out anything that fits none of them.`
+    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   If an item fits none of them, write "Others" as the topic and put your own short topic name in "subtopic".`
     : `"topic": a short topic name of 2 to 5 words.`;
   const cover = focus && focus.length && !pinned ? `\nCover ONLY these topics: ${focus.join('; ')}.` : '';
   const material = focus && focus.length || pinned ? 'My material (optional; if I give none, use standard textbook knowledge of these topics):' : 'My material:';

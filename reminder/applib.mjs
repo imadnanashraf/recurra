@@ -162,23 +162,49 @@ function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
 
 // ---------- 1e2. Matching a question's topic to the syllabus topics ----------
 // Exact (ignoring case and punctuation), then "one contains the other", then most words shared.
-const TOPIC_STOP = new Set(['and', 'the', 'of', 'for', 'in', 'to', 'with', 'its', 'their', 'basic', 'basics', 'introduction', 'types']);
+const TOPIC_STOP = new Set(['and', 'the', 'of', 'for', 'in', 'to', 'with', 'its', 'their', 'basic', 'basics', 'introduction', 'intro', 'types', 'concept', 'concepts', 'fundamentals', 'overview', 'part', 'chapter', 'unit', 'topic']);
+// names that mean "no particular topic": never matched to a syllabus topic
+const CATCH_ALL = new Set(['others', 'other', 'general', 'misc', 'miscellaneous', 'none', '']);
+const OTHERS = 'Others';
 const normTopic = s => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+const isCatchAll = s => CATCH_ALL.has(normTopic(s));
+// a rough word stem, so "modulation" = "modulator" = "modulated", "gates" = "gate"
+const stem = w => { if (w.length > 3) w = w.replace(/s$/, ''); if (w.length > 6) w = w.replace(/(ation|ator|ing|ion|er|or|ed|al|ic|e)$/, ''); return w; };
+function editDist1(a, b) {                          // true when a and b differ by at most one letter (typos)
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, diff = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++diff > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return diff + (a.length - i) + (b.length - j) <= 1;
+}
+const sameWord = (x, y) => x === y || stem(x) === stem(y) || (x.length >= 5 && y.length >= 5 && (x.startsWith(y.slice(0, 5)) && y.startsWith(x.slice(0, 5)) && Math.min(x.length, y.length) >= 6 || editDist1(x, y)));
+const topicWords = s => [...new Set(normTopic(s).split(' ').filter(w => (w.length > 2 || /\d/.test(w)) && !TOPIC_STOP.has(w)))];
+// Finds the syllabus topic a name resembles. Forgiving (spelling, plurals, extra words), but two different
+// key words ("Digital Modulation" vs "Analog Modulation") are told apart.
 function matchTopic(name, topics) {
   const n = normTopic(name);
-  if (!n || !topics || !topics.length) return -1;
+  if (!n || CATCH_ALL.has(n) || !topics || !topics.length) return -1;
   const T = topics.map(normTopic);
   let i = T.indexOf(n); if (i >= 0) return i;
-  i = T.findIndex(t => t.length >= 4 && n.length >= 4 && (t.includes(n) || n.includes(t))); if (i >= 0) return i;
-  const words = s => new Set(s.split(' ').filter(w => w.length > 2 && !TOPIC_STOP.has(w)).map(w => w.replace(/s$/, '')));
-  const a = words(n); let best = -1, score = 0;
+  const sq = x => x.replace(/ /g, '');                                   // "data link" = "datalink"
+  i = T.findIndex(t => sq(t) === sq(n)); if (i >= 0) return i;
+  const inside = T.map((t, k) => t.length >= 4 && n.length >= 4 && (` ${t} `.includes(` ${n} `) || ` ${n} `.includes(` ${t} `)) ? k : -1).filter(k => k >= 0);
+  if (inside.length === 1) return inside[0];      // two topics both contain it ("Modulation") = unclear
+  const a = topicWords(n); let best = -1, score = 0, tie = false;
   T.forEach((t, k) => {
-    const b = words(t); if (!a.size || !b.size) return;
-    let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
-    const j = inter / Math.min(a.size, b.size);
-    if (j > score) { score = j; best = k; }
+    const b = topicWords(t); if (!a.length || !b.length) return;
+    const hitA = a.filter(w => b.some(v => sameWord(w, v))).length, hitB = b.filter(v => a.some(w => sameWord(w, v))).length;
+    if (!hitA) return;
+    const small = Math.min(a.length, b.length), j = Math.min(hitA, hitB) / small;
+    // every key word of the shorter name must be found, unless it is long (then 2 of 3 is enough)
+    const ok = small <= 2 ? j === 1 : j >= 0.6;
+    const sc = ok ? j + Math.min(hitA, hitB) / 100 : 0;
+    if (sc > score) { score = sc; best = k; tie = false; } else if (sc && sc === score) tie = true;
   });
-  return score >= 0.6 ? best : -1;
+  return score && !tie ? best : -1;
 }
 // which syllabus topic a question or note belongs to (its topic, else its subtopic or title)
 function topicIndex(item, topics) {
@@ -539,7 +565,7 @@ function promptForSubject(kind, prepName, subject, allowed, pinned, focus) {
   if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
   const json = JSON.stringify(sample, null, 2);
   const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
-    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   Leave out anything that fits none of them.`
+    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   If an item fits none of them, write "Others" as the topic and put your own short topic name in "subtopic".`
     : `"topic": a short topic name of 2 to 5 words.`;
   const cover = focus && focus.length && !pinned ? `\nCover ONLY these topics: ${focus.join('; ')}.` : '';
   const material = focus && focus.length || pinned ? 'My material (optional; if I give none, use standard textbook knowledge of these topics):' : 'My material:';
