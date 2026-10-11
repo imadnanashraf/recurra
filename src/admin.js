@@ -107,7 +107,7 @@ function renderPerson(note) {
   const act = [];
   if (!self && !gone) act.push(`<button class="mode" type="button" data-au="open"><strong>Open their account</strong><span>See and change their preps, questions and progress as they see them</span></button>`);
   if (u.email && !gone) act.push(`<button class="mode" type="button" data-au="reset"><strong>Send a password reset email</strong><span>They get a link at ${esc(u.email)} to set a new password</span></button>`);
-  if (!self && !gone) act.push(`<div class="au-rename"><label for="auPass">Set a new password</label><div class="row-inline"><div class="pw"><input id="auPass" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters"><button class="pwtoggle" type="button" data-pw="auPass" aria-label="Show password">Show</button></div><button class="btn" type="button" data-au="setpw">Set</button></div><small class="muted">They are signed out on every device and use this password from now on. Tell them the new password yourself.</small></div>`);
+  if (!self && !gone) act.push(`<div class="au-rename"><label for="auPass">Set a new password</label><div class="row-inline"><div class="pw"><input id="auPass" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters"><button class="pwtoggle" type="button" data-pw="auPass" aria-label="Show password">Show</button></div></div><div class="row-inline"><div class="pw"><input id="auPass2" type="password" autocomplete="new-password" minlength="6" placeholder="Type it again"><button class="pwtoggle" type="button" data-pw="auPass2" aria-label="Show password">Show</button></div><button class="btn" type="button" data-au="setpw">Set</button></div><small class="muted">They are signed out on every device and use this password from now on. Tell them the new password yourself.</small><p class="pwstate" id="auPwState"></p></div>`);
   if (!gone) act.push(`<div class="au-rename"><label for="auName">Name</label><div class="row-inline"><input id="auName" maxlength="40" value="${esc(u.name || '')}"><button class="btn" type="button" data-au="rename">Save</button></div></div>`);
   if (!self && !gone) {
     const btns = [];
@@ -123,6 +123,7 @@ function renderPerson(note) {
   if (note) msg('auMsg', note, 'ok');
 }
 async function loadPersonExtras(u) {
+  loadPwState(u);
   $('auPreps').innerHTML = '<h3>Preps</h3><div class="empty">Loading…</div>';
   $('auLog').innerHTML = '<h3>Recent activity</h3><div class="empty">Loading…</div>';
   try {
@@ -163,10 +164,27 @@ async function kickJob() {
     return r.status === 204;
   } catch (e) { return false; }
 }
+// lasting status of the latest admin password change, shown under the password fields
+function showPwState(t) {
+  const el = $('auPwState'); if (!el) return;
+  if (!t) { el.innerHTML = ''; return; }
+  el.innerHTML = t.status === 'done' ? `<span class="badge good">✓ Applied</span> Password last set by admin: ${esc(fmtTime(t.doneAt || t.at))}`
+    : t.status === 'failed' ? `<span class="badge bad">Failed</span> ${esc(t.error || 'The password could not be set.')} (${esc(fmtTime(t.at))})`
+    : `<span class="badge warn">Waiting</span> New password set at ${esc(fmtTime(t.at))}; the account job is applying it…`;
+}
+async function loadPwState(u) {
+  try {
+    const s = await Store.fs.collection('adminTasks').where('uid', '==', u.uid).limit(20).get();
+    const last = s.docs.map(d => d.data() || {}).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+    if (Admin.current !== u) return;
+    showPwState(last || (u.passwordSetAt ? { status: 'done', doneAt: u.passwordSetAt } : null));
+  } catch (e) { showPwState(u.passwordSetAt ? { status: 'done', doneAt: u.passwordSetAt } : null); }
+}
 function watchTask(ref, u) {
   if (typeof ref.onSnapshot !== 'function') return;
   const stop = ref.onSnapshot(s => {
     const t = s.exists ? (s.data() || {}) : {};
+    if (Admin.current === u && (t.status === 'done' || t.status === 'failed')) showPwState(t);
     if (t.status === 'done') { stop(); if (Admin.current === u && visible('adminUser')) msg('auMsg', `Password changed. ${personName(u)} has been signed out and must use the new password.`, 'ok'); else toast('Password changed.'); }
     if (t.status === 'failed') { stop(); if (Admin.current === u && visible('adminUser')) msg('auMsg', `Could not set the password: ${t.error || 'unknown error'}.`, 'err'); }
   }, () => {});
@@ -205,11 +223,13 @@ $('adminUser').addEventListener('click', async e => {
     if (a === 'setpw') {
       const pw = $('auPass').value;
       if (pw.length < 6) return msg('auMsg', 'Use a password of at least 6 characters.', 'err');
+      if (pw !== $('auPass2').value) return msg('auMsg', 'The two passwords do not match.', 'err');
       return confirm(`Set this as <b>${esc(personName(u))}</b>'s new password? They will be signed out on every device.`, 'Set password', async () => {
         const ref = Store.fs.collection('adminTasks').doc();
         await ref.set({ type: 'setPassword', uid: u.uid, email: u.email || '', password: pw, status: 'pending', at: Date.now(), by: App.authUser.email });
         await Activity.log('admin_password_set', {}, whoOf(u));
-        box.innerHTML = ''; $('auPass').value = '';
+        box.innerHTML = ''; $('auPass').value = ''; $('auPass2').value = '';
+        showPwState({ status: 'pending', at: Date.now() });
         const fast = await kickJob();
         msg('auMsg', fast ? 'Setting the password… this usually takes under a minute.' : 'Saved. It is applied at the next scheduled run, within about 10 minutes. Add a GitHub key in Settings → Admin to make it take under a minute.', 'ok');
         watchTask(ref, u);

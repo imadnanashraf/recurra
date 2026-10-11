@@ -13,7 +13,7 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(uid)) && profile(uid).data.get('status', 'active') in ['deleting', 'deleted', 'disabled'];
     }
     // fields only the admin (or the account job) may set
-    function adminFields() { return ['status', 'deleteAt', 'deleteRequestedAt', 'disabledAt', 'deletedAt', 'authDisabled', 'test', 'signOutAt']; }
+    function adminFields() { return ['status', 'deleteAt', 'deleteRequestedAt', 'disabledAt', 'deletedAt', 'authDisabled', 'test', 'signOutAt', 'passwordSetAt']; }
 
     match /users/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);

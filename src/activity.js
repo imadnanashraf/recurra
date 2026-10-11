@@ -114,6 +114,7 @@ const ACTIONS = {
   admin_opened_account: ['Admin', 'Admin opened this account'],
   admin_reset_sent: ['Admin', 'Admin sent a password reset email'],
   admin_password_set: ['Admin', 'Admin set a new password'],
+  password_applied: ['Admin', 'New password applied (they were signed out everywhere)'],
   admin_renamed: ['Admin', d => `Admin renamed the account to "${d.name}"`],
   admin_disabled: ['Admin', 'Admin turned the account off'],
   admin_enabled: ['Admin', 'Admin turned the account back on'],

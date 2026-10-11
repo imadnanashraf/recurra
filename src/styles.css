@@ -940,3 +940,6 @@ svg.chart { display: block; max-width: 100%; height: auto; overflow: visible; to
 .ghkey summary { cursor: pointer; font-weight: 700; font-size: .95rem; padding: 4px 0; }
 .ghkey[open] { display: grid; gap: 8px; }
 .ghkey input { flex: 1 1 12rem; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+.au-rename .row-inline + .row-inline { margin-top: 8px; }
+.pwstate { margin: 8px 0 0; font-size: .85rem; color: var(--muted); }
+.pwstate:empty { display: none; }

@@ -35,7 +35,8 @@ for (const t of tasks.docs) {
     if (x.type === 'setPassword') {
       await auth.updateUser(x.uid, { password: x.password });
       await auth.revokeRefreshTokens(x.uid);
-      await db.doc(`users/${x.uid}`).set({ signOutAt: Date.now() }, { merge: true });   // their open app signs out now
+      await db.doc(`users/${x.uid}`).set({ signOutAt: Date.now(), passwordSetAt: Date.now() }, { merge: true });   // their open app signs out now
+      await log({ action: 'password_applied', uid: x.uid, email: x.email || '', name: '' });
     }
     await t.ref.update({ status: 'done', doneAt: Date.now(), password: admin.firestore.FieldValue.delete() });
     tasksDone++;
