@@ -1210,3 +1210,6 @@ mark { background: color-mix(in srgb, var(--sun) 35%, transparent); color: inher
 .bq-record .signal { flex: none; }
 .bank-link .n .ic { width: 20px; height: 20px; }
 .rl-t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.prompt-view { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--bg); }
+.prompt-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+pre.prompt-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 26rem; overflow-y: auto; font-size: .78rem; }

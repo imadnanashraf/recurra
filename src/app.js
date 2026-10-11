@@ -855,6 +855,12 @@ function openImport(target, kind, opts = {}) {
   $('impText').value = ''; $('impFile').value = ''; msg('impMsg', '');
   renderImport(); show('import');
 }
+// the prompt "Copy AI prompt" copies right now: for the chosen kind, subject and topic
+function currentPrompt() {
+  const { kind } = App.imp, sub = (kind === 'mcq' || kind === 'notes') && App.subjects.find(s => s.code === App.imp.subject);
+  return sub ? promptForSubject(kind, App.prep, sub, sub.topics || [], App.imp.topic, App.imp.focus)
+    : promptFor(kind, App.prep || 'my exam', App.subjects);
+}
 function renderImport() {
   const { target, kind } = App.imp;
   const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
@@ -877,12 +883,14 @@ function renderImport() {
         <li>Copy the JSON it replies with and paste it below, then tap <strong>Check</strong>.</li>
       </ol>
       <div class="btns"><button class="btn primary" type="button" id="copyPrompt">Copy AI prompt</button>
-      <button class="btn" type="button" id="toggleSample">Show sample format</button></div>
+      <button class="btn" type="button" id="togglePrompt">${App.imp.showPrompt ? 'Hide prompt' : 'Show prompt'}</button>
+      <button class="btn ghost" type="button" id="toggleSample">Show sample format</button></div>
+      <div class="prompt-view" id="promptBox"${App.imp.showPrompt ? '' : ' hidden'}><div class="prompt-bar"><span class="label">The exact prompt that will be copied</span><button class="btn small" type="button" id="copyPrompt2">Copy</button></div><pre class="sample prompt-text">${esc(currentPrompt())}</pre></div>
       <pre class="sample" id="sampleBox" hidden>${esc(JSON.stringify(SAMPLES[kind], null, 2))}</pre>`;
-    $('copyPrompt').onclick = () => copyText(sub
-      ? promptForSubject(kind, App.prep.name, sub, sub.topics || [], App.imp.topic, App.imp.focus)
-      : promptFor(kind, App.prep ? App.prep.name : 'my exam', App.subjects), sub ? `Prompt for ${sub.name} copied. Paste it into your AI chat.` : 'Prompt copied. Paste it into your AI chat.');
-    $('toggleSample').onclick = () => { const b = $('sampleBox'); b.hidden = !b.hidden; $('toggleSample').textContent = b.hidden ? 'Show sample format' : 'Hide sample format'; };
+    const copied = sub ? `Prompt for ${sub.name} copied. Paste it into your AI chat.` : 'Prompt copied. Paste it into your AI chat.';
+    $('copyPrompt').onclick = $('copyPrompt2').onclick = () => copyText(currentPrompt(), copied);
+    $('togglePrompt').onclick = () => { const b = $('promptBox'); b.hidden = !b.hidden; App.imp.showPrompt = !b.hidden; $('togglePrompt').textContent = b.hidden ? 'Show prompt' : 'Hide prompt'; if (!b.hidden) $('sampleBox').hidden = true, $('toggleSample').textContent = 'Show sample format'; };
+    $('toggleSample').onclick = () => { const b = $('sampleBox'); b.hidden = !b.hidden; $('toggleSample').textContent = b.hidden ? 'Show sample format' : 'Hide sample format'; if (!b.hidden) $('promptBox').hidden = true, App.imp.showPrompt = false, $('togglePrompt').textContent = 'Show prompt'; };
   }
   renderSubjectsCard();
   renderPreview();
@@ -912,7 +920,7 @@ function renderPick() {
         <option value="">Whole subject (any of its ${topics.length} topics)</option>
         ${App.imp.focus ? `<option value="__focus" selected>Only the ${plural(App.imp.focus.length, 'empty topic')}</option>` : ''}
         ${topics.map(t => `<option value="${esc(t)}"${App.imp.topic === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}
-      </select></label>` : `<p class="muted small">This subject has no syllabus topics, so any topic name is accepted. Add topics on the Syllabus tab to make the check stricter.</p>`}`;
+      </select></label>` : `<p class="muted small">This subject has no syllabus topics yet, so the AI names the topics itself. Add topics on the Syllabus tab to group questions your way.</p>`}`;
   const sel = $('impTopic');
   if (sel) sel.onchange = () => { const v = sel.value; App.imp.topic = v && v !== '__focus' ? v : ''; if (v !== '__focus') App.imp.focus = null; App.imp.checked = null; renderImport(); if ($('impText').value.trim()) doCheck(); };
 }
@@ -1013,7 +1021,14 @@ function doCheck() {
       ? `This is a ${KIND_LABEL[parsed.kind]} file. Create the prep first (from a syllabus or an empty prep), then add it from Today with “Add questions or notes”.`
       : 'This is a whole prep file. Add it from the preps list (tap the prep name at the top), then “From a syllabus or prep file”.', 'err');
   }
-  if (parsed.kind !== App.imp.kind) { App.imp.kind = parsed.kind; renderImport(); }
+  if (parsed.kind !== App.imp.kind) {
+    if (App.imp.target === 'new') { App.imp.kind = parsed.kind; renderImport(); }      // syllabus ⇄ prep file: harmless
+    else {                                                                               // never slip MCQs or notes in by the wrong button
+      App.imp.checked = null; renderPreview();
+      const what = KIND_LABEL[parsed.kind], here = KIND_LABEL[App.imp.kind];
+      return msg('impMsg', `Nothing was added. This looks like ${what}, but you are on ${here}. ${parsed.kind === 'syllabus' ? 'Tap Syllabus' : `Tap ${what} and pick the subject`} first, then paste it again.`, 'err');
+    }
+  }
   App.imp.checked = checkImport(parsed, App.imp.target);
   msg('impMsg', '');
   renderPreview();

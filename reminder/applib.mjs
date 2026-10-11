@@ -503,7 +503,7 @@ const hasTopics = (subjects, focus) => !!focus || subjects.some(s => (s.topics |
 
 function promptFor(kind, prepName, subjects, focus) {
   const json = JSON.stringify(SAMPLES[kind], null, 2);
-  if (kind === 'syllabus') return `Convert the exam syllabus I attach (PDF, photo or text) into JSON for my revision app.
+  if (kind === 'syllabus') return `${subjects && subjects.length ? examLine(prepName) + '\n' : ''}Convert the exam syllabus I attach (PDF, photo or text) into JSON for my revision app.
 
 Reply with ONLY one JSON code block in exactly this format:
 ${json}
@@ -515,11 +515,14 @@ Rules:
 4. "marking": marks for a correct answer, marks for a wrong answer (a negative number, 0 if no negative marking), total number of questions, and duration in minutes. Use 0 for anything not given.
 5. Copy subject names as they are written in the syllabus.
 6. "topics": every topic listed under that subject, one short item each, copied as written. Split long comma-separated lists into separate topics. Use [] if none are listed.
-
+${subjects && subjects.length ? `7. I already have these subjects. When the syllabus has one of them, use exactly this code and name, so nothing is added twice:
+${subjects.map(x => `   ${x.code} = ${x.name}`).join('\n')}
+   Make new codes only for subjects that are not in this list.
+` : ''}
 My syllabus:
 [attach the PDF or photo, or paste the text here]`;
 
-  if (kind === 'mcq') return `I am preparing for "${prepName}". Turn the study material at the end of this message into exam-style multiple-choice questions for my revision app.
+  if (kind === 'mcq') return `${examLine(prepName)} Turn the study material at the end of this message into exam-style multiple-choice questions for my revision app.
 
 Reply with ONLY one JSON code block in exactly this format:
 ${json}
@@ -539,7 +542,7 @@ ${subjectLines(subjects, focus)}${hasTopics(subjects, focus) ? `\n   For "topic"
 ${focus ? `My material (optional; if I give none, use standard textbook knowledge of these topics):` : 'My material:'}
 [paste your notes here, or attach the PDF or photo]`;
 
-  return `I am preparing for "${prepName}". From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
+  return `${examLine(prepName)} From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
 
 Reply with ONLY one JSON code block in exactly this format:
 ${json}
@@ -559,17 +562,28 @@ ${focus ? `My material (optional; if I give none, use standard textbook knowledg
 
 // The AI prompt for MCQs or notes of ONE subject. The AI never writes a subject: the app adds it.
 // allowed = the topics the AI may use (the subject's syllabus topics), pinned = one fixed topic, focus = topics to cover
-function promptForSubject(kind, prepName, subject, allowed, pinned, focus) {
+// "JKSSB SI Telecom" (exam on 30 Dec 2026) — prep may be a name or the prep itself
+function examLine(prep) {
+  const name = typeof prep === 'string' ? prep : (prep && prep.name) || 'my exam';
+  const d = prep && typeof prep === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(prep.examDate || '') ? prep.examDate : '';
+  const when = d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return `I am preparing for the exam "${name}"${when ? ` (exam on ${when})` : ''}.`;
+}
+const subjectInfo = s => [s.part && `Part ${s.part}`, s.marks ? `${s.marks} marks` : ''].filter(Boolean).join(', ');
+function promptForSubject(kind, prep, subject, allowed, pinned, focus) {
   const strip = o => { const c = { ...o }; delete c.subject; return c; };
   const sample = kind === 'mcq' ? { type: 'mcq', questions: SAMPLES.mcq.questions.map(strip) } : { type: 'notes', notes: SAMPLES.notes.notes.map(strip) };
   if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
   const json = JSON.stringify(sample, null, 2);
   const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
-    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   If an item fits none of them, write "Others" as the topic and put your own short topic name in "subtopic".`
+    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   If an item fits none of them, write "Others" as the topic and suggest a short new topic name (2 to 5 words) in "subtopic".`
     : `"topic": a short topic name of 2 to 5 words.`;
   const cover = focus && focus.length && !pinned ? `\nCover ONLY these topics: ${focus.join('; ')}.` : '';
   const material = focus && focus.length || pinned ? 'My material (optional; if I give none, use standard textbook knowledge of these topics):' : 'My material:';
-  if (kind === 'mcq') return `I am preparing for "${prepName}". Turn the study material at the end of this message into exam-style multiple-choice questions for my revision app.
+  const info = subjectInfo(subject), subjLine = `Subject: ${subject.name}${info ? ` (${info})` : ''}.`;
+  if (kind === 'mcq') return `${examLine(prep)}
+${subjLine}
+Turn the study material at the end of this message into multiple-choice questions at the level of this exam, for my revision app.
 Every question is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
 
 Reply with ONLY one JSON code block in exactly this format:
@@ -588,7 +602,9 @@ Rules:
 
 ${material}
 [paste your notes here, or attach the PDF or photo]`;
-  return `I am preparing for "${prepName}". From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
+  return `${examLine(prep)}
+${subjLine}
+From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
 Every note is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
 
 Reply with ONLY one JSON code block in exactly this format:
