@@ -120,6 +120,7 @@
     <div class="cols2">
       <div class="col">
       <div class="chips" id="impKinds" role="group" aria-label="What are you adding?"></div>
+      <div class="card pickcard" id="impPick" hidden></div>
       <div class="card subjcard" id="impSubjects" hidden></div>
       <div class="card" id="impHelp"></div>
       <div class="card soon">
@@ -129,7 +130,7 @@
       </div>
       </div>
       <div class="col">
-      <div class="card form">
+      <div class="card form" id="impPaste">
         <label for="impText">Paste the JSON here</label>
         <textarea id="impText" spellcheck="false" placeholder='{ "type": "mcq", "questions": [ ... ] }'></textarea>
         <div class="row-inline">

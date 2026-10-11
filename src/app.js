@@ -847,8 +847,10 @@ function exportPrep() {
 
 /* ---------- import screen ---------- */
 const KIND_LABEL = { mcq: 'MCQs', notes: 'Revision notes', syllabus: 'Syllabus', prep: 'Prep file' };
-function openImport(target, kind) {
-  App.imp = { target, kind, checked: null, back: visible('preps') ? 'preps' : 'home' };
+// opts: { subject: CODE, topic: 'one topic', focus: ['topics to cover'] } (from the Syllabus tab)
+function openImport(target, kind, opts = {}) {
+  App.imp = { target, kind, checked: null, back: visible('preps') ? 'preps' : visible('syllabus') ? 'syllabus' : 'home',
+    subject: opts.subject || (App.subjects.length === 1 && target !== 'new' ? App.subjects[0].code : null), topic: opts.topic || '', focus: opts.focus || null };
   $('impText').value = ''; $('impFile').value = ''; msg('impMsg', '');
   renderImport(); show('import');
 }
@@ -857,11 +859,16 @@ function renderImport() {
   const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
   $('impTitle').textContent = target === 'new' ? 'New prep from a file' : `Add to ${App.prep ? App.prep.name : ''}`;
   $('impKinds').innerHTML = kinds.map(k => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${k === kind}">${KIND_LABEL[k]}</button>`).join('');
+  const perSubject = target !== 'new' && (kind === 'mcq' || kind === 'notes'), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
+  if (perSubject && !sub) App.imp.subject = null;
+  $('impHelp').hidden = $('impPaste').hidden = perSubject && !sub;
+  renderPick();
+  if (perSubject && !sub) { $('impPreview').hidden = true; renderSubjectsCard(); return; }
   if (kind === 'prep') {
     $('impHelp').innerHTML = `<strong>Prep file</strong><p class="muted">A prep file is what <em>Export</em> makes on the Preps screen. Use it to copy a whole prep (syllabus, questions and notes) from a friend. Choose the file or paste its text below.</p>`;
   } else {
-    const what = kind === 'syllabus' ? 'your syllabus' : 'your study notes';
-    $('impHelp').innerHTML = `<strong>How to make this with any AI chat</strong>
+    const what = kind === 'syllabus' ? 'your syllabus' : `your study notes on ${sub ? sub.name : 'the subject'}`;
+    $('impHelp').innerHTML = `<strong>${sub ? `How to make ${kind === 'mcq' ? 'MCQs' : 'notes'} for ${esc(sub.name)}` : 'How to make this with any AI chat'}</strong>
       <ol class="steps">
         <li>Tap <strong>Copy AI prompt</strong>.</li>
         <li>Open ChatGPT, Claude or Gemini, paste the prompt, and attach or paste ${what} (PDF, photo or text; English or Hinglish is fine).</li>
@@ -870,15 +877,49 @@ function renderImport() {
       <div class="btns"><button class="btn primary" type="button" id="copyPrompt">Copy AI prompt</button>
       <button class="btn" type="button" id="toggleSample">Show sample format</button></div>
       <pre class="sample" id="sampleBox" hidden>${esc(JSON.stringify(SAMPLES[kind], null, 2))}</pre>`;
-    const noSubjects = target !== 'new' && !App.subjects.length && (kind === 'mcq' || kind === 'notes');
-    $('copyPrompt').disabled = noSubjects;
-    if (noSubjects) $('copyPrompt').insertAdjacentHTML('afterend', '<span class="muted small hint-inline">Add a subject above first.</span>');
-    $('copyPrompt').onclick = () => copyText(promptFor(kind, App.prep ? App.prep.name : 'my exam', App.subjects), 'Prompt copied. Paste it into your AI chat.');
+    $('copyPrompt').onclick = () => copyText(sub
+      ? promptForSubject(kind, App.prep.name, sub, sub.topics || [], App.imp.topic, App.imp.focus)
+      : promptFor(kind, App.prep ? App.prep.name : 'my exam', App.subjects), sub ? `Prompt for ${sub.name} copied. Paste it into your AI chat.` : 'Prompt copied. Paste it into your AI chat.');
     $('toggleSample').onclick = () => { const b = $('sampleBox'); b.hidden = !b.hidden; $('toggleSample').textContent = b.hidden ? 'Show sample format' : 'Hide sample format'; };
   }
   renderSubjectsCard();
   renderPreview();
 }
+// Step 1 for MCQs and notes: which subject (and, optionally, which topic) they are for
+function renderPick() {
+  const box = $('impPick'), { target, kind } = App.imp, on = target !== 'new' && (kind === 'mcq' || kind === 'notes') && !!App.prep;
+  box.hidden = !on || !App.subjects.length; if (box.hidden) return;
+  const sub = App.subjects.find(s => s.code === App.imp.subject), word = kind === 'mcq' ? 'questions' : 'notes';
+  if (!sub) {
+    box.classList.remove('chosen');
+    box.innerHTML = `<strong class="pick-q">Which subject are these ${word} for?</strong>
+      <p class="muted small">Pick one. The AI prompt is made for that subject only, and the app checks that everything you paste belongs to it.</p>
+      <div class="pick-grid">${App.subjects.map(s => {
+        const nq = App.questions.filter(q => q.code === s.code).length, nn = App.notes.filter(n => n.code === s.code).length;
+        return `<button class="pick" type="button" data-pick="${esc(s.code)}"><b>${esc(s.code)}</b><span>${esc(s.name)}</span><small>${plural(nq, 'question')} · ${plural(nn, 'note')}</small></button>`;
+      }).join('')}</div>
+      <button class="linkbtn" type="button" data-pickmanage>+ New subject</button>`;
+    return;
+  }
+  box.classList.add('chosen');
+  const topics = sub.topics || [];
+  box.innerHTML = `<div class="pick-chosen"><span class="pick-badge">${esc(sub.code)}</span><div><small class="muted">${kind === 'mcq' ? 'MCQs' : 'Notes'} for</small><strong>${esc(sub.name)}</strong></div>
+      <button class="btn ghost" type="button" data-pickchange>Change</button></div>
+    ${topics.length ? `<label class="pick-topic">Topic <span class="muted">optional</span>
+      <select id="impTopic">
+        <option value="">Whole subject (any of its ${topics.length} topics)</option>
+        ${App.imp.focus ? `<option value="__focus" selected>Only the ${plural(App.imp.focus.length, 'empty topic')}</option>` : ''}
+        ${topics.map(t => `<option value="${esc(t)}"${App.imp.topic === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+      </select></label>` : `<p class="muted small">This subject has no syllabus topics, so any topic name is accepted. Add topics on the Syllabus tab to make the check stricter.</p>`}`;
+  const sel = $('impTopic');
+  if (sel) sel.onchange = () => { const v = sel.value; App.imp.topic = v && v !== '__focus' ? v : ''; if (v !== '__focus') App.imp.focus = null; App.imp.checked = null; renderImport(); if ($('impText').value.trim()) doCheck(); };
+}
+$('impPick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.pick) { App.imp.subject = b.dataset.pick; App.imp.topic = ''; App.imp.focus = null; App.imp.checked = null; renderImport(); if ($('impText').value.trim()) doCheck(); }
+  if ('pickchange' in b.dataset) { App.imp.subject = null; App.imp.topic = ''; App.imp.focus = null; App.imp.checked = null; msg('impMsg', ''); renderImport(); }
+  if ('pickmanage' in b.dataset) { App.imp.manage = true; renderSubjectsCard(); if ($('impSubjects').scrollIntoView) $('impSubjects').scrollIntoView({ block: 'center' }); }
+});
 /* ---------- subjects of a prep, added and edited by hand ---------- */
 function suggestCode(name, taken) {
   const words = name.replace(/&/g, ' ').split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(w => w && !/^(and|of|the|for|in)$/i.test(w));
@@ -888,7 +929,8 @@ function suggestCode(name, taken) {
   return code;
 }
 function renderSubjectsCard() {
-  const box = $('impSubjects'), active = App.imp && App.imp.target !== 'new' && !!App.prep;
+  const perSubject = App.imp && (App.imp.kind === 'mcq' || App.imp.kind === 'notes');
+  const box = $('impSubjects'), active = App.imp && App.imp.target !== 'new' && !!App.prep && (!perSubject || !App.subjects.length || (App.imp.manage && !App.imp.subject));
   box.hidden = !active; if (!active) return;
   const subs = App.subjects, none = !subs.length, needs = App.imp.kind === 'mcq' || App.imp.kind === 'notes';
   const used = code => App.questions.some(q => q.code === code) || App.notes.some(n => n.code === code);
@@ -922,6 +964,7 @@ function renderSubjectsCard() {
     try {
       await Store.setPrep(App.prepId, { subjects: next });
       App.subjects = next; App.prep.subjects = next; App.imp.editSubject = null; rebuild();
+      if (!editing && !App.imp.subject && (App.imp.kind === 'mcq' || App.imp.kind === 'notes')) { App.imp.subject = code; App.imp.manage = false; }   // a new subject added here is the one you want
       Activity.log('subject_saved', { prep: App.prep.name, subject: name, edit: !!editing });
       renderImport(); toast(editing ? 'Subject saved.' : `Added ${name}.`);
     } catch (e) { $('sSave').disabled = false; msg('sMsg', 'Could not save. Check your internet.', 'err'); }
@@ -944,7 +987,7 @@ $('impKinds').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]'); if (!b) return;
   App.imp.kind = b.dataset.kind; App.imp.checked = null; renderImport();
 });
-$('impBack').addEventListener('click', () => { if (App.imp.back === 'preps' || !App.prep) showPreps(); else show('home'); });
+$('impBack').addEventListener('click', () => { if (App.imp.back === 'preps' || !App.prep) showPreps(); else if (App.imp.back === 'syllabus') MODES.syllabus(); else show('home'); });
 $('impFile').addEventListener('change', () => {
   const f = $('impFile').files[0]; if (!f) return;
   const r = new FileReader();
@@ -993,8 +1036,40 @@ function checkImport(parsed, target) {
     }
     return out;
   }
+  // MCQs and notes belong to the ONE chosen subject; anything for another subject or topic stops the whole paste
+  const strict = target !== 'new' && (parsed.kind === 'mcq' || parsed.kind === 'notes') && App.imp && App.imp.subject;
+  const sub = strict && App.subjects.find(s => s.code === App.imp.subject);
+  const wrongSubjects = {};
+  if (sub) {
+    const list = (parsed.kind === 'mcq' ? d.questions : d.notes) || [];
+    list.forEach(it => {
+      if (!it || typeof it !== 'object') return;
+      const raw = String(it.subject ?? it.subjectCode ?? it.code ?? '').trim();
+      const m = raw && App.subjects.find(s => s.code === raw.toUpperCase() || s.name.toLowerCase() === raw.toLowerCase());
+      if (!raw || (m && m.code === sub.code)) { it.subject = sub.code; if (App.imp.topic && !String(it.topic || '').trim()) it.topic = App.imp.topic; return; }
+      const key = m ? m.code : raw;
+      wrongSubjects[key] = wrongSubjects[key] || { key, code: m ? m.code : null, name: m ? m.name : raw, n: 0 };
+      wrongSubjects[key].n++;
+    });
+  }
+  const topicCheck = items => {
+    const allowed = !sub ? [] : App.imp.topic ? [App.imp.topic] : sub.topics || [];
+    const off = [];
+    if (allowed.length) items.forEach(it => {
+      if (it.subject !== sub.code) return;     // already reported as another subject
+      const i = topicIndex(it, allowed);
+      if (i < 0) {
+        const elsewhere = App.imp.topic ? (sub.topics || []).find(t => topicIndex(it, [t]) >= 0) : null;
+        off.push({ title: it.question || it.title, topic: it.topic, elsewhere });
+      } else it.topic = allowed[i];              // the syllabus spelling, so it matches everywhere
+    });
+    return off;
+  };
+  const blockedBy = off => (Object.keys(wrongSubjects).length || off.length) ? { blocked: true, wrongSubjects: Object.values(wrongSubjects), offTopic: off, subject: sub } : {};
   if (parsed.kind === 'mcq') {
     const r = cleanQuestions(d.questions || [], subjects, today);
+    const off = topicCheck(r.questions), block = blockedBy(off);
+    if (block.blocked) return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block };
     let fresh = 0, updated = 0, same = 0;
     r.questions.forEach(q => {
       const old = App.bank[q.id];
@@ -1005,6 +1080,7 @@ function checkImport(parsed, target) {
     return { kind: 'mcq', questions: r.questions, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same };
   }
   const r = cleanNotes(d.notes || [], subjects, today);
+  { const off = topicCheck(r.notes), block = blockedBy(off); if (block.blocked) return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: [], fresh: 0, updated: 0, same: 0, ...block }; }
   let fresh = 0, updated = 0, same = 0;
   r.notes.forEach(n => { const old = App.notesMap[n.id]; if (!old) fresh++; else if (JSON.stringify({ ...old, added: '' }) === JSON.stringify({ ...n, added: '' })) same++; else updated++; });
   return { kind: 'notes', notes: r.notes, problems: r.problems, newSubjects: r.newSubjects, fresh, updated, same };
@@ -1016,6 +1092,25 @@ function renderPreview() {
   if (!c) { box.innerHTML = ''; return; }
   const parts = [];
   let canAdd = false, addLabel = 'Add';
+  if (c.blocked) {
+    const word = c.kind === 'mcq' ? 'question' : 'note', sub = c.subject;
+    box.classList.add('blocked');
+    parts.push(`<strong class="msg err">Nothing was added</strong><span>Everything you paste here must be for <b>${esc(sub.name)}</b>${App.imp.topic ? `, topic <b>${esc(App.imp.topic)}</b>` : ''}.</span>`);
+    c.wrongSubjects.forEach(w => parts.push(`<div class="block-row"><span>${plural(w.n, word)} ${w.n === 1 ? 'is' : 'are'} meant for <b>${esc(w.name)}</b>${w.code ? '' : ', which is not a subject in this prep'}.</span>
+      ${w.code ? `<button class="btn" type="button" data-impswitch="${esc(w.code)}">Switch to ${esc(w.name)}</button>` : ''}</div>`));
+    if (c.offTopic.length) {
+      const names = [...new Set(c.offTopic.map(o => !o.topic || o.topic === 'General' ? 'no topic' : o.topic))];
+      const where = c.offTopic.find(o => o.elsewhere);
+      parts.push(`<div class="block-row"><span>${plural(c.offTopic.length, word)} ${c.offTopic.length === 1 ? 'does' : 'do'} not fit ${App.imp.topic ? `the topic “${esc(App.imp.topic)}”` : `any topic of ${esc(sub.name)}`}: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}. ${App.imp.topic ? '' : c.offTopic.length === 1 ? 'It may be meant for another subject.' : 'They may be meant for another subject.'}</span>
+        ${App.imp.topic ? `<button class="btn" type="button" data-impwhole>Use the whole subject instead</button>${where ? `<span class="muted small">Some are about “${esc(where.elsewhere)}”.</span>` : ''}`
+          : `<button class="btn" type="button" data-impaddtopics="${esc(JSON.stringify(names.filter(n => n !== 'no topic')))}">${names.filter(n => n !== 'no topic').length ? `Add ${plural(names.filter(n => n !== 'no topic').length, 'topic')} to ${esc(sub.name)}'s syllabus` : ''}</button>`}</div>`);
+    }
+    parts.push(`<span class="muted small">Fix the pasted text or ask the AI again with the prompt above, then tap Check.</span>`);
+    box.innerHTML = parts.join('');
+    box.querySelectorAll('[data-impaddtopics]').forEach(b => { if (!b.textContent.trim()) b.remove(); });
+    return;
+  }
+  box.classList.remove('blocked');
   if (c.kind === 'mcq' || c.kind === 'notes') {
     const word = c.kind === 'mcq' ? 'question' : 'note';
     parts.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.same ? `, ${c.same} already in the app` : ''}</strong>`);
@@ -1041,6 +1136,18 @@ function renderPreview() {
   box.innerHTML = parts.join('');
   const add = $('impAdd'); if (add) add.onclick = () => applyImport(add);
 }
+$('impPreview').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.impswitch) { App.imp.subject = b.dataset.impswitch; App.imp.topic = ''; App.imp.focus = null; renderImport(); doCheck(); }
+  if ('impwhole' in b.dataset) { App.imp.topic = ''; renderImport(); doCheck(); }
+  if (b.dataset.impaddtopics) {
+    const add = JSON.parse(b.dataset.impaddtopics), code = App.imp.subject;
+    const next = App.subjects.map(s => s.code === code ? { ...s, topics: [...(s.topics || []), ...add.filter(t => !(s.topics || []).some(x => normTopic(x) === normTopic(t)))] } : s);
+    b.disabled = true;
+    try { await saveSubjects(next); toast(`Added ${plural(add.length, 'topic')} to the syllabus.`); renderImport(); doCheck(); }
+    catch (err) { b.disabled = false; toast('Could not save. Check your internet.'); }
+  }
+});
 
 async function applyImport(btn) {
   const c = App.imp.checked;

@@ -531,4 +531,53 @@ ${focus ? `My material (optional; if I give none, use standard textbook knowledg
 [paste your notes here, or attach the PDF or photo]`;
 }
 
+// The AI prompt for MCQs or notes of ONE subject. The AI never writes a subject: the app adds it.
+// allowed = the topics the AI may use (the subject's syllabus topics), pinned = one fixed topic, focus = topics to cover
+function promptForSubject(kind, prepName, subject, allowed, pinned, focus) {
+  const strip = o => { const c = { ...o }; delete c.subject; return c; };
+  const sample = kind === 'mcq' ? { type: 'mcq', questions: SAMPLES.mcq.questions.map(strip) } : { type: 'notes', notes: SAMPLES.notes.notes.map(strip) };
+  if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
+  const json = JSON.stringify(sample, null, 2);
+  const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
+    : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   Leave out anything that fits none of them.`
+    : `"topic": a short topic name of 2 to 5 words.`;
+  const cover = focus && focus.length && !pinned ? `\nCover ONLY these topics: ${focus.join('; ')}.` : '';
+  const material = focus && focus.length || pinned ? 'My material (optional; if I give none, use standard textbook knowledge of these topics):' : 'My material:';
+  if (kind === 'mcq') return `I am preparing for "${prepName}". Turn the study material at the end of this message into exam-style multiple-choice questions for my revision app.
+Every question is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
+
+Reply with ONLY one JSON code block in exactly this format:
+${json}
+
+Rules:
+1. ${topicRule}
+2. Give exactly 4 options. "answer" must be copied exactly from "options" (the option text, never a letter like "A").
+3. Mix the question types and write the type in "type": Factual, Conceptual, Application, Comparison, Confusion, Trap.
+4. "difficulty": Easy, Medium or Hard.
+5. "explanation": 1 to 3 short sentences in simple English: why the answer is right and why the most tempting wrong option is wrong.
+6. "hint": a short memory trick. "trap": the mistake examiners try to catch. "concept": the idea being tested.
+7. Write in simple English even if my material is in Hinglish.
+8. Use only facts from my material or standard textbook facts. If my material looks wrong, use the correct fact and mention it in the explanation.
+9. Make 15 to 25 questions. Do not add an "id".
+
+${material}
+[paste your notes here, or attach the PDF or photo]`;
+  return `I am preparing for "${prepName}". From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
+Every note is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
+
+Reply with ONLY one JSON code block in exactly this format:
+${json}
+
+Rules:
+1. ${topicRule}
+2. One note per important idea, or per pair of concepts that are easy to confuse.
+3. "keyDifference": one sentence for comparisons; use "" if the note is not a comparison.
+4. "points": 3 to 6 short points. "memoryTrick" and "examTrap": one short sentence each.
+5. Write in simple English even if my material is in Hinglish. Keep it short and to the point.
+6. Make 5 to 12 notes. Do not add an "id".
+
+${material}
+[paste your notes here, or attach the PDF or photo]`;
+}
+
 export { cleanSyllabus, cleanQuestions, cleanNotes, applyResult, dayKey, addDays, dayStart, sumDay, SCHEDULE };

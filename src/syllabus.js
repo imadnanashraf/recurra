@@ -131,7 +131,7 @@ $('syllabus').addEventListener('click', async e => {
       return;
     }
     if ('topen' in d) { Syl.open = Syl.open === d.topen ? null : d.topen; return renderSyllabus(); }
-    if ('sedit' in d) { Syl.edit = d.sedit; Syl.open = null; renderSyllabus(); $('sylList').querySelector('.editing').scrollIntoView({ block: 'center' }); return; }
+    if ('sedit' in d) { Syl.edit = d.sedit; Syl.open = null; renderSyllabus(); { const el = $('sylList').querySelector('.editing'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' }); } return; }
     if ('scancel' in d) { Syl.edit = null; return renderSyllabus(); }
     if ('simport' in d) return openImport('active', 'syllabus');
     if ('ssave' in d) {
@@ -151,15 +151,12 @@ $('syllabus').addEventListener('click', async e => {
       const pool = App.questions.filter(q => T.ids.includes(q.id)), lv = q => { const s = getState(q.id); return s ? s.lv : -1; };
       return startSession(T.name, shuffle(shuffle(pool).sort((a, b) => lv(a) - lv(b)).slice(0, 30)));
     }
-    if ('sgaps' in d) {
-      const st = sylStats(), focus = {};
-      st.filter(x => !d.sgaps || x.s.code === d.sgaps).forEach(x => {
-        const g = d.name ? [d.name] : x.gaps.map(t => t.name);
-        if (g.length) focus[x.s.code] = g.slice(0, 25);
-      });
-      if (!Object.keys(focus).length) return toast('Every topic already has questions.');
-      const n = Object.values(focus).reduce((a, b) => a + b.length, 0);
-      await copyText(promptFor('mcq', App.prep.name, App.subjects, focus), `Prompt for ${plural(n, 'topic')} copied. Paste it into your AI chat, then add the reply with “Add questions or notes”.`);
+    if ('sgaps' in d) {                       // each subject gets its own prompt, opened in the add-questions flow
+      const st = sylStats().filter(x => x.gaps.length && (!d.sgaps || x.s.code === d.sgaps));
+      if (!st.length) return toast('Every topic already has questions.');
+      if (d.name) return openImport('active', 'mcq', { subject: d.sgaps, topic: d.name });
+      if (!d.sgaps && st.length > 1) { const card = $('sylList').querySelector(`[data-code="${st[0].s.code}"]`); if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center' }); return toast(`${st.length} subjects have empty topics. Use “Get questions” under each one.`); }
+      return openImport('active', 'mcq', { subject: st[0].s.code, focus: st[0].gaps.map(t => t.name).slice(0, 25) });
     }
   } catch (err) { console.warn(err); toast('That did not work. Check your internet and try again.'); }
 });
