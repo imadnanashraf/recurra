@@ -22,7 +22,7 @@ const myOptions = (room, i) => seededShuffle(room.qs[i].options, seedOf(LT.rid +
 
 /* ---------- who is who ---------- */
 const ltName = uid => uid === meUid() ? 'You' : (Social.people[uid] ? (Social.people[uid].first || fullName(Social.people[uid])) : 'Someone');
-const ltPerson = uid => uid === meUid() ? { uid, ...App.profile } : (Social.people[uid] || { uid, username: '' });
+const ltPerson = uid => uid === meUid() ? mePerson() : (Social.people[uid] || { uid, username: '' });
 const joined = () => Object.values(LT.players).filter(p => p.joinedAt).sort((a, b) => a.joinedAt - b.joinedAt);
 const roomOver = () => { const r = LT.room; if (!r) return false; if (r.status === 'done' || r.status === 'cancelled') return true; if (r.status !== 'live') return false; const J = joined(); return Date.now() >= r.endAt || (J.length && J.every(p => p.finishedAt)); };
 function ranking() {
@@ -367,14 +367,16 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- invites: live, in the Tests tab (badge + pop-up anywhere in the app) ---------- */
-const Invites = { unsub: null, rooms: [], first: true };
+const Invites = { unsub: null, histUnsub: null, rooms: [], first: true, played: new Set() };
 const seenRooms = () => { try { return new Set(JSON.parse(localStorage.getItem('rc-seenrooms-' + meUid()) || '[]')); } catch (e) { return new Set(); } };
 function markInvitesSeen() { try { const s = seenRooms(); Invites.rooms.forEach(r => s.add(r.id)); localStorage.setItem('rc-seenrooms-' + meUid(), JSON.stringify([...s].slice(-200))); } catch (e) {} paintTestsTab(); }
-const openInvites = () => Invites.rooms.filter(r => r.host !== meUid() && (r.status === 'lobby' || r.status === 'live') && Date.now() - (r.created || 0) < 6 * 3600e3 && (r.status === 'lobby' || Date.now() < (r.endAt || 0)));
-const myOpenRooms = () => Invites.rooms.filter(r => r.host === meUid() && (r.status === 'lobby' || (r.status === 'live' && Date.now() < (r.endAt || 0))));
+// not yet played by you (a finished test is saved in your history), still open, and not too old
+const openInvites = () => Invites.rooms.filter(r => r.host !== meUid() && !Invites.played.has(r.id) && (r.status === 'lobby' || r.status === 'live') && Date.now() - (r.created || 0) < 6 * 3600e3 && (r.status === 'lobby' || Date.now() < (r.endAt || 0)));
+const myOpenRooms = () => Invites.rooms.filter(r => r.host === meUid() && !Invites.played.has(r.id) && (r.status === 'lobby' || (r.status === 'live' && Date.now() < (r.endAt || 0))));
 function startInvites() {
   stopInvites(); if (!App.authUser || App.viewAs) return;
   Invites.first = true;
+  Invites.histUnsub = Store.fs.collection(`users/${meUid()}/tests`).onSnapshot(s => { Invites.played = new Set(s.docs.map(d => d.id)); paintTestsTab(); if (visible('room') && LT.view === 'history') paintInviteList(); }, () => {});
   Invites.unsub = Store.fs.collection('rooms').where('invited', 'array-contains', meUid()).onSnapshot(s => {
     const before = new Set(Invites.rooms.map(r => r.id));
     Invites.rooms = s.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
@@ -392,7 +394,7 @@ function startInvites() {
     if (visible('room') && LT.view === 'history') paintInviteList();
   }, e => console.warn('rooms', e));
 }
-function stopInvites() { if (Invites.unsub) { try { Invites.unsub(); } catch (e) {} Invites.unsub = null; } Invites.rooms = []; paintTestsTab(); }
+function stopInvites() { if (Invites.histUnsub) { try { Invites.histUnsub(); } catch (e) {} Invites.histUnsub = null; } Invites.played = new Set(); if (Invites.unsub) { try { Invites.unsub(); } catch (e) {} Invites.unsub = null; } Invites.rooms = []; paintTestsTab(); }
 function paintTestsTab() {
   const b = $('testsBadge'); if (!b) return;
   const seen = seenRooms(), n = openInvites().filter(r => !seen.has(r.id)).length;

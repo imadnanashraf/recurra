@@ -1518,6 +1518,7 @@ $('googleBtn').addEventListener('click', async () => {
 
 // profile: name and photo
 $('avatarBtn').addEventListener('click', () => MODES.settings());
+$('profAvatar').addEventListener('click', () => { if (App.user && !App.viewAs && (App.profile.photo || (App.authUser && App.authUser.photoURL))) openPhoto(meUid()); });
 $('profEdit').addEventListener('click', () => openSetup(true));
 // shrink any photo to a 160×160 JPEG (about 10 KB) so it fits in the free database
 function shrinkPhoto(file) {

@@ -15,6 +15,8 @@
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
 const Social = { list: [], people: {}, unsub: null, peopleUnsubs: {}, open: null, msgUnsub: null, msgs: [], first: true, lastSeen: {}, searchSeq: 0, results: null, sel: null };
 const hasHover = () => !!(window.matchMedia && matchMedia('(hover: hover)').matches);
+// you, as others see you: your uploaded photo, else your Google photo
+const mePerson = () => ({ uid: meUid(), ...App.profile, photo: App.profile.photo || (App.authUser && App.authUser.photoURL) || '' });
 const pairId = (a, b) => a < b ? `${a}_${b}` : `${b}_${a}`;
 const meUid = () => App.authUser && App.authUser.uid;
 const fullName = p => [p.first, p.last].filter(Boolean).join(' ').trim() || (p.name || '').trim();
@@ -356,11 +358,11 @@ $('chat').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key ===
 
 /* ---------- profile photo, large ---------- */
 function openPhoto(uid) {
-  const p = uid === meUid() ? { uid, ...App.profile } : Social.people[uid]; if (!p) return;
+  const p = uid === meUid() ? mePerson() : Social.people[uid]; if (!p) return;
   const f = friendship(pairId(meUid(), uid)), name = fullName(p) || '@' + p.username;
   $('photoView').innerHTML = `<div class="pv-card" role="document">
       <button class="btn ghost iconbtn pv-x" type="button" data-pvclose aria-label="Close">✕</button>
-      ${p.photo ? `<img class="pv-img" src="${esc(p.photo)}" alt="${esc(name)}">` : `<div class="pv-img pv-initials" style="background:${pColor(uid)}">${esc(initials(name))}</div>`}
+      ${p.photo ? `<img class="pv-img" src="${esc(p.photo)}" alt="${esc(name)}" referrerpolicy="no-referrer">` : `<div class="pv-img pv-initials" style="background:${pColor(uid)}">${esc(initials(name))}</div>`}
       <h2>${esc(name)}</h2><p class="muted">@${esc(p.username || '')}${uid !== meUid() && lastSeenText(p) ? ` · <span class="${isOnlineP(p) ? 'on-text' : ''}">${esc(lastSeenText(p))}</span>` : ''}</p>
       ${f && f.status === 'accepted' && f.acceptedAt ? `<p class="small muted">Friends since ${esc(fmtDate(f.acceptedAt))}</p>` : ''}
       ${f && f.status === 'accepted' && Social.open !== f.id ? `<div class="btns"><button class="btn primary" type="button" data-pvchat="${esc(f.id)}">Message</button></div>` : ''}

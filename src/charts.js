@@ -26,7 +26,7 @@ function wireTips(box) {
   box.onpointerleave = () => { ChartTip.hide(); box.querySelectorAll('.hot').forEach(x => x.classList.remove('hot')); };
 }
 const niceMax = v => { if (v <= 5) return 5; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
-const chartWidth = box => Math.max(260, Math.floor(box.getBoundingClientRect().width) || 320);
+const chartWidth = box => { const cs = getComputedStyle(box), w = box.getBoundingClientRect().width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0); return Math.max(200, Math.floor(w) || 300); };
 // x-axis labels: as many as fit (about one per 56px), always the last one; the first and last never spill over the edge
 function xLabels(n, x, W, L, R, label, y) {
   const fit = Math.max(2, Math.floor((W - L - R) / 56)), step = Math.max(1, Math.ceil(n / fit));
