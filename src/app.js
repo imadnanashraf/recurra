@@ -1723,6 +1723,7 @@ function updateAdminTab() {
   try { App.fb = await firebaseStart(cfg); }
   catch (e) { $('bootMsg').textContent = 'Could not start. Check your internet connection and reload the page.'; return; }
   Store.fs = App.fb.fs;
+  if (typeof updStart === 'function') updStart();           // Android: app updates
   App.fb.auth.onAuthStateChanged(async user => {
     const prev = App.authUser;
     App.authUser = user; App.viewAs = null;

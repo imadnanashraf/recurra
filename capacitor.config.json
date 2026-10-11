@@ -18,6 +18,15 @@
         "sound",
         "alert"
       ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "updateUrl": "",
+      "statsUrl": "",
+      "channelUrl": "",
+      "resetWhenUpdate": true,
+      "autoDeleteFailed": true,
+      "appReadyTimeout": 10000
     }
   }
 }

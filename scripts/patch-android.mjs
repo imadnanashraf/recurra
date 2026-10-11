@@ -11,7 +11,9 @@ const versionCode = Number(process.env.BUILD_NUMBER || 1);
 
 // 1. version + signing
 let g = readFileSync(join(app, 'build.gradle'), 'utf8');
-g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}"`);
+// the version name carries the phone-level version ("2.0.0-n1"): the app compares it with the newest build to know if a new APK is needed
+const nativeLevel = Number(pkg.nativeLevel || 1);
+g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}-n${nativeLevel}"`);
 if (!g.includes('signingConfigs')) {
   g = g.replace(/buildTypes \{/, `signingConfigs {
         release {
@@ -59,6 +61,11 @@ if (gs && existsSync(gs)) {
   writeFileSync(mf, m);
   push = true;
 }
+// 6. which build this app code is (for background updates)
+{
+  const cfgFile = join(root, 'www', 'config.js');
+  if (existsSync(cfgFile)) writeFileSync(cfgFile, readFileSync(cfgFile, 'utf8') + `\nwindow.APP_CONFIG.webBuild = ${versionCode};\nwindow.APP_CONFIG.nativeLevel = ${nativeLevel};\n`);
+}
 // 5. voice and video calls: camera and microphone
 {
   const mf = join(app, 'src', 'main', 'AndroidManifest.xml');
@@ -68,4 +75,4 @@ if (gs && existsSync(gs)) {
   if (!m.includes('android.hardware.camera')) m = m.replace(/<application/, `<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application`);
   writeFileSync(mf, m);
 }
-console.log(`Android patched: version ${pkg.version} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);
+console.log(`Android patched: version ${pkg.version}-n${nativeLevel} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);

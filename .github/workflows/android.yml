@@ -59,6 +59,8 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/recurra.apk"
+      - name: App code for background updates (bundle.zip)
+        run: cd www && zip -qr "$RUNNER_TEMP/bundle.zip" . && ls -la "$RUNNER_TEMP/bundle.zip"
       - name: Publish download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,7 +68,22 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           gh release delete android --yes --cleanup-tag || true
-          gh release create android "$RUNNER_TEMP/recurra.apk" \
+          gh release create android "$RUNNER_TEMP/recurra.apk" "$RUNNER_TEMP/bundle.zip" \
             --title "Recurra for Android $VERSION (build $RUN)" \
             --notes "Install: download recurra.apk on your Android phone and open it. Updates install over the old version; your data stays in your account." \
             --latest
+      - name: Tell installed apps about this build
+        working-directory: reminder
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RUN: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          LEVEL=$(node -p "require('../package.json').nativeLevel || 1")
+          node -e "
+            const admin = require('firebase-admin');
+            admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+            const base = 'https://github.com/' + process.env.REPO + '/releases/download/android/';
+            const android = { level: Number('$LEVEL'), build: Number(process.env.RUN), apk: base + 'recurra.apk', bundle: base + 'bundle.zip', at: Date.now() };
+            admin.firestore().doc('public/config').set({ android }, { merge: true }).then(() => console.log('published', android));
+          "

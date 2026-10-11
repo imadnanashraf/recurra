@@ -2079,3 +2079,17 @@ body.in-call { overflow: hidden; }
 .ai-livefoot { display: flex; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); }
 .ai-livefoot .ai-clock { margin: 0; font-size: .85rem; }
 .ai-livefoot .btn { margin-left: auto; }
+
+/* Android: "Update needed" (cannot be closed) */
+.upd-gate { z-index: 100; background: color-mix(in srgb, var(--bg) 40%, rgba(5, 15, 30, .75)); }
+.upd-card { width: min(400px, 100%); display: grid; gap: 10px; justify-items: center; text-align: center; padding: 26px 22px 20px; animation: riseIn .3s var(--ease-out, ease) both; }
+.upd-card h2 { margin: 4px 0 0; }
+.upd-card p { margin: 0; line-height: 1.5; }
+.upd-ic svg { width: 72px; height: 72px; }
+.upd-ic .c { fill: var(--accent-soft); }
+.upd-ic .a { fill: none; stroke: var(--accent); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; animation: updBob 1.6s ease-in-out infinite; }
+@keyframes updBob { 50% { transform: translateY(2px); } }
+.upd-go { width: 100%; justify-content: center; text-decoration: none; margin-top: 6px; }
+.upd-steps { text-align: left; margin: 4px 0 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; color: var(--muted); }
+body.upd-open .tabbar { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .upd-ic .a { animation: none; } }
