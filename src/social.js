@@ -235,7 +235,7 @@ function renderInbox() {
   const chats = Social.list.filter(f => f.status === 'accepted').sort((a, b) => (b.lastAt || b.acceptedAt || 0) - (a.lastAt || a.acceptedAt || 0));
   const blocked = Social.list.filter(f => f.status === 'blocked' && f.blockedBy === me);
   const P = uid => Social.people[uid] || { uid, username: '…' };
-  let html = '';
+  let html = `<div class="lt-entry"><button class="btn primary" type="button" data-ltnew2>🏁 Live test</button><button class="btn" type="button" data-lthist2>🏆 My tests</button></div>`;
   if (incoming.length) html += `<section class="card fsec"><h3>Friend requests <span class="count">${incoming.length}</span></h3><div class="plist">${incoming.map(f => personRow(P(otherOf(f)), `<button class="btn small primary" type="button" data-faccept="${esc(f.id)}">Accept</button><button class="btn small ghost" type="button" data-fdecline="${esc(f.id)}">Decline</button>`)).join('')}</div></section>`;
   html += `<section class="card fsec"><h3>Chats</h3>${chats.length ? `<div class="clist">${chats.map(f => {
       const p = P(otherOf(f)), un = unreadOf(f);
@@ -299,6 +299,8 @@ $('chat').addEventListener('click', async e => {
     if (d.fdecline) { b.disabled = true; await Store.fs.doc(`friendships/${d.fdecline}`).delete(); return; }
     if (d.funblock) { b.disabled = true; await Store.fs.doc(`friendships/${d.funblock}`).delete(); Activity.log('user_unblocked'); return toast('Unblocked. You can add them again.'); }
     if (d.fopen) return openThread(d.fopen);
+    if ('ltnew2' in d) return openLtSetup();
+    if ('lthist2' in d) return MODES.tests();
     if ('copyhandle' in d) return copyText('@' + App.profile.username, 'Your username was copied.');
   } catch (err) { console.warn(err); b.disabled = false; toast('That did not work. Check your internet and try again.'); }
 });
@@ -453,7 +455,8 @@ function renderSharePanel() {
       <button type="button" class="sp-opt" data-sp="mcq"><span>📝</span><b>MCQs</b><small>From your question bank</small></button>
       <button type="button" class="sp-opt" data-sp="notes"><span>📒</span><b>Revision notes</b><small>From your notes</small></button>
       <button type="button" class="sp-opt" data-sp="syllabus"><span>🗂️</span><b>My syllabus</b><small>Subjects and topics</small></button>
-      <button type="button" class="sp-opt" data-sp="ask"><span>🙋</span><b>Ask for…</b><small>Request MCQs, notes or a syllabus</small></button></div>
+      <button type="button" class="sp-opt" data-sp="ask"><span>🙋</span><b>Ask for…</b><small>Request MCQs, notes or a syllabus</small></button>
+      <button type="button" class="sp-opt sp-wide" data-splive><span>🏁</span><b>Live test together</b><small>Same questions at the same time, see who wins</small></button></div>
       ${prep ? `<p class="muted small">Sharing from your prep <b>${esc(prep.name)}</b>. Switch prep at the top to share from another.</p>` : '<p class="muted small">Open or create a prep first to share from it.</p>'}`;
     return;
   }
@@ -540,6 +543,7 @@ $('msgPlus').addEventListener('click', () => { if ($('sharePanel').hidden) openS
 $('sharePanel').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   if ('spclose' in b.dataset) return closeSharePanel();
+  if ('splive' in b.dataset) { const f = friendship(Social.open); closeSharePanel(); return openLtSetup(f ? otherOf(f) : null); }
   if (b.dataset.sp) return openSharePanel(b.dataset.sp, { reqMid: Share.reqMid });
   if (b.dataset.askwhat) { Share.what = b.dataset.askwhat; return renderSharePanel(); }
   if (b.dataset.spsend) {
@@ -567,10 +571,12 @@ $('msgList').addEventListener('click', async e => {
 // after the Add screen saved a share: mark the card, log it, go back to the chat
 async function shareAdded(c) {
   const sh = App.imp && App.imp.share; if (!sh) return false;
-  Store.fs.doc(`chats/${sh.fid}/messages/${sh.mid}`).set({ status: 'added', doneAt: Date.now(), doneBy: meUid() }, { merge: true }).catch(() => {});
+  if (sh.fid) Store.fs.doc(`chats/${sh.fid}/messages/${sh.mid}`).set({ status: 'added', doneAt: Date.now(), doneBy: meUid() }, { merge: true }).catch(() => {});
   const label = sh.what === 'syllabus' ? `the syllabus "${sh.title || ''}"` : countLabel(sh.what, sh.count || 0);
   const detail = c && c.kind !== 'syllabus' ? [c.fresh && `${c.fresh} new`, c.filled && `${c.filled} merged`, c.same && `${c.same} already there`].filter(Boolean).join(', ') : '';
   Activity.log('share_added', { from: sh.fromUser, summary: label, prep: (App.prep && App.prep.name) || (c && c.syllabus && c.syllabus.name) || '', detail });
-  if (friendship(sh.fid)) { openThread(sh.fid); toast(`Added ${label} from ${sh.from}.`); }
+  if (sh.fid && friendship(sh.fid)) { openThread(sh.fid); toast(`Added ${label} from ${sh.from}.`); }
+  else if (sh.room) { openRoom(sh.room); toast(`Added ${label}. They join your revision.`); }
+  else { show('home'); toast(`Added ${label}.`); }
   return true;
 }

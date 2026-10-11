@@ -18,6 +18,8 @@ async function eraseSocial(uid) {
   await db.doc(`people/${uid}`).delete().catch(() => {});
   const fr = await db.collection('friendships').where('users', 'array-contains', uid).get();
   for (const f of fr.docs) { await db.recursiveDelete(db.collection('chats').doc(f.id)); await f.ref.delete(); }
+  const rooms = await db.collection('rooms').where('invited', 'array-contains', uid).get();      // live tests
+  for (const r of rooms.docs) { if (r.data().host === uid) await db.recursiveDelete(r.ref); else await r.ref.collection('players').doc(uid).delete().catch(() => {}); }
 }
 
 const locked = await db.collection('users').where('status', 'in', LOCKED).get();

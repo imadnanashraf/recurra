@@ -198,6 +198,8 @@ async function adminDeleteNow(u) {
     writes.push({ path: `${base}/preps/${pid}`, data: null });
   }
   (await Store.ids(`${base}/devices`)).forEach(id => writes.push({ path: `${base}/devices/${id}`, data: null }));
+  (await Store.ids(`${base}/tests`)).forEach(id => writes.push({ path: `${base}/tests/${id}`, data: null }));
+  writes.push({ path: `people/${u.uid}`, data: null });               // gone from friend search now; the account job erases the rest
   writes.push({ path: base, data: { status: 'deleted', deletedAt: Date.now(), email: u.email || '', name: u.name || '' } });
   await Store.write(writes);
   await Activity.log('admin_deleted_now', {}, whoOf(u));

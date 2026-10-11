@@ -123,6 +123,8 @@ const ACTIONS = {
   shared: ['Friends', d => `Shared ${d.summary} with ${d.to || 'a friend'}`],
   asked_for: ['Friends', d => `Asked ${d.to || 'a friend'} for ${d.what}`],
   share_added: ['Friends', d => `Added ${d.summary} from ${d.from || 'a friend'} to "${d.prep}"${d.detail ? ` (${d.detail})` : ''}`],
+  test_hosted: ['Friends', d => `Started a live test "${d.title}" (${d.n} questions) with ${d.with}`],
+  test_finished: ['Study', d => `Finished the live test "${d.title}": ${d.score}, place ${d.rank}`],
   session_finished: ['Study', d => `Studied ${d.n} ${d.n === 1 ? 'question' : 'questions'} in "${d.prep}" (${d.right} right first try)`],
   day_paused: ['Study', d => d.paused ? `Paused today in "${d.prep}"` : `Resumed today in "${d.prep}"`],
   admin_opened_account: ['Admin', 'Admin opened this account'],

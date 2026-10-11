@@ -95,6 +95,19 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
     }
 
+    // ---------- live group tests: only the invited players can see a room ----------
+    match /rooms/{rid} {
+      allow read: if signedIn() && request.auth.uid in resource.data.invited;
+      allow create: if signedIn() && !locked(request.auth.uid) && request.resource.data.host == request.auth.uid
+        && request.auth.uid in request.resource.data.invited && request.resource.data.invited.size() <= 5 && request.resource.data.status == 'lobby';
+      allow update: if signedIn() && resource.data.host == request.auth.uid
+        && request.resource.data.host == resource.data.host && request.resource.data.invited == resource.data.invited;
+      match /players/{uid} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(rid)).data.invited;
+        allow write: if signedIn() && request.auth.uid == uid && request.auth.uid in get(/databases/$(database)/documents/rooms/$(rid)).data.invited;
+      }
+    }
+
     // jobs the admin hands to the account job (e.g. "set this password"), and the admin's GitHub key: admin only
     match /adminTasks/{id} { allow read, write: if isAdmin(); }
     match /adminConfig/{id} { allow read, write: if isAdmin(); }
