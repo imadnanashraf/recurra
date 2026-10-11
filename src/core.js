@@ -73,7 +73,8 @@ function orderSession(list, getState) {
 }
 
 // Builds today's review by itself: every question that is due, plus a fair share of new ones.
-function todayPlan(questions, getState, now, examMs, subjectOrder) {
+// weights (optional) = { CODE: marks }: new questions are shared out by marks; reviews are never affected
+function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
   const start = dayStart(now), tomorrow = addDays(now, 1), dayAfter = addDays(now, 2);
   const due = [], unseen = [];
   let doneToday = 0, newToday = 0, dueTomorrow = 0;
@@ -95,12 +96,55 @@ function todayPlan(questions, getState, now, examMs, subjectOrder) {
   // newest material first (what you studied most recently), then syllabus order
   const rank = c => { const i = subjectOrder.indexOf(c); return i < 0 ? 99 : i; };
   unseen.sort((x, y) => (y.added || '').localeCompare(x.added || '') || rank(x.code) - rank(y.code) || x.order - y.order);
+  let fresh = unseen.slice(0, newBudget);
+  if (weights && newBudget > 0) {                // highest marks first, but every subject keeps getting some
+    const by = {}, picked = {};
+    unseen.forEach(q => { (by[q.code] = by[q.code] || []).push(q); });
+    fresh = [];
+    while (fresh.length < newBudget) {
+      let best = null, top = -1;
+      for (const c of Object.keys(by)) {
+        if (!by[c].length) continue;
+        const sc = Math.max(1, weights[c] || 0) / ((picked[c] || 0) + 1);
+        if (sc > top) { top = sc; best = c; }
+      }
+      if (!best) break;
+      fresh.push(by[best].shift()); picked[best] = (picked[best] || 0) + 1;
+    }
+  }
   return {
     due: due.slice(0, SCHEDULE.dueCapPerDay),
-    fresh: unseen.slice(0, newBudget),
+    fresh,
     unseenLeft: unseen.length, doneToday, newToday, dueTomorrow,
     newPerDay: Math.min(perDay, unseen.length),
   };
+}
+
+// ---------- 1e2. Matching a question's topic to the syllabus topics ----------
+// Exact (ignoring case and punctuation), then "one contains the other", then most words shared.
+const TOPIC_STOP = new Set(['and', 'the', 'of', 'for', 'in', 'to', 'with', 'its', 'their', 'basic', 'basics', 'introduction', 'types']);
+const normTopic = s => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+function matchTopic(name, topics) {
+  const n = normTopic(name);
+  if (!n || !topics || !topics.length) return -1;
+  const T = topics.map(normTopic);
+  let i = T.indexOf(n); if (i >= 0) return i;
+  i = T.findIndex(t => t.length >= 4 && n.length >= 4 && (t.includes(n) || n.includes(t))); if (i >= 0) return i;
+  const words = s => new Set(s.split(' ').filter(w => w.length > 2 && !TOPIC_STOP.has(w)).map(w => w.replace(/s$/, '')));
+  const a = words(n); let best = -1, score = 0;
+  T.forEach((t, k) => {
+    const b = words(t); if (!a.size || !b.size) return;
+    let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
+    const j = inter / Math.min(a.size, b.size);
+    if (j > score) { score = j; best = k; }
+  });
+  return score >= 0.6 ? best : -1;
+}
+// which syllabus topic a question or note belongs to (its topic, else its subtopic or title)
+function topicIndex(item, topics) {
+  if (!topics || !topics.length) return -1;
+  for (const f of [item.topic, item.subtopic, item.title]) { const i = matchTopic(f, topics); if (i >= 0) return i; }
+  return -1;
 }
 
 // ---------- 1f. Days and streaks ----------

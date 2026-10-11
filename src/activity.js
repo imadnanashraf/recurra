@@ -110,6 +110,8 @@ const ACTIONS = {
   prep_exported: ['Content', d => `Exported "${d.prep}"`],
   content_added: ['Content', d => `Added ${d.summary} to "${d.prep}"`],
   subject_saved: ['Content', d => `${d.edit ? 'Edited' : 'Added'} the subject "${d.subject}" in "${d.prep}"`],
+  syllabus_edited: ['Content', d => `Edited the topics of "${d.subject}" (${d.topics}) in "${d.prep}"`],
+  subject_completed: ['Study', d => `Studied every topic of "${d.subject}" in "${d.prep}"`],
   subject_removed: ['Content', d => `Removed the subject "${d.subject}" from "${d.prep}"`],
   session_finished: ['Study', d => `Studied ${d.n} ${d.n === 1 ? 'question' : 'questions'} in "${d.prep}" (${d.right} right first try)`],
   day_paused: ['Study', d => d.paused ? `Paused today in "${d.prep}"` : `Resumed today in "${d.prep}"`],

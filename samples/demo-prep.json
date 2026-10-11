@@ -13,25 +13,60 @@
    "code": "CN",
    "name": "Computer Networks",
    "marks": 20,
-   "part": "B"
+   "part": "B",
+   "topics": [
+    "OSI Model",
+    "Data Link Layer",
+    "IP Addressing",
+    "Transport Layer",
+    "Application Layer",
+    "Network Devices",
+    "Network Topology",
+    "Routing protocols"
+   ]
   },
   {
    "code": "DE",
    "name": "Digital Electronics",
    "marks": 20,
-   "part": "B"
+   "part": "B",
+   "topics": [
+    "Number Systems",
+    "Logic Gates",
+    "Combinational Circuits",
+    "Sequential Circuits",
+    "Microprocessors",
+    "Memory devices"
+   ]
   },
   {
    "code": "COM",
    "name": "Communication Systems",
    "marks": 20,
-   "part": "B"
+   "part": "B",
+   "topics": [
+    "Analog Modulation",
+    "Digital Modulation",
+    "Sampling",
+    "Information Theory",
+    "Optical Communication",
+    "Mobile Communication",
+    "Antennas and wave propagation"
+   ]
   },
   {
    "code": "EDC",
    "name": "Electronic Devices & Circuits",
    "marks": 20,
-   "part": "B"
+   "part": "B",
+   "topics": [
+    "Diodes",
+    "Transistors",
+    "Op-amps",
+    "Network Theory",
+    "Oscillators",
+    "Power supplies"
+   ]
   }
  ],
  "questions": [

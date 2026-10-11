@@ -12,7 +12,7 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replac
 const getState = id => Progress.get(id);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const todayKey = () => dayKey(Date.now());
-const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'admin', 'adminUser'];
+const SCREENS = ['boot', 'login', 'home', 'preps', 'import', 'settings', 'picker', 'quiz', 'break', 'result', 'progress', 'calendar', 'notes', 'syllabus', 'admin', 'adminUser'];
 const prefs = () => Object.assign({ recall: true, confidence: true }, App.profile.prefs || {});
 const visible = id => !$(id).hidden;
 
@@ -21,7 +21,7 @@ function show(id) {
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
   const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
-  const tab = { home: 'home', picker: 'topic', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
+  const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
   if (id === 'home') renderHome();
@@ -51,7 +51,8 @@ async function copyText(text, okMsg) {
   catch (e) { toast('Could not copy automatically. Select the text and copy it.'); }
 }
 const examMs = () => examMsFrom(App.prep && App.prep.examDate);
-const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code));
+const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code),
+  prefs().byMarks && App.subjects.some(s => s.marks) ? Object.fromEntries(App.subjects.map(s => [s.code, s.marks || 0])) : null);
 
 /* ---------- prep loading ---------- */
 function rebuild() {
@@ -66,6 +67,8 @@ function refresh() {
   else if (visible('preps')) renderPreps();
   else if (visible('import') && App.imp && App.imp.target !== 'new' && !$('impSubjects').contains(document.activeElement)) renderSubjectsCard();
   else if (visible('notes')) renderNotes();
+  else if (visible('syllabus')) renderSyllabus();
+  updateTabs();
 }
 function closePrep() {
   App.unsubs.forEach(u => { try { u(); } catch (e) {} }); App.unsubs = [];
@@ -122,7 +125,12 @@ function onPreps(list, fromCache) {
   if ((cur.resetAt || 0) > Progress.resetAt) Progress.wipeTo(cur.resetAt);
   rebuild(); updatePrepButton(); refresh();
 }
+function updateTabs() {
+  $('sylTab').hidden = !hasSyllabus();
+  $('tabbar').style.setProperty('--tabs', [...$('tabbar').children].filter(b => !b.hidden).length);
+}
 function updatePrepButton() {
+  updateTabs();
   $('prepBtn').hidden = !App.user || !App.preps.length;
   $('prepName').textContent = App.prep ? App.prep.name : 'Choose prep';
 }
@@ -302,13 +310,13 @@ function subjectMeta(s) {
 function openSubjectPicker() {
   App.pick = { mode: 'subject' };
   $('pickerTitle').textContent = 'Practice a subject';
-  $('pickerList').innerHTML = App.subjects.length ? App.subjects.map(s => {
+  $('pickerList').innerHTML = (App.subjects.length ? sylLinkRow() : '') + (App.subjects.length ? App.subjects.map(s => {
     const pool = App.questions.filter(q => q.code === s.code), n = pool.length, o = summary(pool), pct = n ? Math.round(100 * o.strong / n) : 0;
     return `<button class="row" type="button" data-code="${esc(s.code)}" ${n ? '' : 'disabled'}>
       <span class="code">${esc(s.code)}</span>
       <span class="name">${esc(s.name)}<small>${subjectMeta(s)}</small>${n ? `<span class="meter" aria-hidden="true"><i style="width:${pct}%"></i></span>` : ''}</span>
       <span class="n">${n ? n + ' Qs' : 'No Qs yet'}</span></button>`;
-  }).join('') : `<div class="empty-state">${ART.empty}<strong>No subjects yet</strong><p>Add a syllabus or some questions first.</p></div>`;
+  }).join('') : `<div class="empty-state">${ART.empty}<strong>No subjects yet</strong><p>Add a syllabus or some questions first.</p></div>`);
   show('picker');
 }
 function openTopicPicker(code) {
@@ -329,7 +337,7 @@ function openTopicPicker(code) {
   show('picker');
 }
 $('pickerList').addEventListener('click', e => {
-  const b = e.target.closest('button.row'); if (!b || b.disabled) return;
+  const b = e.target.closest('button.row'); if (!b || b.disabled || b.dataset.mode) return;
   if (App.pick.mode === 'subject') return openTopicPicker(b.dataset.code);
   const t = b.dataset.topic;
   const pool = App.questions.filter(q => q.code === App.pick.code && (!t || q.topic === t));
@@ -629,8 +637,10 @@ const longDate = k => { if (!k) return 'Date unknown'; const [y, m, d] = k.split
 function notesBook() {
   const order = App.subjects.map(s => s.code);
   const codes = [...new Set(App.notes.map(n => n.code))].sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999) || a.localeCompare(b));
-  const cmp = (a, b) => (a.topic || '').localeCompare(b.topic || '') || (a.title || '').localeCompare(b.title || '');
+  const tps = code => (App.subjects.find(s => s.code === code) || {}).topics || [];
   const chapters = codes.map((code, ci) => {
+    const T = tps(code), rank = n => { const i = topicIndex(n, T); return i < 0 ? 9999 : i; };
+    const cmp = (a, b) => rank(a) - rank(b) || (a.topic || '').localeCompare(b.topic || '') || (a.title || '').localeCompare(b.title || '');
     const notes = App.notes.filter(n => n.code === code).sort(cmp).map((n, ni) => ({ ...n, num: `${ci + 1}.${ni + 1}` }));
     return { code, name: subjName(code), n: ci + 1, notes };
   });
@@ -886,7 +896,7 @@ function renderSubjectsCard() {
   box.classList.toggle('needs', none && needs);
   box.innerHTML = `<div class="subj-head"><strong>Subjects in this prep</strong><span class="muted small">${subs.length ? plural(subs.length, 'subject') : 'none yet'}</span></div>
     ${none ? `<p class="small subj-note">${needs ? 'Add at least one subject first. The AI prompt lists your subjects, so every question and note lands in the right subject.' : 'Add subjects here one by one, or import a whole syllabus below.'}</p>`
-      : `<div class="subj-chips">${subs.map(s => `<span class="subj-chip${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b>${esc(s.code)}</b>${esc(s.name)}${s.marks ? `<small>${s.marks} marks</small>` : ''}</button>${used(s.code) ? '' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</span>`).join('')}</div>`}
+      : `<div class="subj-chips">${subs.map(s => `<span class="subj-chip${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b>${esc(s.code)}</b>${esc(s.name)}${(s.topics || []).length ? `<small>${s.topics.length} topics</small>` : s.marks ? `<small>${s.marks} marks</small>` : ''}</button>${used(s.code) ? '' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</span>`).join('')}</div>`}
     <details class="subj-add"${none || editing ? ' open' : ''}><summary>${editing ? `Edit ${esc(editing.name)}` : none ? 'Add a subject' : 'Add another subject'}</summary>
       <div class="subj-form">
         <label>Subject name<input id="sName" maxlength="80" placeholder="e.g. Computer Networks" value="${esc(editing ? editing.name : '')}"></label>
@@ -896,7 +906,8 @@ function renderSubjectsCard() {
       </div>
       <div class="btns"><button class="btn primary" type="button" id="sSave">${editing ? 'Save changes' : 'Add subject'}</button>${editing ? '<button class="btn" type="button" id="sCancel">Cancel</button>' : ''}</div>
       <p class="msg" id="sMsg"></p>
-    </details>`;
+    </details>
+    ${none ? '' : `<button class="linkbtn subj-syl" type="button" data-mode="syllabus">${hasSyllabus() ? 'Open the syllabus and its topics' : 'Add topics to your subjects (optional) for a syllabus with coverage'}</button>`}`;
   let codeTouched = !!editing;
   $('sCode').oninput = () => { codeTouched = true; $('sCode').value = $('sCode').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
   $('sName').oninput = () => { if (!codeTouched) $('sCode').value = $('sName').value.trim() ? suggestCode($('sName').value, subs.map(s => s.code)) : ''; };
@@ -1041,7 +1052,13 @@ async function applyImport(btn) {
     const prepFields = {};
     if (c.kind === 'syllabus') {
       const s = c.syllabus;
-      for (const ns of s.subjects) { const i = subjects.findIndex(x => x.code === ns.code); if (i >= 0) subjects[i] = ns; else subjects.push(ns); }
+      for (const ns of s.subjects) {
+        const i = subjects.findIndex(x => x.code === ns.code);
+        if (i < 0) { subjects.push(ns); continue; }
+        const topics = [...(subjects[i].topics || [])];          // keep your topics, add the new ones
+        (ns.topics || []).forEach(t => { if (!topics.some(x => normTopic(x) === normTopic(t))) topics.push(t); });
+        subjects[i] = { ...subjects[i], ...ns, ...(topics.length ? { topics } : {}) };
+      }
       if (s.name) prepFields.name = s.name;
       if (s.examDate) prepFields.examDate = s.examDate;
       if (s.marking) prepFields.marking = s.marking;
@@ -1093,7 +1110,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optMarks').checked = !!pf.byMarks;
   $('optHaptic').checked = pf.haptics !== false; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
@@ -1108,6 +1125,7 @@ async function savePrefs(fields) {
 }
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
+$('optMarks').addEventListener('change', () => savePrefs({ byMarks: $('optMarks').checked }));
 $('themeChips').addEventListener('click', e => {
   const b = e.target.closest('[data-theme-set]'); if (!b) return;
   try { localStorage.setItem(THEME_KEY, b.dataset.themeSet); } catch (err) {}
@@ -1522,7 +1540,7 @@ function exitViewAs() {
 }
 function updateAdminTab() {
   const on = isAdminUser(App.authUser) && !App.viewAs;
-  $('adminTab').hidden = !on; $('tabbar').classList.toggle('five', on);
+  $('adminTab').hidden = !on; updateTabs();
   $('adminOpen').hidden = !on;
 }
 

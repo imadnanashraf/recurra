@@ -113,7 +113,8 @@ function orderSession(list, getState) {
 }
 
 // Builds today's review by itself: every question that is due, plus a fair share of new ones.
-function todayPlan(questions, getState, now, examMs, subjectOrder) {
+// weights (optional) = { CODE: marks }: new questions are shared out by marks; reviews are never affected
+function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
   const start = dayStart(now), tomorrow = addDays(now, 1), dayAfter = addDays(now, 2);
   const due = [], unseen = [];
   let doneToday = 0, newToday = 0, dueTomorrow = 0;
@@ -135,12 +136,55 @@ function todayPlan(questions, getState, now, examMs, subjectOrder) {
   // newest material first (what you studied most recently), then syllabus order
   const rank = c => { const i = subjectOrder.indexOf(c); return i < 0 ? 99 : i; };
   unseen.sort((x, y) => (y.added || '').localeCompare(x.added || '') || rank(x.code) - rank(y.code) || x.order - y.order);
+  let fresh = unseen.slice(0, newBudget);
+  if (weights && newBudget > 0) {                // highest marks first, but every subject keeps getting some
+    const by = {}, picked = {};
+    unseen.forEach(q => { (by[q.code] = by[q.code] || []).push(q); });
+    fresh = [];
+    while (fresh.length < newBudget) {
+      let best = null, top = -1;
+      for (const c of Object.keys(by)) {
+        if (!by[c].length) continue;
+        const sc = Math.max(1, weights[c] || 0) / ((picked[c] || 0) + 1);
+        if (sc > top) { top = sc; best = c; }
+      }
+      if (!best) break;
+      fresh.push(by[best].shift()); picked[best] = (picked[best] || 0) + 1;
+    }
+  }
   return {
     due: due.slice(0, SCHEDULE.dueCapPerDay),
-    fresh: unseen.slice(0, newBudget),
+    fresh,
     unseenLeft: unseen.length, doneToday, newToday, dueTomorrow,
     newPerDay: Math.min(perDay, unseen.length),
   };
+}
+
+// ---------- 1e2. Matching a question's topic to the syllabus topics ----------
+// Exact (ignoring case and punctuation), then "one contains the other", then most words shared.
+const TOPIC_STOP = new Set(['and', 'the', 'of', 'for', 'in', 'to', 'with', 'its', 'their', 'basic', 'basics', 'introduction', 'types']);
+const normTopic = s => String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+function matchTopic(name, topics) {
+  const n = normTopic(name);
+  if (!n || !topics || !topics.length) return -1;
+  const T = topics.map(normTopic);
+  let i = T.indexOf(n); if (i >= 0) return i;
+  i = T.findIndex(t => t.length >= 4 && n.length >= 4 && (t.includes(n) || n.includes(t))); if (i >= 0) return i;
+  const words = s => new Set(s.split(' ').filter(w => w.length > 2 && !TOPIC_STOP.has(w)).map(w => w.replace(/s$/, '')));
+  const a = words(n); let best = -1, score = 0;
+  T.forEach((t, k) => {
+    const b = words(t); if (!a.size || !b.size) return;
+    let inter = 0; a.forEach(w => { if (b.has(w)) inter++; });
+    const j = inter / Math.min(a.size, b.size);
+    if (j > score) { score = j; best = k; }
+  });
+  return score >= 0.6 ? best : -1;
+}
+// which syllabus topic a question or note belongs to (its topic, else its subtopic or title)
+function topicIndex(item, topics) {
+  if (!topics || !topics.length) return -1;
+  for (const f of [item.topic, item.subtopic, item.title]) { const i = matchTopic(f, topics); if (i >= 0) return i; }
+  return -1;
 }
 
 // ---------- 1f. Days and streaks ----------
@@ -221,6 +265,17 @@ function hashId(s) {
 const cleanId = s => str(s).replace(/[\s/.#$\[\]]+/g, '-').slice(0, 80);
 
 // ---- syllabus ----
+// topics of a subject: a list of short names (also accepted: "a; b; c", or units with their own topics)
+function topicsOf(s) {
+  let raw = Array.isArray(s.topics) ? s.topics : typeof s.topics === 'string' ? s.topics.split(/\n|;/) : [];
+  if (Array.isArray(s.units)) s.units.forEach(u => { if (u && Array.isArray(u.topics)) raw = raw.concat(u.topics); else if (u) raw.push(u.name || u.title || u); });
+  const out = [], seen = new Set();
+  raw.forEach(t => {
+    const v = str(t && typeof t === 'object' ? (t.name || t.title) : t).replace(/\s+/g, ' ').replace(/^[-•*\d.)\s]+/, '').slice(0, 160);
+    const k = norm(v); if (v && !seen.has(k)) { seen.add(k); out.push(v); }
+  });
+  return out.slice(0, 200);
+}
 function cleanSyllabus(o) {
   const problems = [];
   const out = { name: str(o.name || o.exam || o.title), examDate: '', marking: null, subjects: [] };
@@ -240,7 +295,8 @@ function cleanSyllabus(o) {
     if (!CODE_RE.test(code)) return problems.push(`Subject ${i + 1} (${name || '?'}): "code" must be short letters or numbers, like CN`);
     if (!name) return problems.push(`Subject ${code}: missing "name"`);
     if (out.subjects.some(x => x.code === code)) return problems.push(`Subject code ${code} is used twice`);
-    out.subjects.push({ code, name, marks: num(s.marks, 0), part: str(s.part) });
+    const topics = topicsOf(s);
+    out.subjects.push({ code, name, marks: num(s.marks, 0), part: str(s.part), ...(topics.length ? { topics } : {}) });
   });
   return { syllabus: out, problems };
 }
@@ -382,8 +438,8 @@ const SAMPLES = {
     type: 'syllabus', name: 'State Engineering Exam', examDate: '2027-03-15',
     marking: { correct: 2, wrong: -0.5, totalQuestions: 100, minutes: 120 },
     subjects: [
-      { code: 'CN', name: 'Computer Networks', marks: 20, part: 'B' },
-      { code: 'DE', name: 'Digital Electronics', marks: 20, part: 'B' },
+      { code: 'CN', name: 'Computer Networks', marks: 20, part: 'B', topics: ['OSI and TCP/IP models', 'IP addressing and subnetting', 'Routing protocols'] },
+      { code: 'DE', name: 'Digital Electronics', marks: 20, part: 'B', topics: ['Number systems', 'Logic gates', 'Flip-flops'] },
     ],
   },
   mcq: {
@@ -410,13 +466,16 @@ const SAMPLES = {
   },
 };
 
-function subjectLines(subjects) {
-  return subjects.length
-    ? subjects.map(s => `   ${s.code} = ${s.name}`).join('\n')
+// focus = { CODE: [topics] }: only these subjects and topics (used for "fill the gaps")
+function subjectLines(subjects, focus) {
+  const list = focus ? subjects.filter(s => focus[s.code]) : subjects;
+  return list.length
+    ? list.map(s => { const tp = focus ? focus[s.code] : s.topics || []; return `   ${s.code} = ${s.name}${tp.length ? `\n      topics: ${tp.join('; ')}` : ''}`; }).join('\n')
     : '   (no subjects yet: invent a short code in capital letters, e.g. NET for Networking)';
 }
+const hasTopics = (subjects, focus) => !!focus || subjects.some(s => (s.topics || []).length);
 
-function promptFor(kind, prepName, subjects) {
+function promptFor(kind, prepName, subjects, focus) {
   const json = JSON.stringify(SAMPLES[kind], null, 2);
   if (kind === 'syllabus') return `Convert the exam syllabus I attach (PDF, photo or text) into JSON for my revision app.
 
@@ -429,6 +488,7 @@ Rules:
 3. "examDate": the exam date as YYYY-MM-DD, or "" if not known.
 4. "marking": marks for a correct answer, marks for a wrong answer (a negative number, 0 if no negative marking), total number of questions, and duration in minutes. Use 0 for anything not given.
 5. Copy subject names as they are written in the syllabus.
+6. "topics": every topic listed under that subject, one short item each, copied as written. Split long comma-separated lists into separate topics. Use [] if none are listed.
 
 My syllabus:
 [attach the PDF or photo, or paste the text here]`;
@@ -440,7 +500,7 @@ ${json}
 
 Rules:
 1. "subject" must be one of these codes:
-${subjectLines(subjects)}
+${subjectLines(subjects, focus)}${hasTopics(subjects, focus) ? `\n   For "topic", copy one of the topics listed under that subject when one fits.` : ''}${focus ? `\n   Cover ONLY the topics listed above, about 3 questions per topic.` : ''}
 2. Give exactly 4 options. "answer" must be copied exactly from "options" (the option text, never a letter like "A").
 3. Mix the question types and write the type in "type": Factual, Conceptual, Application, Comparison, Confusion, Trap.
 4. "difficulty": Easy, Medium or Hard.
@@ -450,7 +510,7 @@ ${subjectLines(subjects)}
 8. Use only facts from my material or standard textbook facts. If my material looks wrong, use the correct fact and mention it in the explanation.
 9. Make 15 to 25 questions that cover the whole material. Do not add an "id".
 
-My material:
+${focus ? `My material (optional; if I give none, use standard textbook knowledge of these topics):` : 'My material:'}
 [paste your notes here, or attach the PDF or photo]`;
 
   return `I am preparing for "${prepName}". From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
@@ -460,14 +520,14 @@ ${json}
 
 Rules:
 1. "subject" must be one of these codes:
-${subjectLines(subjects)}
+${subjectLines(subjects, focus)}${hasTopics(subjects, focus) ? `\n   For "topic", copy one of the topics listed under that subject when one fits.` : ''}${focus ? `\n   Cover ONLY the topics listed above.` : ''}
 2. One note per important idea, or per pair of concepts that are easy to confuse.
 3. "keyDifference": one sentence for comparisons; use "" if the note is not a comparison.
 4. "points": 3 to 6 short points. "memoryTrick" and "examTrap": one short sentence each.
 5. Write in simple English even if my material is in Hinglish. Keep it short and to the point.
 6. Make 5 to 12 notes. Do not add an "id".
 
-My material:
+${focus ? `My material (optional; if I give none, use standard textbook knowledge of these topics):` : 'My material:'}
 [paste your notes here, or attach the PDF or photo]`;
 }
 

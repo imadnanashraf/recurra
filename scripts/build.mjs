@@ -18,7 +18,7 @@ const html = [
   src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
   src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'), src('charts.js'),
-  '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('admin.js'),
+  '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('admin.js'),
   '</script>\n</body>\n</html>\n',
 ].join('');
 writeFileSync(join(out, 'index.html'), html);

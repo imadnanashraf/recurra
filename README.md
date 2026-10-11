@@ -16,6 +16,16 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 3. Every day: open the app and press **Start**. The app decides what to ask.
 4. Settings → **Daily reminders**: pick your hours. On Android the phone schedules them itself. In a laptop browser they arrive as browser notifications.
 
+## Syllabus (optional)
+
+- A prep's syllabus is its subjects (name, code, marks, part) and, optionally, each subject's **topics**.
+  Subjects can be added by hand (Add questions or notes → Subjects) or imported; topics are typed one per line on the
+  **Syllabus** tab or imported from the official syllabus with the AI prompt. Importing adds new topics and keeps yours.
+- Questions and notes are matched to topics automatically by their topic name (nothing extra to do). Topics with no
+  questions show as gaps; **Fill the gaps** copies an AI prompt for exactly those topics.
+- One tap on a topic's circle marks it studied. Rings show % studied (outer) and % strong in memory (inner).
+- Settings → Study → **Share new questions by marks** gives high-mark subjects more of each day's new questions.
+
 ## Admin, activity log and deleting accounts
 
 - **Superadmin:** only `adnan.ashraf19@gmail.com` (with a verified email). An **Admin** tab appears for that account:

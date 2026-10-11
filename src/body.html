@@ -12,6 +12,7 @@
 <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
   <button type="button" data-mode="home" data-tab="home"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Today</span></button>
   <button type="button" data-mode="topic" data-tab="topic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg><span>Practice</span></button>
+  <button type="button" data-mode="syllabus" data-tab="syllabus" id="sylTab" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5v13c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z"/><path d="M12 6v13.5"/></svg><span>Syllabus</span></button>
   <button type="button" data-mode="notes" data-tab="notes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h7M9 14h7M9 18h4"/></svg><span>Notes</span></button>
   <button type="button" data-mode="progress" data-tab="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Progress</span></button>
   <button type="button" data-mode="admin" data-tab="admin" id="adminTab" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Admin</span></button>
@@ -179,6 +180,7 @@
         <h3>Study</h3>
         <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
         <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="optMarks"><span>Share new questions by marks<small>Subjects worth more marks get more of each day's new questions. Reviews of what you have seen stay purely by memory.</small></span></label>
         <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
       </div>
       <div class="card form">
@@ -333,6 +335,16 @@
       <span><i class="sw d-part"></i>started, not finished</span><span><i class="sw d-pause"></i>paused</span><span><i class="sw d-exam"></i>exam</span>
     </div>
     <p class="muted" style="font-size:.85rem">The % is how many questions you got right on the first try that day. The streak counts days you finished the review; a paused day keeps the streak but does not add to it.</p>
+  </section>
+
+  <!-- SYLLABUS: subjects and their topics, with coverage -->
+  <section id="syllabus" hidden>
+    <div class="head-row">
+      <h2>Syllabus</h2>
+      <button class="btn ghost" type="button" data-back><span data-icon="back"></span>Back</button>
+    </div>
+    <div id="sylHero"></div>
+    <div class="syl-grid" id="sylList"></div>
   </section>
 
   <!-- NOTES: search, a book-style index, a reader -->
