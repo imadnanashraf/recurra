@@ -39,7 +39,7 @@ for (const d of readdirSync(res)) {
 }
 writeFileSync(join(res, 'drawable', 'splash.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><color android:color="#EEF2F1"/></item>
+    <item><color android:color="#F4F7FB"/></item>
     <item><bitmap android:gravity="center" android:src="@mipmap/ic_launcher"/></item>
 </layer-list>
 `);

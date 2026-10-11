@@ -83,8 +83,21 @@ def main():
         make(int(108 * k), bg=False, mark_scale=0.6).save(out / 'ic_launcher_foreground.png')
     (res / 'values').mkdir(parents=True, exist_ok=True)
     (res / 'values' / 'ic_launcher_background.xml').write_text(
-        '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#2F6F73</color>\n</resources>\n')
+        '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#1B93C9</color>\n</resources>\n')
     (res / 'drawable').mkdir(parents=True, exist_ok=True)
+    (res / 'drawable' / 'ic_launcher_gradient.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="315" android:startColor="#10A58F" android:centerColor="#1B93C9" android:endColor="#3A7BE6" android:type="linear"/>
+</shape>
+''')
+    (res / 'mipmap-anydpi-v26').mkdir(parents=True, exist_ok=True)
+    for n in ('ic_launcher.xml', 'ic_launcher_round.xml'):
+        (res / 'mipmap-anydpi-v26' / n).write_text('''<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_gradient"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+''')
     (res / 'drawable' / 'ic_stat_notify.xml').write_text(f'''<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="64" android:viewportHeight="64">
@@ -97,10 +110,11 @@ def main():
 ''')
     # same mark for the website; colours come from the theme
     (ROOT / 'src' / 'logo.svg').write_text(f'''<svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <rect width="64" height="64" rx="15" fill="var(--accent)"/>
+  <defs><linearGradient id="rcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10a58f"/><stop offset=".55" stop-color="#1b93c9"/><stop offset="1" stop-color="#3a7be6"/></linearGradient></defs>
+  <rect width="64" height="64" rx="15" fill="url(#rcg)"/>
   <g transform="translate({32 - CENTER[0]} {32 - CENTER[1]})">
-    <path d="{SVG_PATH}" fill="none" stroke="var(--accent-ink)" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="{DOT[0]}" cy="{DOT[1]}" r="{DOT_R}" fill="var(--accent-ink)"/>
+    <path d="{SVG_PATH}" fill="none" stroke="#ffffff" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="{DOT[0]}" cy="{DOT[1]}" r="{DOT_R}" fill="#ffffff"/>
   </g>
 </svg>
 ''')

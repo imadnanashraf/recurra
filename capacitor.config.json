@@ -2,7 +2,7 @@
   "appId": "app.recurra",
   "appName": "Recurra",
   "webDir": "www",
-  "backgroundColor": "#eef2f1",
+  "backgroundColor": "#f4f7fb",
   "android": { "allowMixedContent": false, "adjustMarginsForEdgeToEdge": "auto" },
   "plugins": {
     "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#2F6F73" }

@@ -122,7 +122,7 @@ const Native = {
     if (!StatusBarP) return;
     const t = document.documentElement.getAttribute('data-theme');
     const dark = t === 'dark' || (t !== 'light' && !!window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || (dark ? '#141716' : '#eef2f1');
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || (dark ? '#0f1522' : '#f4f7fb');
     quiet(() => StatusBarP.setBackgroundColor({ color: bg }));
     quiet(() => StatusBarP.setStyle({ style: dark ? 'DARK' : 'LIGHT' }));
   },

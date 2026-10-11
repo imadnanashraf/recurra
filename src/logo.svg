@@ -1,7 +1,8 @@
 <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <rect width="64" height="64" rx="15" fill="var(--accent)"/>
+  <defs><linearGradient id="rcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10a58f"/><stop offset=".55" stop-color="#1b93c9"/><stop offset="1" stop-color="#3a7be6"/></linearGradient></defs>
+  <rect width="64" height="64" rx="15" fill="url(#rcg)"/>
   <g transform="translate(-1.5 0.5)">
-    <path d="M12 20C16 33 19 41 25 43L25 22C30 31 34 35 39 36L39 22C44 26 48 27.5 52 28" fill="none" stroke="var(--accent-ink)" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="52" cy="28" r="4.4" fill="var(--accent-ink)"/>
+    <path d="M12 20C16 33 19 41 25 43L25 22C30 31 34 35 39 36L39 22C44 26 48 27.5 52 28" fill="none" stroke="#ffffff" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="52" cy="28" r="4.4" fill="#ffffff"/>
   </g>
 </svg>
