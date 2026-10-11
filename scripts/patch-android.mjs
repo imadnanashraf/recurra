@@ -43,4 +43,20 @@ writeFileSync(join(res, 'drawable', 'splash.xml'), `<?xml version="1.0" encoding
     <item><bitmap android:gravity="center" android:src="@mipmap/ic_launcher"/></item>
 </layer-list>
 `);
-console.log(`Android patched: version ${pkg.version} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}`);
+// 4. notifications when the app is closed: Firebase settings (from the Android workflow), icon, and a flag for the app
+const gs = process.env.GOOGLE_SERVICES_FILE;
+let push = false;
+if (gs && existsSync(gs)) {
+  cpSync(gs, join(app, 'google-services.json'));
+  const cfgFile = join(root, 'www', 'config.js');
+  if (existsSync(cfgFile)) writeFileSync(cfgFile, readFileSync(cfgFile, 'utf8') + '\nwindow.APP_CONFIG.androidPush = true;\n');
+  const mf = join(app, 'src', 'main', 'AndroidManifest.xml');
+  let m = readFileSync(mf, 'utf8');
+  if (!m.includes('default_notification_icon')) m = m.replace(/<application([^>]*)>/, `<application$1>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notify_color" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages" />`);
+  writeFileSync(mf, m);
+  push = true;
+}
+console.log(`Android patched: version ${pkg.version} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);

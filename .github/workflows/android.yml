@@ -3,7 +3,7 @@ name: Build Android app
 on:
   push:
     branches: [main]
-    paths: ['src/**', 'assets/**', 'scripts/**', 'templates/**', 'package.json', 'package-lock.json', 'capacitor.config.json', 'config.js', '.github/workflows/android.yml']
+    paths: ['src/**', 'assets/**', 'scripts/**', 'templates/**', 'reminder/android-config.mjs', 'package.json', 'package-lock.json', 'capacitor.config.json', 'config.js', '.github/workflows/android.yml']
   workflow_dispatch: {}
 
 permissions:
@@ -37,8 +37,16 @@ jobs:
             exit 1
           fi
           echo "$KS" | base64 -d > "$RUNNER_TEMP/recurra.p12"
+      - name: Firebase settings for Android (closed-app notifications)
+        working-directory: reminder
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          npm install --no-audit --no-fund
+          node android-config.mjs "$RUNNER_TEMP/google-services.json"
       - name: Prepare Android project
         env:
+          GOOGLE_SERVICES_FILE: ${{ runner.temp }}/google-services.json
           BUILD_NUMBER: ${{ github.run_number }}
           KEYSTORE_FILE: ${{ runner.temp }}/recurra.p12
         run: npm run android:prepare

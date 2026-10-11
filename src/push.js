@@ -4,18 +4,23 @@
    push/README.md) to notify a friend. The sender checks who you are (your
    Firebase sign-in), that the two of you are friends, and then sends the
    notification to that friend's phone or browser.
-   Until the sender's address is in config.js (pushUrl), this does nothing:
+   Until the "Push sender" job has run (it saves the address in public/config), this does nothing:
    pop-ups, sounds and in-app badges still work as before.
    ===================================================================== */
 const Push = {
-  url() { return (window.APP_CONFIG && APP_CONFIG.pushUrl) || ''; },
+  remote: '',
+  url() { return this.remote || (window.APP_CONFIG && APP_CONFIG.pushUrl) || ''; },
+  // the sender's address is published by the "Push sender" GitHub job in public/config
+  async load() { try { const d = await Store.fs.doc('public/config').get(); if (d.exists) this.remote = (d.data() || {}).pushUrl || ''; } catch (e) {} return this.url(); },
   // this phone or browser can receive pushes: save its token (Android app, or browser with notifications allowed)
   async register() {
-    if (!this.url() || !App.authUser || App.viewAs) return;
+    if (!App.authUser || App.viewAs || !(await this.load())) return;
     try {
       if (NATIVE) {
+        if (!(window.APP_CONFIG && APP_CONFIG.androidPush)) return;         // this app was built without Firebase for Android
         const PN = window.capacitorExports && capacitorExports.registerPlugin('PushNotifications');
         if (!PN) return;
+        try { await PN.createChannel({ id: 'messages', name: 'Messages', description: 'Messages and friend requests', importance: 4, visibility: 1 }); await PN.createChannel({ id: 'tests', name: 'Live tests', description: 'Invites to live tests', importance: 5, visibility: 1 }); } catch (e) {}
         const perm = await PN.requestPermissions(); if (perm.receive !== 'granted') return;
         PN.addListener('registration', t => { if (t && t.value) Store.fs.doc(`users/${meUid()}/devices/a${hashId(t.value)}`).set({ token: t.value, kind: 'android', updated: Date.now() }).catch(() => {}); });
         PN.addListener('pushNotificationActionPerformed', a => { const w = a && a.notification && a.notification.data && a.notification.data.where; if (w) Route.set(w); });

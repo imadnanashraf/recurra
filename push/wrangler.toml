@@ -1,0 +1,9 @@
+# Recurra push sender (Cloudflare Workers, free plan). Deployed by .github/workflows/push.yml.
+name = "recurra-push"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[vars]
+PROJECT_ID = "recurra-app"
+APP_URL = "https://imadnanashraf.github.io/recurra/"

@@ -36,6 +36,8 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 - **Merging:** the same question (same subject and question text) or the same note (same title) is never added twice. From a friend, *your* version is kept and only missing parts are filled in (note points are combined); you can choose **Use theirs**. Reworded questions with the same answer are shown as "similar" and skipped unless you choose **Add anyway**. A shared syllabus is merged into yours by subject name, keeping your names.
 - **Live tests:** start one from Friends (🏁 Live test) or the **+** in a chat. Invite up to 4 friends, pick a subject or topic (or mixed), 10/20/30 questions and a time limit. Everyone gets the same questions, each in their own order with shuffled options. A live race bar and short pop-ups ("⚡ You're faster than Faria!", "🏁 Ali finished: 17/20") keep it fun. Results show a podium, scores and times, and the **trap questions** most people got wrong, with explanations. Questions you got wrong can be added to your prep, and answers to questions already in your prep count toward your revision.
 - **Test history** (Progress → Live tests, or 🏆 My tests in Friends): every test is saved: your score chart, wins, head-to-head against each friend, and badges.
+- **Notifications:** while the app is open or in the background you get pop-ups, soft sounds (Settings → Sounds) and phone/computer notifications. For notifications when the app is **fully closed**, set up the free push sender once: see [push/README.md](push/README.md).
+- **Help:** Settings → Help and questions (tutorials and FAQ in easy English).
 - When an account is erased, its username, profile, friendships, chats and live tests are erased too.
 
 ## Admin, activity log and deleting accounts

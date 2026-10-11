@@ -3,8 +3,21 @@
   "appName": "Recurra",
   "webDir": "www",
   "backgroundColor": "#f4f7fb",
-  "android": { "allowMixedContent": false, "adjustMarginsForEdgeToEdge": "auto" },
+  "android": {
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
   "plugins": {
-    "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#2F6F73" }
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_notify",
+      "iconColor": "#2F6F73"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
   }
 }
