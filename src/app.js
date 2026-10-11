@@ -20,7 +20,7 @@ function show(id) {
   if (id !== 'room' && typeof leaveRoom === 'function' && LT.rid) leaveRoom();
   SCREENS.forEach(s => { $(s).hidden = s !== id; });
   document.body.classList.toggle('focus', id === 'quiz' || id === 'break');   // focus mode: nothing but the question
-  const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break', 'thread', 'room'].includes(id);
+  const tabs = (!!App.prep || isAdminUser(App.authUser)) && !['boot', 'login', 'quiz', 'break', 'thread'].includes(id);
   $('tabbar').hidden = !tabs; document.body.classList.toggle('has-tabs', tabs);
   const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', room: 'tests', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });

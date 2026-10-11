@@ -101,7 +101,7 @@ function openRoom(rid) {
   }, e => console.warn('players', e)));
   clearInterval(LT.tick); LT.tick = setInterval(onTick, 1000);
 }
-function leaveRoom() { LT.unsubs.forEach(u => { try { u(); } catch (e) {} }); LT.unsubs = []; clearInterval(LT.tick); LT.tick = null; clearTimeout(LT.adv); LT.rid = null; }
+function leaveRoom() { ltFocus(false); LT.unsubs.forEach(u => { try { u(); } catch (e) {} }); LT.unsubs = []; clearInterval(LT.tick); LT.tick = null; clearTimeout(LT.adv); LT.rid = null; }
 function onTick() {
   if (!visible('room') || !LT.room) return;
   const r = LT.room;
@@ -118,8 +118,11 @@ function onTick() {
     if (roomOver() && LT.view !== 'results') { if (r.host === meUid()) Store.fs.doc(`rooms/${LT.rid}`).set({ status: 'done' }, { merge: true }).catch(() => {}); renderRoom(true); }
   }
 }
+// the tab bar hides only while you answer (countdown and questions), like the normal question screen
+function ltFocus(on) { document.body.classList.toggle('lt-focus', !!on); }
 function renderRoom(full) {
   const r = LT.room; if (!r || !visible('room')) return;
+  ltFocus(r.status === 'live' && !roomOver() && LT.players[meUid()] && !LT.players[meUid()].finishedAt);
   if (r.status === 'cancelled') { $('roomView').innerHTML = `<div class="empty-state"><strong>This test was cancelled</strong></div><div class="btns"><button class="btn" type="button" data-ltback>Back</button></div>`; return; }
   if (r.status === 'lobby') return renderLobby();
   const me = LT.players[meUid()];

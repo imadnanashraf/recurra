@@ -144,7 +144,7 @@ $('setupForm').addEventListener('submit', async e => {
 });
 function personDoc(over = {}) {
   const p = { ...App.profile, ...over }, name = fullName(p);
-  return { uid: meUid(), username: p.username || '', first: p.first || '', last: p.last || '', name, nameLower: name.toLowerCase(), lastLower: (p.last || '').toLowerCase(), photo: p.photo || '', updated: Date.now() };
+  return { uid: meUid(), username: p.username || '', first: p.first || '', last: p.last || '', name, nameLower: name.toLowerCase(), lastLower: (p.last || '').toLowerCase(), photo: p.photo || (App.authUser && App.authUser.photoURL) || '', updated: Date.now() };   // the photo you see on yourself: yours, else Google's
 }
 // keep what friends see (photo, name) in step with your profile
 function syncPerson() { if (App.profile.username && !App.viewAs) Store.fs.doc(`people/${meUid()}`).set({ ...personDoc(), active: Date.now(), away: !!document.hidden }, { merge: true }).catch(() => {}); }

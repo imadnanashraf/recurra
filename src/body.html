@@ -3,7 +3,7 @@
     <button class="brand" id="brand" type="button" aria-label="Recurra home">{{LOGO}}<span>Recurra</span></button>
     <button class="prepbtn" id="prepBtn" type="button" hidden><span id="prepName"></span>▾</button>
     <div class="sync" id="sync">Starting…</div>
-    <button class="chatbtn" id="chatBtn" type="button" aria-label="Friends and chat" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg><span class="cbadge" id="chatBadge" hidden></span></button>
+    <button class="chatbtn" id="chatBtn" type="button" aria-label="Friends and chat" hidden><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="cbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#3b82f6"/></linearGradient><linearGradient id="cbg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#fb7185"/></linearGradient></defs><path class="cb-back" fill="url(#cbg2)" d="M21 9.5h3.5A4.5 4.5 0 0 1 29 14v5.5a4.5 4.5 0 0 1-4.5 4.5H24v3l-4-3h-2.5a4.5 4.5 0 0 1-3.6-1.8"/><path class="cb-front" fill="url(#cbg)" d="M7.5 4h11A4.5 4.5 0 0 1 23 8.5v7a4.5 4.5 0 0 1-4.5 4.5H12l-5 4v-4.1A4.5 4.5 0 0 1 3 15.5v-7A4.5 4.5 0 0 1 7.5 4z"/><circle cx="8.5" cy="12" r="1.6" fill="#fff"/><circle cx="13" cy="12" r="1.6" fill="#fff"/><circle cx="17.5" cy="12" r="1.6" fill="#fff"/></svg><span class="cbadge" id="chatBadge" hidden></span></button>
     <button class="avatarbtn" id="avatarBtn" type="button" aria-label="Your profile and settings" hidden></button>
   </div>
 </header>
@@ -381,7 +381,7 @@
     <div id="friendResults"></div>
     <div id="chatList" class="fgrid"></div>
   </section>
-  <section id="room" hidden><div class="lt-pop" id="ltPop" aria-live="polite"></div><div id="roomView"></div></section>
+  <section id="room" hidden><div id="roomView"></div></section>
   <section id="thread" hidden>
     <div class="thread-head">
       <button class="btn ghost iconbtn" type="button" id="threadBack" aria-label="Back to friends"><span data-icon="back"></span></button>
@@ -527,3 +527,4 @@
   </form>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="lt-pop" id="ltPop" aria-live="polite"></div>

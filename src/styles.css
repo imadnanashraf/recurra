@@ -1595,3 +1595,23 @@ main > section#help { max-width: 760px; }
 .help-item[open] { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: var(--shadow); }
 .help-a { padding: 0 16px 14px; line-height: 1.55; animation: riseIn .2s var(--ease-out, ease) both; }
 .help-a p { margin: 0 0 8px; } .help-a ol, .help-a ul { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 4px; }
+/* room / tests pages: even spacing between every block */
+#roomView { display: grid; gap: 16px; align-content: start; }
+#roomView > .head-row { margin-bottom: -4px; }
+#roomView .lt-hist-grid, #roomView .lt-lobby, #roomView .lt-results, #roomView .lt-setup { gap: 16px; }
+#roomView > .btns { margin: 0; }
+#roomView .card h3 { margin: 0 0 10px; }
+.lt-stats { gap: 10px; }
+.lt-stats .stat { padding: 14px 10px; gap: 2px; }
+body.lt-focus .tabbar { display: none !important; }
+body.lt-focus main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+/* the friends & chat button: two friendly speech bubbles */
+.chatbtn { width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); transition: transform .15s var(--ease-out, ease), box-shadow .15s; }
+.chatbtn svg { width: 28px; height: 28px; fill: initial; stroke: none; overflow: visible; }
+.chatbtn .cb-front { filter: drop-shadow(0 1px 1px rgba(0,0,0,.18)); transition: transform .25s var(--ease-out, ease); transform-origin: 30% 80%; }
+.chatbtn .cb-back { transition: transform .25s var(--ease-out, ease); transform-origin: 80% 90%; }
+.chatbtn:hover { transform: translateY(-1px); box-shadow: var(--shadow); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.chatbtn:hover .cb-front { transform: rotate(-6deg); } .chatbtn:hover .cb-back { transform: rotate(6deg) translateX(1px); }
+.chatbtn:has(.cbadge:not([hidden])) .cb-front { animation: cbWiggle 2.4s ease-in-out infinite; }
+@keyframes cbWiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-8deg); } 90% { transform: rotate(6deg); } 95% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .chatbtn .cb-front { animation: none !important; } }
