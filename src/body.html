@@ -3,6 +3,7 @@
     <button class="brand" id="brand" type="button">Recurra</button>
     <button class="prepbtn" id="prepBtn" type="button" hidden><span id="prepName"></span>▾</button>
     <div class="sync" id="sync">Starting…</div>
+    <button class="avatarbtn" id="avatarBtn" type="button" aria-label="Your profile and settings" hidden></button>
   </div>
 </header>
 
@@ -19,10 +20,19 @@
     <form class="card form setup" id="loginForm">
       <button class="btn" type="button" id="googleBtn">Continue with Google</button>
       <div class="or" id="orLine">or with email</div>
+      <div class="signup-only" id="nameRow" hidden>
+        <label for="loginName">Your name</label>
+        <input id="loginName" autocomplete="name" maxlength="40" placeholder="e.g. Adnan">
+      </div>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" required>
       <label for="loginPass">Password</label>
-      <input id="loginPass" type="password" autocomplete="current-password" minlength="6" required>
+      <div class="pw"><input id="loginPass" type="password" autocomplete="current-password" minlength="6" required><button class="pwtoggle" type="button" data-pw="loginPass" aria-label="Show password">Show</button></div>
+      <div class="signup-only" id="confirmRow" hidden>
+        <label for="loginPass2">Confirm password</label>
+        <div class="pw"><input id="loginPass2" type="password" autocomplete="new-password" minlength="6"><button class="pwtoggle" type="button" data-pw="loginPass2" aria-label="Show password">Show</button></div>
+        <p class="muted small">At least 6 characters.</p>
+      </div>
       <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
       <p class="msg" id="loginMsg" role="alert"></p>
       <div class="row-inline" style="justify-content:space-between">
@@ -34,6 +44,8 @@
 
   <!-- HOME -->
   <section id="home" hidden>
+    <div class="verify" id="verifyBox" hidden></div>
+    <p class="hello" id="hello"></p>
     <div class="countdown" id="countdown"></div>
     <div id="todayCard"></div>
     <button class="streak" type="button" id="streak"></button>
@@ -106,6 +118,21 @@
       <h2>Settings</h2>
       <button class="btn ghost" type="button" data-back>← Back</button>
     </div>
+    <div class="card form profile">
+      <h3>Profile</h3>
+      <div class="profile-top">
+        <div class="avatar big" id="profAvatar"></div>
+        <div class="btns">
+          <label class="btn" for="photoFile">Change photo</label>
+          <input id="photoFile" type="file" accept="image/*" hidden>
+          <button class="btn ghost" type="button" id="photoRemove">Remove photo</button>
+        </div>
+      </div>
+      <label for="profName">Name</label>
+      <div class="row-inline"><input id="profName" maxlength="40" autocomplete="name"><button class="btn" type="button" id="profSave">Save</button></div>
+      <p class="small">Email: <strong id="accEmail"></strong> <span id="accVerified"></span></p>
+      <p class="msg" id="profMsg"></p>
+    </div>
     <div class="card form">
       <h3>Daily reminders</h3>
       <label class="toggle"><input type="checkbox" id="remOn"><span>Remind me on days my review is not finished<small id="remWhere"></small></span></label>
@@ -131,8 +158,13 @@
     </div>
     <div class="card">
       <h3>Account</h3>
-      <p>Signed in as <strong id="accEmail"></strong></p>
-      <div class="btns"><button class="btn" type="button" id="signOut">Sign out</button></div>
+      <div class="btns">
+        <button class="btn" type="button" id="pwReset">Change password</button>
+        <button class="btn" type="button" id="signOut">Sign out</button>
+        <button class="btn danger" type="button" id="accDelete">Delete account</button>
+      </div>
+      <div id="accConfirm"></div>
+      <p class="msg" id="accMsg"></p>
     </div>
   </section>
 

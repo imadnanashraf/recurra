@@ -130,8 +130,14 @@ function summary(pool) {
   });
   return { total: pool.length, seen, strong, due, acc: a ? Math.round(100 * c / a) : null };
 }
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
 function renderHome() {
   if (!App.prep) return;
+  $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
+  renderVerify();
   const p0 = App.prep, ex = examMs();
   if (ex) {
     const days = Math.round((ex - dayStart(Date.now())) / 864e5), m = p0.marking;
@@ -860,6 +866,11 @@ function applyTheme() {
 function hourLabel(h) { return h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`; }
 function renderSettings() {
   $('accEmail').textContent = App.user ? (App.user.email || 'Google account') : '';
+  $('accVerified').innerHTML = !App.user ? '' : (!usesPassword() || App.user.emailVerified) ? '<span class="badge ok">verified</span>' : '<span class="badge warn">not verified yet</span>';
+  $('profName').value = displayName();
+  $('pwReset').hidden = !usesPassword();
+  $('accConfirm').innerHTML = ''; msg('accMsg', ''); msg('profMsg', '');
+  paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
   $('remOn').checked = !!rm.on;
@@ -930,14 +941,62 @@ $('brand').addEventListener('click', () => { if (App.user) goHome(); });
 $('prepBtn').addEventListener('click', showPreps);
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (visible('home')) renderHome(); Reminders.refreshSoon(); });
 
-/* ---------- sign in ---------- */
+/* ---------- account and profile ---------- */
+const AVATAR_COLORS = ['#2f6f73', '#5b6f9a', '#7a6a4f', '#4f7a5b', '#8a5a6e', '#5f6f73'];
+function displayName() {
+  const u = App.user || {};
+  return (App.profile.name || u.displayName || (u.email || '').split('@')[0] || 'You').trim();
+}
+function initials(name) {
+  const parts = name.replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+// photo you added → Google photo → coloured circle with your initials (the default)
+function avatarHTML() {
+  const u = App.user || {}, photo = App.profile.photo || u.photoURL;
+  if (photo) return `<img src="${esc(photo)}" alt="" referrerpolicy="no-referrer">`;
+  return esc(initials(displayName()));
+}
+function avatarColor() {
+  const id = (App.user && App.user.uid) || 'x';
+  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function paintAvatars() {
+  const html = `<span class="avatar" style="background:${avatarColor()}">${avatarHTML()}</span>`;
+  $('avatarBtn').hidden = !App.user; $('avatarBtn').innerHTML = App.user ? html : '';
+  $('profAvatar').innerHTML = App.user ? avatarHTML() : ''; $('profAvatar').style.background = avatarColor();
+  $('photoRemove').hidden = !App.profile.photo;
+}
+const usesPassword = () => !!(App.user && (App.user.providerData || []).some(p => p.providerId === 'password'));
+function renderVerify() {
+  const box = $('verifyBox'), u = App.user;
+  box.hidden = !(u && usesPassword() && !u.emailVerified);
+  if (box.hidden) return;
+  box.innerHTML = `<span>Please verify your email. We sent a link to <strong>${esc(u.email)}</strong> (check spam too).</span>
+    <div class="btns"><button class="btn" type="button" id="vResend">Send again</button><button class="btn" type="button" id="vDone">I've verified</button></div>
+    <p class="msg" id="vMsg"></p>`;
+  $('vResend').onclick = async () => {
+    try { await App.fb.auth.currentUser.sendEmailVerification(); msg('vMsg', 'Sent. Check your inbox.', 'ok'); }
+    catch (e) { msg('vMsg', authError(e) || 'Could not send. Try again later.', 'err'); }
+  };
+  $('vDone').onclick = async () => {
+    try { await App.fb.auth.currentUser.reload(); App.user = App.fb.auth.currentUser; } catch (e) {}
+    if (App.user.emailVerified) { toast('Email verified. Thank you!'); renderVerify(); if (visible('settings')) renderSettings(); }
+    else msg('vMsg', 'Not verified yet. Open the link in the email first.', 'err');
+  };
+}
+
 let authMode = 'signin';
 function setAuthMode(m) {
   authMode = m;
-  $('authTitle').textContent = m === 'signin' ? 'Sign in' : 'Create your account';
-  $('loginBtn').textContent = m === 'signin' ? 'Sign in' : 'Create account';
-  $('authToggle').textContent = m === 'signin' ? 'New here? Create an account' : 'Already have an account? Sign in';
-  $('loginPass').autocomplete = m === 'signin' ? 'current-password' : 'new-password';
+  const up = m === 'signup';
+  $('authTitle').textContent = up ? 'Create your account' : 'Sign in';
+  $('loginBtn').textContent = up ? 'Create account' : 'Sign in';
+  $('authToggle').textContent = up ? 'Already have an account? Sign in' : 'New here? Create an account';
+  $('loginPass').autocomplete = up ? 'new-password' : 'current-password';
+  $('nameRow').hidden = !up; $('confirmRow').hidden = !up; $('forgotBtn').hidden = up;
+  $('loginName').required = up; $('loginPass2').required = up;
   msg('loginMsg', '');
 }
 function authError(e) {
@@ -948,19 +1007,39 @@ function authError(e) {
   if (/invalid-email/.test(c)) return 'That email address does not look right.';
   if (/operation-not-allowed|configuration-not-found/.test(c)) return 'This sign-in method is not turned on in Firebase yet.';
   if (/unauthorized-domain/.test(c)) return 'This website is not on the Firebase "Authorized domains" list yet.';
+  if (/requires-recent-login/.test(c)) return 'For safety, sign out and sign in again, then try once more.';
   if (/network/.test(c)) return 'No internet connection.';
   if (/popup-closed|cancelled-popup/.test(c)) return '';
   if (/too-many-requests/.test(c)) return 'Too many tries. Wait a few minutes.';
   return 'Something went wrong. Try again.';
 }
 $('authToggle').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+document.addEventListener('click', e => {
+  const b = e.target.closest('.pwtoggle'); if (!b) return;
+  const inp = $(b.dataset.pw), show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password'; b.textContent = show ? 'Hide' : 'Show';
+  b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+});
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   const email = $('loginEmail').value.trim(), pass = $('loginPass').value;
-  $('loginBtn').disabled = true; msg('loginMsg', '');
+  msg('loginMsg', '');
+  if (authMode === 'signup') {
+    const name = $('loginName').value.trim();
+    if (!name) return msg('loginMsg', 'Please enter your name.', 'err');
+    if (pass.length < 6) return msg('loginMsg', 'Use a password of at least 6 characters.', 'err');
+    if (pass !== $('loginPass2').value) return msg('loginMsg', 'The two passwords do not match.', 'err');
+    App.pendingName = name;
+  }
+  $('loginBtn').disabled = true;
   try {
     if (authMode === 'signin') await App.fb.auth.signInWithEmailAndPassword(email, pass);
-    else await App.fb.auth.createUserWithEmailAndPassword(email, pass);
+    else {
+      const cred = await App.fb.auth.createUserWithEmailAndPassword(email, pass);
+      const u = cred.user || App.fb.auth.currentUser;
+      try { await u.updateProfile({ displayName: App.pendingName }); } catch (err) {}
+      try { await u.sendEmailVerification(); } catch (err) {}
+    }
   } catch (err) { msg('loginMsg', authError(err), 'err'); }
   $('loginBtn').disabled = false;
 });
@@ -979,6 +1058,79 @@ $('googleBtn').addEventListener('click', async () => {
   }
 });
 
+// profile: name and photo
+$('avatarBtn').addEventListener('click', () => MODES.settings());
+$('profSave').addEventListener('click', async () => {
+  const name = $('profName').value.trim();
+  if (!name) return msg('profMsg', 'Name cannot be empty.', 'err');
+  try {
+    await Store.setProfile({ name }); App.profile.name = name;
+    try { await App.fb.auth.currentUser.updateProfile({ displayName: name }); } catch (e) {}
+    paintAvatars(); msg('profMsg', 'Saved.', 'ok');
+  } catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
+});
+// shrink any photo to a 160×160 JPEG (about 10 KB) so it fits in the free database
+function shrinkPhoto(file) {
+  return new Promise((ok, fail) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const size = 160, c = document.createElement('canvas'); c.width = c.height = size;
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); fail(new Error('image')); };
+    img.src = url;
+  });
+}
+$('photoFile').addEventListener('change', async () => {
+  const f = $('photoFile').files[0]; $('photoFile').value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) return msg('profMsg', 'Please choose a photo (JPG or PNG).', 'err');
+  try {
+    const photo = await shrinkPhoto(f);
+    await Store.setProfile({ photo }); App.profile.photo = photo;
+    paintAvatars(); msg('profMsg', 'Photo updated.', 'ok');
+  } catch (e) { msg('profMsg', e.message === 'image' ? 'Could not read that photo. Try another one.' : 'Could not save. Check your internet.', 'err'); }
+});
+$('photoRemove').addEventListener('click', async () => {
+  try { await Store.setProfile({ photo: '' }); App.profile.photo = ''; paintAvatars(); msg('profMsg', 'Photo removed.', 'ok'); }
+  catch (e) { msg('profMsg', 'Could not save. Check your internet.', 'err'); }
+});
+$('pwReset').addEventListener('click', async () => {
+  try { await App.fb.auth.sendPasswordResetEmail(App.user.email); msg('accMsg', `We emailed a link to ${App.user.email} to set a new password.`, 'ok'); }
+  catch (e) { msg('accMsg', authError(e), 'err'); }
+});
+// delete account: all preps, questions, progress, profile, then the login itself
+$('accDelete').addEventListener('click', () => {
+  $('accConfirm').innerHTML = `<div class="confirm"><span>Delete your account and <strong>everything</strong> in it: all preps, questions, notes and progress? This cannot be undone.</span>
+    <div class="btns"><button class="btn danger" type="button" id="accDeleteYes">Yes, delete everything</button><button class="btn" type="button" id="accDeleteNo">Cancel</button></div></div>`;
+  $('accDeleteNo').onclick = () => { $('accConfirm').innerHTML = ''; };
+  $('accDeleteYes').onclick = async () => {
+    $('accDeleteYes').disabled = true; msg('accMsg', 'Deleting…');
+    try {
+      await Progress.discard(); closePrep();
+      if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
+      const writes = [];
+      for (const pid of await Store.ids(`${Store.base()}/preps`)) {
+        const base = Store.prepPath(pid);
+        for (const col of ['bank', 'notes', 'progress']) (await Store.ids(`${base}/${col}`)).forEach(id => writes.push({ path: `${base}/${col}/${id}`, data: null }));
+        writes.push({ path: base, data: null });
+      }
+      (await Store.ids(`${Store.base()}/devices`)).forEach(id => writes.push({ path: `${Store.base()}/devices/${id}`, data: null }));
+      writes.push({ path: Store.base(), data: null });
+      await Store.write(writes);
+      try { Object.keys(localStorage).filter(k => k.startsWith('rc-')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      await App.fb.auth.currentUser.delete();
+      toast('Your account was deleted.');
+    } catch (e) {
+      console.warn(e);
+      msg('accMsg', authError(e), 'err');
+      $('accDeleteYes') && ($('accDeleteYes').disabled = false);
+    }
+  };
+});
+
 /* ---------- start ---------- */
 (async function init() {
   applyTheme();
@@ -993,12 +1145,19 @@ $('googleBtn').addEventListener('click', async () => {
     if (App.prepsUnsub) { try { App.prepsUnsub(); } catch (e) {} App.prepsUnsub = null; }
     closePrep();
     App.user = user; App.preps = []; App.prepsLoaded = false; App.profile = {};
-    updatePrepButton(); setSync();
+    updatePrepButton(); setSync(); paintAvatars();
     if (!user) { setAuthMode('signin'); show('login'); return; }
     Store.uid = user.uid;
     $('bootMsg').textContent = 'Loading your preps…'; show('boot');
     try { App.profile = await Store.getProfile(); } catch (e) { App.profile = {}; }
-    if (!App.profile.email) Store.setProfile({ email: user.email || '', created: Date.now() }).catch(() => {});
+    if (!App.profile.email || (App.pendingName && !App.profile.name)) {
+      const first = { email: user.email || '', created: App.profile.created || Date.now() };
+      if (App.pendingName || user.displayName) first.name = App.profile.name || App.pendingName || user.displayName;
+      Object.assign(App.profile, first);
+      Store.setProfile(first).catch(() => {});
+    }
+    App.pendingName = null;
+    paintAvatars();
     App.prepsUnsub = Store.watchPreps(onPreps, e => { console.warn(e); setSync('offline'); });
     Reminders.refreshSoon(4000);
   });
