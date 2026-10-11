@@ -892,10 +892,11 @@ function renderImport() {
   $('impTitle').textContent = target === 'new' ? 'New prep from a file' : `Add to ${App.prep ? App.prep.name : ''}`;
   $('impText').placeholder = { mcq: '{ "type": "mcq", "questions": [ ... ] }', notes: '{ "type": "notes", "notes": [ ... ] }', syllabus: '{ "type": "syllabus", "subjects": [ ... ] }', prep: '{ "type": "prep", ... }' }[kind] || '';
   renderShareBanner();
-  $('impKinds').hidden = !!App.imp.share; if ($('impSoon')) $('impSoon').hidden = !!App.imp.share;
+  $('impKinds').hidden = !!App.imp.share;
   $('impKinds').innerHTML = kinds.map(k => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${k === kind}">${KIND_LABEL[k]}</button>`).join('');
   const perSubject = target !== 'new' && (kind === 'mcq' || kind === 'notes'), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
   if (perSubject && !sub) App.imp.subject = null;
+  aiRender();
   $('impHelp').hidden = $('impPaste').hidden = (perSubject && !sub) || !!App.imp.share;
   renderPick();
   if (perSubject && !sub) { $('impPreview').hidden = true; renderSubjectsCard(); return; }
@@ -903,7 +904,7 @@ function renderImport() {
     $('impHelp').innerHTML = `<strong>Prep file</strong><p class="muted">A prep file is what <em>Export</em> makes on the Preps screen. Use it to copy a whole prep (syllabus, questions and notes) from a friend. Choose the file or paste its text below.</p>`;
   } else {
     const what = kind === 'syllabus' ? 'your syllabus' : `your study notes on ${sub ? sub.name : 'the subject'}`;
-    $('impHelp').innerHTML = `<strong>${sub ? `How to make ${kind === 'mcq' ? 'MCQs' : 'notes'} for ${esc(sub.name)}` : 'How to make this with any AI chat'}</strong>
+    $('impHelp').innerHTML = `<strong>${aiShown() ? '📋 Or use any AI chat (always free)' : sub ? `How to make ${kind === 'mcq' ? 'MCQs' : 'notes'} for ${esc(sub.name)}` : 'How to make this with any AI chat'}</strong>
       <ol class="steps">
         <li>Tap <strong>Copy AI prompt</strong>.</li>
         <li>Open ChatGPT, Claude or Gemini, paste the prompt, and attach or paste ${what} (PDF, photo or text; English or Hinglish is fine).</li>

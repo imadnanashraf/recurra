@@ -127,12 +127,8 @@
       <div class="card share-banner" id="impShare" hidden></div>
       <div class="card pickcard" id="impPick" hidden></div>
       <div class="card subjcard" id="impSubjects" hidden></div>
+      <div class="card ai-card" id="impAI" hidden></div>
       <div class="card" id="impHelp"></div>
-      <div class="card soon" id="impSoon">
-        <span class="badge warn">Coming soon</span>
-        <strong>Upload notes and get questions automatically</strong>
-        <span class="muted">Until then, use the AI prompt above with any free AI chat.</span>
-      </div>
       </div>
       <div class="col">
       <div class="card form" id="impPaste">
@@ -529,5 +525,7 @@
     <p class="msg" id="setMsg" role="alert"></p>
   </form>
 </div>
+<!-- STEP-BY-STEP: connect your own free Google AI key -->
+<div class="sheet" id="aiGuide" role="dialog" aria-modal="true" aria-label="Connect your free Google AI key" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="lt-pop" id="ltPop" aria-live="polite"></div>

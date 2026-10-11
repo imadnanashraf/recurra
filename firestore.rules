@@ -111,6 +111,16 @@ service cloud.firestore {
     // app-wide settings anyone may read (for example the push sender's address); only the admin or jobs write
     match /public/{id} { allow read: if true; allow write: if isAdmin(); }
 
+    // free AI uploads used: only the Recurra sender (server) writes it; you can read your own count
+    match /aiTrial/{uid} { allow read: if signedIn() && (request.auth.uid == uid || isAdmin()); allow write: if false; }
+
+    // "Notify me when Pro is ready": your own entry; the admin sees how many people asked
+    match /proInterest/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['at', 'name', 'username']);
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
     // jobs the admin hands to the account job (e.g. "set this password"), and the admin's GitHub key: admin only
     match /adminTasks/{id} { allow read, write: if isAdmin(); }
     match /adminConfig/{id} { allow read, write: if isAdmin(); }

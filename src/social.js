@@ -467,7 +467,9 @@ function renderMessages() {
     const reacts = Object.entries(m).filter(([key, v]) => key.startsWith('re_') && v);
     const rc = {}; reacts.forEach(([key, v]) => { (rc[v] = rc[v] || []).push(key.slice(3)); });
     const time = new Date(at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    const tick = mine ? `<svg class="mtick${theirRead >= at ? ' seen' : ''}" viewBox="0 0 22 12" role="img" aria-label="${theirRead >= at ? 'Seen' : 'Sent'}"><path d="M1 6.5l3.5 3.5L11 3"/>${theirRead >= at ? '<path d="M8 9.5l1 1L16 3"/>' : ''}</svg>` : '';
+    const tick = mine ? (theirRead >= at
+      ? `<svg class="mtick seen" viewBox="0 0 17 12" role="img" aria-label="Seen"><path d="M1 6.5l3.5 3.5L11 3"/><path d="M7.6 8.1L9.5 10L16 3"/></svg>`
+      : `<svg class="mtick" viewBox="0 0 12 12" role="img" aria-label="Sent"><path d="M1 6.5l3.5 3.5L11 3"/></svg>`) : '';
     const isNew = !firstPaint && !shown.has(m.id);
     html += `<div class="msg-row ${mine ? 'mine' : 'theirs'}${first ? ' gfirst' : ''}${last ? ' glast' : ''}${sel ? ' sel' : ''}${big ? ' bigemoji' : ''}${isNew ? ' new' : ''}" data-mid="${esc(m.id)}">
       ${!mine ? (last ? `<span class="avwrap" data-photo="${esc(other)}">${pAvatar(P, 'tiny')}</span>` : '<span class="av-gap"></span>') : ''}

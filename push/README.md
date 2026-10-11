@@ -29,3 +29,19 @@ That's it. Nothing else to maintain. The free Cloudflare plan allows 100,000 req
 - *Push sender* job says "No workers.dev address found": do step 2 (open Workers & Pages once and pick a name), then run the job again.
 - *Build Android app* shows a note "Could not get the Android Firebase settings": in the Firebase console, **Project settings → Your apps → Add app → Android**, package name `app.recurra`, then run *Build Android app* again.
 - No notification on a laptop: the browser must allow notifications for the Recurra site, and the computer must be on. Phones need Recurra's notifications allowed in phone Settings.
+
+## Free trial uploads (optional, 3 minutes, also free)
+
+New users get **5 free uploads** (PDF or photo → MCQs or notes) before they connect their own free
+Google AI key. These 5 run on **your** free Google AI key, kept secret inside the push sender above.
+Do the Cloudflare steps first, then:
+
+1. Open <https://aistudio.google.com/apikey> and sign in with your Google account.
+2. Tap **Create API key** (pick the suggested project if asked) and **Copy** it. Do **not** turn on billing:
+   without billing, Google can never charge you; at worst the free uploads pause for the day.
+3. GitHub → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
+   name `GEMINI_API_KEY`, value: the key.
+4. GitHub → **Actions** → **Push sender** → **Run workflow**. The app turns the free uploads on by itself.
+
+Without this, nothing breaks: the upload card simply asks people to connect their own free key,
+and **Copy AI prompt** always works.

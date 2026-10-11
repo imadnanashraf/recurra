@@ -51,16 +51,33 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$SA" | npx --yes wrangler@3.114.17 secret put FIREBASE_SERVICE_ACCOUNT
+      - name: Give the worker the free-upload key (optional)
+        if: steps.check.outputs.skip != '1'
+        id: gem
+        working-directory: push
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEM: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEM" ]; then
+            echo "::notice::Free trial uploads are off: add a GEMINI_API_KEY secret to turn them on (see push/README.md)."
+            echo "on=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s' "$GEM" | npx --yes wrangler@3.114.17 secret put GEMINI_API_KEY
+            echo "on=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Tell the app where the sender is
         if: steps.check.outputs.skip != '1'
         working-directory: reminder
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PUSH_URL: ${{ steps.deploy.outputs.url }}
+          AI_TRIAL: ${{ steps.gem.outputs.on }}
         run: |
           npm install --no-audit --no-fund
           node -e "
             const admin = require('firebase-admin');
             admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
-            admin.firestore().doc('public/config').set({ pushUrl: process.env.PUSH_URL, pushAt: Date.now() }, { merge: true }).then(() => console.log('pushUrl saved:', process.env.PUSH_URL));
+            admin.firestore().doc('public/config').set({ pushUrl: process.env.PUSH_URL, pushAt: Date.now(), aiTrial: process.env.AI_TRIAL === 'true' }, { merge: true }).then(() => console.log('pushUrl saved:', process.env.PUSH_URL, 'free uploads:', process.env.AI_TRIAL));
           "

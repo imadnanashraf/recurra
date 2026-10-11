@@ -3,12 +3,15 @@
 // It checks who is asking (their Firebase sign-in), that they may notify that person
 // (friends, or invited to their test), then sends the notification with Firebase Cloud Messaging.
 // Secret: FIREBASE_SERVICE_ACCOUNT (the same JSON the GitHub jobs use). Vars: PROJECT_ID, APP_URL.
+// Also (POST /ai): the free trial uploads. Secret GEMINI_API_KEY (the admin's free Google AI key).
+// Each person gets FREE uploads; the count lives in Firestore aiTrial/{uid}, which only this sender can change.
+// The file passes straight through to Google and is never stored here.
 
 const enc = new TextEncoder();
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...CORS } });
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST, OPTIONS' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-trial-used' };
 
 // ---- who is asking: verify the Firebase ID token (RS256, Google's public keys) ----
 let keys = null, keysUntil = 0;
@@ -59,9 +62,51 @@ async function fsGet(env, tok, path) {
 const recent = new Map();
 function tooMany(uid) { const now = Date.now(), list = (recent.get(uid) || []).filter(t => now - t < 60e3); list.push(now); recent.set(uid, list); return list.length > 40; }
 
+// ---- free trial uploads (POST /ai) ----
+const FREE = 5, GEM = 'https://generativelanguage.googleapis.com/v1beta';
+function pickModel(models) {      // the newest stable "Flash" model
+  const names = (models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name || '').replace(/^models\//, ''));
+  const ver = n => Number((n.match(/^gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  const stable = names.filter(n => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort((a, b) => ver(b) - ver(a));
+  return stable[0] || (names.includes('gemini-flash-latest') ? 'gemini-flash-latest' : 'gemini-2.5-flash');
+}
+let model = '', modelUntil = 0;
+async function trialModel(env) {
+  if (env.GEMINI_MODEL) return env.GEMINI_MODEL;
+  if (model && Date.now() < modelUntil) return model;
+  const r = await fetch(`${GEM}/models?pageSize=200`, { headers: { 'x-goog-api-key': env.GEMINI_API_KEY } });
+  model = pickModel(r.ok ? (await r.json()).models : []); modelUntil = Date.now() + 6 * 3600e3;
+  return model;
+}
+async function aiTrial(req, env) {
+  if (req.method !== 'POST') return json({ ok: true, service: 'Recurra free uploads', on: !!env.GEMINI_API_KEY });
+  if (!env.GEMINI_API_KEY) return json({ error: 'free uploads are off' }, 403);
+  try {
+    const uid = await verifyIdToken((req.headers.get('authorization') || '').replace(/^Bearer /, ''), env.PROJECT_ID);
+    if (tooMany(uid)) return json({ error: 'slow down' }, 429);
+    if (Number(req.headers.get('content-length') || 0) > 21e6) return json({ error: 'too large' }, 413);
+    const tok = await accessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT));
+    const doc = await fsGet(env, tok, `aiTrial/${uid}`), used = doc ? Number(fields(doc.fields).used || 0) : 0;
+    if (used >= FREE) return json({ error: 'trial used', used }, 402);
+    // the file goes straight through to Google (not read or kept here)
+    const r = await fetch(`${GEM}/models/${await trialModel(env)}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' }, body: req.body });
+    let now = used;
+    if (r.ok) {
+      const name = `projects/${env.PROJECT_ID}/databases/(default)/documents/aiTrial/${uid}`;
+      await fetch(`https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents:commit`, { method: 'POST', headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' },
+        body: JSON.stringify({ writes: [{ update: { name, fields: {} }, updateMask: { fieldPaths: [] }, updateTransforms: [{ fieldPath: 'used', increment: { integerValue: '1' } }, { fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }] }] }) });
+      now = used + 1;
+    }
+    return new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', 'x-trial-used': String(now), ...CORS } });
+  } catch (e) {
+    return json({ error: String(e && e.message || e).slice(0, 100) }, /token|key/.test(String(e && e.message)) ? 401 : 500);
+  }
+}
+
 export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    if (new URL(req.url).pathname === '/ai') return aiTrial(req, env);
     if (req.method !== 'POST') return json({ ok: true, service: 'Recurra push sender' });
     try {
       const from = await verifyIdToken((req.headers.get('authorization') || '').replace(/^Bearer /, ''), env.PROJECT_ID);
