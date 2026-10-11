@@ -11,9 +11,9 @@ const versionCode = Number(process.env.BUILD_NUMBER || 1);
 
 // 1. version + signing
 let g = readFileSync(join(app, 'build.gradle'), 'utf8');
-// the version name carries the phone-level version ("2.0.0-n1"): the app compares it with the newest build to know if a new APK is needed
+// the version name carries the phone-level version and the build ("2.0.0-n1-b54"): the app compares it with the newest build to know if a new APK is needed
 const nativeLevel = Number(pkg.nativeLevel || 1);
-g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}-n${nativeLevel}"`);
+g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}-n${nativeLevel}-b${versionCode}"`);
 if (!g.includes('signingConfigs')) {
   g = g.replace(/buildTypes \{/, `signingConfigs {
         release {
@@ -75,4 +75,4 @@ if (gs && existsSync(gs)) {
   if (!m.includes('android.hardware.camera')) m = m.replace(/<application/, `<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application`);
   writeFileSync(mf, m);
 }
-console.log(`Android patched: version ${pkg.version}-n${nativeLevel} (${versionCode}), signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);
+console.log(`Android patched: version ${pkg.version}-n${nativeLevel}-b${versionCode}, signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);
