@@ -28,11 +28,13 @@ self.addEventListener('push', e => {
   let p = {};
   try { p = e.data ? e.data.json() : {}; } catch (err) { p = { data: { body: e.data && e.data.text() } }; }
   const d = Object.assign({}, p.notification || {}, p.data || {});
-  e.waitUntil(self.registration.showNotification(d.title || 'Recurra', {
+  // Recurra is open in front of you: it shows its own pop-up (or the call screen), so no system notification
+  const inFront = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => list.some(c => c.visibilityState === 'visible' && c.focused));
+  e.waitUntil(inFront.then(open => open && d.tag !== 'daily-review' && d.title ? null : self.registration.showNotification(d.title || 'Recurra', {
     body: d.body || 'Your daily review is ready whenever you are.',
     icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: d.tag || 'daily-review', renotify: true,
     data: { url: d.url || './' },
-  }));
+  })));
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();

@@ -13,11 +13,7 @@
       "iconColor": "#2F6F73"
     },
     "PushNotifications": {
-      "presentationOptions": [
-        "badge",
-        "sound",
-        "alert"
-      ]
+      "presentationOptions": []
     },
     "CapacitorUpdater": {
       "autoUpdate": false,
