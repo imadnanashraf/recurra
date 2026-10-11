@@ -1983,3 +1983,18 @@ html, body { overflow-x: clip; }
 .ag-play .ag-ok { animation: agDraw .7s .3s ease-out both; }
 .ag-screen.paused * { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) { .ag-cur, .ag-tap, .ag-play .ag-after, .ag-play .ag-go { animation: none !important; } .ag-play .ag-after { opacity: 1; } }
+/* guide v2: watch first, then one connect screen */
+.ag-sub { margin-top: -6px !important; }
+.ag-player { display: grid; gap: 8px; }
+.ag-ctrl { display: flex; align-items: center; gap: 6px; }
+.ag-mini { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.05rem; font-weight: 800; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.ag-mini:disabled { opacity: .35; cursor: default; }
+#agvPlay { font-size: .72rem; letter-spacing: -1px; }
+.ag-num { margin-left: auto; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ag-cap { min-height: 2.9em; }
+.ag-do { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.ag-do > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+.ag-do > li > span { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; display: grid; place-items: center; font-size: .9rem; }
+.ag-do > li > div { display: grid; gap: 8px; line-height: 1.45; }
+.ag-do .ag-open { justify-self: start; }
+.ag-do p { margin: 0; }

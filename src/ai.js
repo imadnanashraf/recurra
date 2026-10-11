@@ -267,114 +267,105 @@ const AG_ART = {
 // the "Watch how" walkthrough: each scene = a picture, where the finger goes and taps, and a caption
 const AG_SCENES = [
   { svg: AG_PARTS.open, to: AG_PARTS.openT, cap: 'Open Google AI Studio and sign in with your Google account.' },
-  { svg: AG_PARTS.terms('tick'), to: AG_PARTS.termsT1, cap: 'First time only: tick the box to agree…' },
-  { svg: AG_PARTS.terms('ticked'), to: AG_PARTS.termsT2, cap: '…and tap Continue.' },
-  { svg: AG_PARTS.keys, to: AG_PARTS.keysT, cap: 'On “API keys”, tap Create API key. (Already see a key in the list? Google made one for you: just open it and copy it.)', dur: 6000 },
-  { svg: AG_PARTS.project, to: AG_PARTS.projectT, cap: 'If it asks for a project, keep the one it suggests and tap Create key.' },
-  { svg: AG_PARTS.copy('copied'), to: AG_PARTS.copyT, cap: 'Your key appears. It starts with AQ. Tap Copy.' },
-  { svg: AG_PARTS.back, to: null, cap: 'Come back to Recurra.' },
-  { svg: AG_PARTS.paste(true), to: AG_PARTS.pasteT, cap: 'Tap Paste, then Connect.' },
-  { svg: AG_PARTS.done, to: null, cap: 'Done! Your free key is connected.' },
+  { svg: AG_PARTS.terms('ticked'), to: AG_PARTS.termsT2, cap: 'First time only: tick the box and tap Continue.' },
+  { svg: AG_PARTS.keys, to: AG_PARTS.keysT, cap: 'Tap Create API key. Already see a key in the list? Google made one for you: just open it.', dur: 5500 },
+  { svg: AG_PARTS.project, to: AG_PARTS.projectT, cap: 'If it asks for a project, keep the suggested one and tap Create key.' },
+  { svg: AG_PARTS.copy('copied'), to: AG_PARTS.copyT, cap: 'Your key appears (it starts with AQ.). Tap Copy.' },
+  { svg: AG_PARTS.back, to: null, cap: 'Come back to Recurra.', dur: 3000 },
+  { svg: AG_PARTS.paste(true), to: AG_PARTS.pasteT, cap: 'Tap Paste, then Connect. Done!' },
 ];
-function agSteps() {
-  const where = NATIVE ? 'your phone’s browser' : 'a new tab';
-  return [
-    { art: 'why', title: 'Get unlimited free uploads', text: `<p>Connect your own <b>free</b> Google AI key. It takes about <b>1 minute</b>.</p><ul class="ag-list"><li>✅ Free. No card, no payment.</li><li>✅ Use the Google account you already have.</li><li>✅ The key is saved only on this ${NATIVE ? 'phone' : 'device'}.</li></ul><p class="muted small">Not now? <b>Copy AI prompt</b> always works for free.</p>`, next: 'Start', video: true },
-    { art: 'open', title: 'Step 1: Open Google AI Studio', text: `<p>Tap the button below. Google AI Studio opens in ${where}.</p><p>If it asks you to sign in, use your Google account (your Gmail).</p>`, open: true, next: 'I opened it' },
-    { art: 'terms', title: 'Step 2: Agree (first time only)', text: `<p>If you see a welcome box with <b>Terms of Service</b>, tick the box and tap <b>Continue</b>.</p><p class="muted small">Didn’t see this? That’s fine, go to the next step.</p>`, next: 'Next' },
-    { art: 'keys', title: 'Step 3: Find or create your key', text: `<p>You should now be on the <b>API keys</b> page. If not, tap <b>Get API key</b> in the menu (tap ☰ on a phone).</p><p><b>Already see a key in the list?</b> Google made one for you. Tap it to open it and go to Step 5.</p><p>No key yet? Tap the blue <b>Create API key</b> button.</p>`, open: true, openLabel: 'Open the API keys page', next: 'Next' },
-    { art: 'project', title: 'Step 4: Pick a project (if asked)', text: `<p>If a box asks you to <b>choose a project</b>, keep the one it suggests (like <b>Default Gemini Project</b>). If the list is empty, choose <b>Create a new project</b>.</p><p>Then tap <b>Create key</b>.</p>`, next: 'Next' },
-    { art: 'copy', title: 'Step 5: Copy the key', text: `<p>Your key appears: a long code that starts with <b>AQ.</b> (older keys start with <b>AIza</b>). Tap <b>Copy</b> or the copy icon ⧉.</p><p class="muted small">Copy it now: Google may show it hidden with dots later. It is like a password for your free AI, so don’t share it.</p>`, next: 'I copied it' },
-    { art: 'back', title: 'Step 6: Come back here', text: NATIVE ? `<p>Come back to <b>Recurra</b>: tap your phone’s <b>back</b> button, or switch apps.</p>` : `<p>Come back to this <b>Recurra</b> tab.</p>`, next: 'I’m back' },
-    { title: 'Step 7: Paste your key', paste: true },
-    { art: 'done', title: 'Connected!', text: `<p>Your free key works. You can now upload PDFs and photos as much as you like.</p><p class="muted small">Google gives a free daily limit, which is plenty for studying. If you ever reach it, it resets the next day, and Copy AI prompt still works.</p>`, finish: true },
-  ];
-}
-// ---- the walkthrough player (about 40 seconds, plays once; pause, replay, close) ----
-const AGV = { i: 0, timer: null, t0: 0, left: 0, paused: false, back: 0 };
-function agVideo(from) {
-  AGV.back = from; AGV.i = 0; AGV.paused = false;
-  const sheet = $('aiGuide');
-  sheet.innerHTML = `<div class="card sheet-card ag-card ag-vcard">
-      <div class="ag-top"><strong>How to get your free key</strong><button class="x" type="button" id="agvClose" aria-label="Close">×</button></div>
-      <div class="ag-screen" id="agvScreen"></div>
-      <div class="ag-bars" aria-hidden="true">${AG_SCENES.map((_, i) => `<i data-i="${i}"><b></b></i>`).join('')}</div>
-      <p class="ag-cap" id="agvCap" aria-live="polite"></p>
-      <div class="btns grid"><button class="btn" type="button" id="agvPause">Pause</button><button class="btn primary" type="button" id="agvDone">Show the steps</button></div>
-      <p class="muted small">Simplified drawings: Google’s real page may look a little different.</p>
-    </div>`;
-  const stop = () => { clearTimeout(AGV.timer); AGV.timer = null; };
-  $('agvClose').onclick = $('agvDone').onclick = () => { stop(); aiGuide(AGV.back); };
-  $('agvPause').onclick = () => {
-    const scr = $('agvScreen');
-    if (AGV.i >= AG_SCENES.length) { AGV.i = 0; return agScene(); }          // Replay
-    AGV.paused = !AGV.paused; scr.classList.toggle('paused', AGV.paused);
-    document.querySelectorAll('.ag-bars i.on b').forEach(b => { b.style.animationPlayState = AGV.paused ? 'paused' : 'running'; });
-    $('agvPause').textContent = AGV.paused ? 'Play' : 'Pause';
-    if (AGV.paused) { stop(); AGV.left -= Date.now() - AGV.t0; } else { AGV.t0 = Date.now(); AGV.timer = setTimeout(agNext, AGV.left); }
-  };
-  agScene();
-}
+// ---- screen 1: the walkthrough (plays by itself; ‹ › to move, pause) ----
+const AGV = { i: 0, timer: null, t0: 0, left: 0, paused: false };
 function agScene() {
-  const sc = AG_SCENES[AGV.i], dur = sc.dur || 4500, scr = $('agvScreen'); if (!scr) return;
+  const sc = AG_SCENES[AGV.i], dur = sc.dur || 4200, scr = $('agvScreen'); if (!scr) return;
   const cur = sc.to ? `<g class="ag-cur" style="--tx:${sc.to[0]}px;--ty:${sc.to[1]}px;animation-duration:${dur}ms"><circle r="7" class="ag-tap" style="animation-duration:${dur}ms"/><text x="-4" y="22" class="ag-finger">👆</text></g>` : '';
   scr.innerHTML = agSvg(sc.svg + cur, ' ag-play');
   scr.style.setProperty('--d', dur + 'ms'); scr.classList.remove('paused');
-  $('agvCap').textContent = `${AGV.i + 1}. ${sc.cap}`;
+  $('agvCap').textContent = sc.cap;
+  $('agvNum').textContent = `${AGV.i + 1} / ${AG_SCENES.length}`;
   document.querySelectorAll('.ag-bars i').forEach((b, k) => { b.className = k < AGV.i ? 'done' : k === AGV.i ? 'on' : ''; const bb = b.firstChild; bb.style.animationDuration = dur + 'ms'; bb.style.animationPlayState = 'running'; });
-  $('agvPause').textContent = 'Pause'; AGV.paused = false;
+  $('agvPrev').disabled = AGV.i === 0;
+  AGV.paused = false; agPlayIcon();
   AGV.left = dur; AGV.t0 = Date.now(); clearTimeout(AGV.timer); AGV.timer = setTimeout(agNext, dur);
 }
 function agNext() {
-  AGV.i++;
-  if (AGV.i < AG_SCENES.length) return agScene();
-  AGV.timer = null; const p = $('agvPause'); if (p) p.textContent = 'Replay';
+  if (AGV.i < AG_SCENES.length - 1) { AGV.i++; return agScene(); }
+  clearTimeout(AGV.timer); AGV.timer = null; AGV.paused = true; agPlayIcon(true);   // finished: stays on the last slide
   document.querySelectorAll('.ag-bars i').forEach(b => { b.className = 'done'; });
 }
+function agPlayIcon(ended) {
+  const b = $('agvPlay'); if (!b) return;
+  b.textContent = ended ? '↻' : AGV.paused ? '▶' : '❚❚';
+  b.setAttribute('aria-label', ended ? 'Play again' : AGV.paused ? 'Play' : 'Pause');
+}
+function agToggle() {
+  if (!AGV.timer && AGV.paused && $('agvPlay').textContent === '↻') { AGV.i = 0; return agScene(); }
+  const scr = $('agvScreen');
+  AGV.paused = !AGV.paused; scr.classList.toggle('paused', AGV.paused);
+  document.querySelectorAll('.ag-bars i.on b').forEach(b => { b.style.animationPlayState = AGV.paused ? 'paused' : 'running'; });
+  if (AGV.paused) { clearTimeout(AGV.timer); AGV.timer = null; AGV.left -= Date.now() - AGV.t0; } else { AGV.t0 = Date.now(); AGV.timer = setTimeout(agNext, Math.max(200, AGV.left)); }
+  agPlayIcon();
+}
 const looksLikeKey = k => /^(AQ\.|AIza)[A-Za-z0-9_.\-]{20,}$/.test(k);
+// the guide: 0 = watch how, 1 = connect (open AI Studio + paste), 2 = done
 function aiGuide(step) {
   clearTimeout(AGV.timer); AGV.timer = null;
-  AI.step = step; const S = agSteps(), s = S[step], sheet = $('aiGuide');
+  AI.step = step; const sheet = $('aiGuide');
   document.body.classList.add('sheet-open'); sheet.hidden = false;
-  const dots = S.map((_, i) => `<i class="${i === step ? 'on' : i < step ? 'done' : ''}"></i>`).join('');
-  let main;
-  if (s.paste) {
-    main = `<p>Tap <b>Paste</b> to put your key in the box, then tap <b>Connect</b>.</p>
-      <div class="ag-paste"><input id="agKey" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="AQ.…" aria-label="Your Google AI key"><button class="btn" type="button" id="agPaste">Paste</button></div>
-      <p class="ag-msg" id="agMsg" role="alert"></p>
-      <p class="muted small">If Paste does not work: press and hold inside the box, then tap <b>Paste</b>.</p>`;
-  } else main = s.text;
+  const dots = [0, 1, 2].map(i => `<i class="${i === step ? 'on' : i < step ? 'done' : ''}"></i>`).join('');
+  let body;
+  if (step === 0) body = `
+      <h2>Get your free Google AI key</h2>
+      <p class="muted small ag-sub">Free, no card, about 1 minute. Here is how it looks:</p>
+      <div class="ag-player">
+        <div class="ag-screen" id="agvScreen"></div>
+        <div class="ag-bars" aria-hidden="true">${AG_SCENES.map(() => '<i><b></b></i>').join('')}</div>
+        <div class="ag-ctrl"><button class="ag-mini" type="button" id="agvPrev" aria-label="Previous">‹</button><button class="ag-mini" type="button" id="agvPlay" aria-label="Pause">❚❚</button><button class="ag-mini" type="button" id="agvNext" aria-label="Next">›</button><span class="ag-num" id="agvNum"></span></div>
+        <p class="ag-cap" id="agvCap" aria-live="polite"></p>
+      </div>
+      <div class="btns grid"><button class="btn" type="button" id="agLater">Not now</button><button class="btn primary" type="button" id="agGo">Get my key</button></div>
+      <p class="muted small">Simplified drawings: Google’s page may look a little different.</p>`;
+  else if (step === 1) body = `
+      <h2>Connect your key</h2>
+      <ol class="ag-do">
+        <li><span>1</span><div><p><b>Open Google AI Studio</b>, then create and copy your key (it starts with <b>AQ.</b>).</p>
+          <a class="btn primary ag-open" id="agOpen" href="${AI_STUDIO}" target="_blank" rel="noopener noreferrer">Open Google AI Studio ↗</a></div></li>
+        <li><span>2</span><div><p><b>Come back here and paste it</b></p>
+          <div class="ag-paste"><input id="agKey" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="AQ.…" aria-label="Your Google AI key"><button class="btn" type="button" id="agPaste">Paste</button></div>
+          <p class="ag-msg" id="agMsg" role="alert"></p>
+          <p class="muted small">If Paste does not work: press and hold inside the box, then tap Paste.</p></div></li>
+      </ol>
+      <div class="btns grid"><button class="btn" type="button" id="agBack">‹ Watch again</button><button class="btn primary" type="button" id="agConnect">Connect</button></div>`;
+  else body = `${AG_ART.done}<h2>Connected!</h2>
+      <p>Your free key works. Upload PDFs and photos as much as you like.</p>
+      <p class="muted small">Google gives a free daily limit, plenty for studying. If you ever reach it, it resets the next day, and Copy AI prompt still works.</p>
+      <div class="btns grid"><span></span><button class="btn primary" type="button" id="agFinish">Start uploading</button></div>`;
   sheet.innerHTML = `<div class="card sheet-card ag-card">
       <div class="ag-top"><div class="ag-dots" aria-hidden="true">${dots}</div><button class="x" type="button" id="agClose" aria-label="Close">×</button></div>
-      ${s.art ? AG_ART[s.art] : ''}
-      <h2>${esc(s.title)}</h2>
-      <div class="ag-text">${main}</div>
-      ${s.video ? '<button class="btn ag-watch" type="button" id="agWatch"><span>▶</span> Watch how (40 seconds)</button>' : ''}
-      ${s.open ? `<a class="btn ag-open${step === 1 ? ' primary' : ''}" id="agOpen" href="${AI_STUDIO}" target="_blank" rel="noopener noreferrer">${esc(s.openLabel || 'Open Google AI Studio')} ↗</a>` : ''}
-      <div class="btns grid">${step > 0 && !s.finish ? '<button class="btn" type="button" id="agBack">Back</button>' : '<span></span>'}
-        ${s.paste ? '<button class="btn primary" type="button" id="agConnect">Connect</button>' : `<button class="btn ${s.open && step === 1 ? '' : 'primary'}" type="button" id="agNext">${esc(s.finish ? 'Start uploading' : s.next)}</button>`}</div>
-      ${!s.video && !s.finish ? '<button class="linkbtn ag-rewatch" type="button" id="agWatch">▶ Watch how</button>' : ''}
-    </div>`;
-  const close = () => { sheet.hidden = true; document.body.classList.remove('sheet-open'); aiRender(); };
+      ${body}</div>`;
+  const close = () => { clearTimeout(AGV.timer); AGV.timer = null; sheet.hidden = true; document.body.classList.remove('sheet-open'); aiRender(); };
   $('agClose').onclick = close;
-  sheet.onclick = e => { if (e.target === sheet) { clearTimeout(AGV.timer); close(); } };
-  if ($('agWatch')) $('agWatch').onclick = () => agVideo(step);
-  if ($('agBack')) $('agBack').onclick = () => aiGuide(step - 1);
-  if ($('agNext')) $('agNext').onclick = () => s.finish ? close() : aiGuide(step + 1);
-  if (s.paste) {
+  sheet.onclick = e => { if (e.target === sheet) close(); };
+  if (step === 0) {
+    $('agLater').onclick = close; $('agGo').onclick = () => aiGuide(1);
+    $('agvPrev').onclick = () => { if (AGV.i > 0) { AGV.i--; agScene(); } };
+    $('agvNext').onclick = () => { if (AGV.i < AG_SCENES.length - 1) { AGV.i++; agScene(); } else agNext(); };
+    $('agvPlay').onclick = agToggle;
+    AGV.i = 0; agScene();
+  } else if (step === 1) {
     const inp = $('agKey'), m = t => { $('agMsg').textContent = t || ''; $('agMsg').className = 'ag-msg' + (t ? ' err' : ''); };
-    inp.focus();
+    $('agBack').onclick = () => aiGuide(0);
     $('agPaste').onclick = async () => { try { const t = await navigator.clipboard.readText(); inp.value = (t || '').trim(); m(''); } catch (e) { m('Could not paste automatically. Press and hold inside the box, then tap Paste.'); inp.focus(); } };
     $('agConnect').onclick = async () => {
       const key = inp.value.trim().replace(/\s+/g, ''); const b = $('agConnect');
-      if (!key) return m('The box is empty. Tap Paste first.');
+      if (!key) return m('The box is empty. Copy your key in Google AI Studio, then tap Paste.');
       b.disabled = true; b.textContent = 'Checking…'; m('');
       const t = await aiTestKey(key);
       if (!t.ok) { b.disabled = false; b.textContent = 'Try again'; return m(t.error); }
       aiStore.set('rc-gkey', key); aiStore.set('rc-gmodel', t.model); AI.err = '';
       Activity.log('ai_key_connected', { model: t.model });
       Sound.play('done');
-      aiGuide(step + 1);
+      aiGuide(2);
     };
-  }
+  } else $('agFinish').onclick = close;
 }
