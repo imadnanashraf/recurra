@@ -126,6 +126,13 @@ service cloud.firestore {
     // app-wide settings anyone may read (for example the push sender's address); only the admin or jobs write
     match /public/{id} { allow read: if true; allow write: if isAdmin(); }
 
+    // your own Google AI key: only you can read or change it (not friends, not the admin)
+    match /aiKeys/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['key', 'model', 'at'])
+        && request.resource.data.key is string && request.resource.data.key.size() < 300;
+    }
+
     // free AI uploads used: only the Recurra sender (server) writes it; you can read your own count
     match /aiTrial/{uid} { allow read: if signedIn() && (request.auth.uid == uid || isAdmin()); allow write: if false; }
 

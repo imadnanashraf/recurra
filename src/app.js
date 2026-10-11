@@ -26,6 +26,8 @@ function show(id) {
   const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', room: 'tests', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
+  // the Android download: website only, and not for people who already use the Android app
+  if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => { a.hidden = NATIVE || (id === 'settings' && !!(App.profile && App.profile.usedAndroid)); });
   if (id === 'home') renderHome();
   if (typeof playIntro === 'function') playIntro(id);
 }
@@ -1722,7 +1724,7 @@ function updateAdminTab() {
   document.querySelectorAll('[data-getapp]').forEach(a => {
     a.href = `https://github.com/${REPO}/releases/download/android/recurra.apk`;
     a.hidden = NATIVE;
-    if (!/Android/i.test(navigator.userAgent)) a.querySelector('.ga-sub').textContent = 'Free. Open this page on your Android phone to download it.';
+    if (!/Android/i.test(navigator.userAgent)) a.querySelector('.ga-sub').textContent = 'Free · scan the code, or open this page on your Android phone';
   });
   const cfg = window.APP_CONFIG && window.APP_CONFIG.firebase;
   if (!cfg) { $('bootMsg').innerHTML = 'Setup is not finished: <code>config.js</code> has no Firebase settings yet. See README.md, step A5.'; return; }

@@ -75,7 +75,7 @@ const Activity = {
   async seen() {
     if (!App.authUser || App.viewAs || document.hidden) return;
     const net = await this.net();
-    Store.fs.doc(`users/${App.authUser.uid}`).set({ lastSeen: Date.now(), lastPlatform: platformLabel(), lastDevice: deviceLabel(), lastIp: net.ip || '', lastPlace: net.place || '' }, { merge: true }).catch(() => {});
+    Store.fs.doc(`users/${App.authUser.uid}`).set({ lastSeen: Date.now(), lastPlatform: platformLabel(), lastDevice: deviceLabel(), lastIp: net.ip || '', lastPlace: net.place || '', ...(NATIVE ? { usedAndroid: true } : {}) }, { merge: true }).catch(() => {});
   },
   start() {
     clearInterval(this.hb);
@@ -111,8 +111,8 @@ const ACTIONS = {
   content_added: ['Content', d => `Added ${d.summary} to "${d.prep}"`],
   ai_upload: ['Content', d => `Uploaded ${d.files} (${d.size}${d.pages ? `, pages ${d.pages}` : ''}) → ${d.result}${d.subject ? ` for ${d.subject}` : ''} · ${d.via} · file not kept`],
   ai_upload_failed: ['Content', d => `Upload of ${d.files} did not work: ${d.why} (${d.via})`],
-  ai_key_connected: ['Account', 'Connected their own Google AI key (saved on that device only)'],
-  ai_key_removed: ['Account', 'Removed their Google AI key from that device'],
+  ai_key_connected: ['Account', 'Connected their own Google AI key (saved in their account)'],
+  ai_key_removed: ['Account', 'Removed their Google AI key'],
   pro_interest: ['Account', 'Asked to be told when Pro is ready'],
   subject_saved: ['Content', d => `${d.edit ? 'Edited' : 'Added'} the subject "${d.subject}" in "${d.prep}"`],
   syllabus_edited: ['Content', d => `Edited the topics of "${d.subject}" (${d.topics}) in "${d.prep}"`],

@@ -3,6 +3,7 @@
 import { mkdirSync, rmSync, readFileSync, writeFileSync, copyFileSync, existsSync, cpSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = f => readFileSync(join(root, 'src', f), 'utf8');
@@ -12,10 +13,19 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, 'vendor'), { recursive: true });
 mkdirSync(join(out, 'fonts'), { recursive: true });
 
+// a QR code for the Android download (so a laptop visitor can scan it with their phone)
+const REPO = (src('activity.js').match(/const REPO = '([^']+)'/) || [])[1] || '';
+function apkQr() {
+  const qrcode = createRequire(import.meta.url)('qrcode-generator'), q = qrcode(0, 'M');
+  q.addData(`https://github.com/${REPO}/releases/download/android/recurra.apk`); q.make();
+  const n = q.getModuleCount(); let d = '';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) d += `M${x} ${y}h1v1h-1z`;
+  return `<svg viewBox="-2 -2 ${n + 4} ${n + 4}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${d}" fill="#0f2233"/></svg>`;
+}
 const html = [
   src('head.html').replace('{{VERSION}}', pkg.version),
   '<style>\n', src('styles.css'), '</style>\n</head>\n<body>\n',
-  src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()),
+  src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()).replaceAll('{{APKQR}}', apkQr()),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
   src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'), src('charts.js'),
   '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('sound.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('bank.js'), src('admin.js'), src('social.js'), src('livetest.js'), src('call.js'), src('push.js'), src('ai.js'), src('help.js'), src('sky.js'), src('intro.js'), src('update.js'),

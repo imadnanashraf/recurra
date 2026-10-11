@@ -2093,14 +2093,34 @@ body.in-call { overflow: hidden; }
 .upd-steps { text-align: left; margin: 4px 0 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; color: var(--muted); }
 body.upd-open .tabbar { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .upd-ic .a { animation: none; } }
-/* get the Android app (website) */
-.get-app { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 4px; padding: 14px 16px; text-decoration: none; color: var(--ink); border: 1.5px solid color-mix(in srgb, var(--accent) 30%, var(--line)); transition: transform .15s, border-color .2s; }
+/* get the Android app (website): a soft banner with a little phone */
+.get-app { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  margin-top: 6px; padding: 20px 18px 20px 20px; border-radius: 22px; text-decoration: none; color: #fff; background: var(--hero);
+  box-shadow: 0 14px 34px -18px rgba(16, 90, 140, .7); transition: transform .2s var(--ease-out, ease), box-shadow .2s; animation: riseIn .4s var(--ease-out, ease) both; }
 .get-app[hidden] { display: none; }
-.get-app:hover { border-color: var(--accent); }
+.get-app:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -18px rgba(16, 90, 140, .8); }
 .get-app:active { transform: scale(.99); }
-.ga-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.ga-ic svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.ga-t { display: grid; gap: 2px; min-width: 0; }
-.ga-t b { font-size: .98rem; }
-.ga-t small { color: var(--muted); font-size: .8rem; line-height: 1.4; }
-.ga-go { font-weight: 800; font-size: .86rem; color: var(--accent-ink); background: var(--accent); padding: 8px 12px; border-radius: 99px; }
+.ga-glow { position: absolute; z-index: -1; inset: -40% -10% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, .28), transparent); }
+.ga-body { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.ga-kicker { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; background: rgba(255, 255, 255, .2); }
+.ga-title { font-size: 1.25rem; line-height: 1.2; letter-spacing: -.01em; }
+.ga-text { font-size: .88rem; line-height: 1.45; color: rgba(255, 255, 255, .88); max-width: 30ch; }
+.ga-btn { margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 99px; background: #fff; color: #0d6e7a; font-weight: 800; font-size: .92rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .4); white-space: nowrap; }
+.ga-btn svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.get-app:hover .ga-btn svg { animation: gaDrop .8s ease-in-out; }
+@keyframes gaDrop { 50% { transform: translateY(3px); } }
+.ga-sub { font-size: .74rem; color: rgba(255, 255, 255, .75); }
+.ga-phone { position: relative; width: 96px; animation: gaFloat 5s ease-in-out infinite; }
+.ga-phone svg { width: 100%; display: block; filter: drop-shadow(0 12px 18px rgba(0, 20, 50, .35)); transform: rotate(6deg); }
+@keyframes gaFloat { 50% { transform: translateY(-6px); } }
+.ph-body { fill: #10202f; } .ph-screen { fill: #f4f7fb; } .ph-sky { fill: #8cc8f5; } .ph-sun { fill: #ffd84d; } .ph-mtn { fill: #5d9a8a; }
+.ph-card { fill: #fff; stroke: #e1e8f1; } .ph-l1 { fill: #142033; } .ph-l2 { fill: #d5dde8; } .ph-t1 { fill: #dcf5ef; } .ph-t2 { fill: #e6f0ff; } .ph-cta { fill: #0f9d8a; } .ph-notch { fill: #10202f; }
+.ga-bubble { position: absolute; z-index: 2; left: -78px; top: -4px; border: 1px solid rgba(15, 157, 138, .25); white-space: nowrap; font-size: .66rem; font-weight: 700; color: var(--ink); background: #fff; padding: 5px 9px; border-radius: 10px 10px 10px 2px;
+  box-shadow: 0 8px 18px -8px rgba(0, 20, 50, .45); animation: gaPop 5s ease-in-out infinite; }
+@keyframes gaPop { 0%, 12% { opacity: 0; transform: translateY(6px) scale(.9); } 20%, 75% { opacity: 1; transform: none; } 85%, 100% { opacity: 0; transform: translateY(-4px); } }
+.ga-qr { display: none; justify-items: center; gap: 6px; padding: 10px; border-radius: 16px; background: rgba(255, 255, 255, .16); }
+.ga-qr svg { width: 104px; height: 104px; border-radius: 8px; display: block; }
+.ga-qr small { font-size: .72rem; color: rgba(255, 255, 255, .85); font-weight: 650; }
+@media (min-width: 900px) and (hover: hover) { .get-app { gap: 22px; padding: 22px 24px; } .ga-qr { display: grid; } .ga-phone { display: none; } }
+@media (max-width: 360px) { .ga-phone { width: 76px; } .ga-bubble { display: none; } }
+@media (prefers-reduced-motion: reduce) { .ga-phone, .ga-bubble, .get-app { animation: none; } .ga-bubble { opacity: 1; } }

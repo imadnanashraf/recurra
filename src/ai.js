@@ -1,7 +1,7 @@
 /* =====================================================================
    UPLOAD A PDF OR PHOTO → MCQs, notes or a syllabus, in one tap.
    Three ways, in this order:
-   1. Your own free Google AI (Gemini) key, saved ONLY on this device.
+   1. Your own free Google AI (Gemini) key, saved in your account (only you can read it).
    2. A few free uploads on Recurra's key (the "free trial"), sent through
       the small Recurra sender (push/worker.js) so the key is never in the app.
    3. Copy AI prompt: always there, always free, never locked.
@@ -17,8 +17,15 @@ const aiStore = {
   get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
   set(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} },
 };
-const aiKey = () => aiStore.get('rc-gkey');
-const aiModel = () => aiStore.get('rc-gmodel') || 'gemini-2.5-flash';
+// your key is saved in your account (aiKeys/{you}: only you can read it, not even the admin), and kept on this device as a copy
+const aiSlot = k => `${k}:${(App.authUser && App.authUser.uid) || ''}`;
+const aiKey = () => aiStore.get(aiSlot('rc-gkey'));
+const aiModel = () => aiStore.get(aiSlot('rc-gmodel')) || 'gemini-2.5-flash';
+function aiKeepKey(key, model) {
+  aiStore.set(aiSlot('rc-gkey'), key); aiStore.set(aiSlot('rc-gmodel'), model);
+  const ref = Store.fs.doc(`aiKeys/${meUid()}`);
+  return (key ? ref.set({ key, model: model || '', at: Date.now() }) : ref.delete()).catch(e => console.warn('key save', e));
+}
 const aiMode = () => aiKey() ? 'own' : AI.trialOn && AI.used < AI.FREE ? 'trial' : 'none';
 const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
 
@@ -30,7 +37,15 @@ function aiShown() {
   return target !== 'new' && (kind === 'mcq' || kind === 'notes') && !!App.subjects.find(s => s.code === App.imp.subject);
 }
 async function aiLoad() {
-  if (AI.loading || !App.authUser) return; AI.loading = true;
+  if (AI.loading || !App.authUser) return; AI.loading = true; AI.for = meUid();
+  // the key from your account (works on all your devices); an older key kept only on this device moves into your account
+  try {
+    const k = await Store.fs.doc(`aiKeys/${meUid()}`).get(), old = aiStore.get('rc-gkey');
+    if (k.exists && (k.data() || {}).key) { const d = k.data(); aiStore.set(aiSlot('rc-gkey'), d.key); aiStore.set(aiSlot('rc-gmodel'), d.model || ''); }
+    else if (old) { await aiKeepKey(old, aiStore.get('rc-gmodel')); }
+    else { aiStore.set(aiSlot('rc-gkey'), ''); aiStore.set(aiSlot('rc-gmodel'), ''); }
+    aiStore.set('rc-gkey', ''); aiStore.set('rc-gmodel', '');
+  } catch (e) {}
   try { const c = await Store.fs.doc('public/config').get(), d = c.exists ? c.data() || {} : {}; AI.trialOn = !!(d.aiTrial && d.pushUrl); AI.trialUrl = d.pushUrl || ''; } catch (e) {}
   try { const t = await Store.fs.doc(`aiTrial/${meUid()}`).get(); AI.used = t.exists ? Number((t.data() || {}).used || 0) : 0; } catch (e) {}
   try { const p = await Store.fs.doc(`proInterest/${meUid()}`).get(); AI.interest = p.exists; } catch (e) {}
@@ -234,7 +249,7 @@ const fmtDur2 = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 function aiRender() {
   const box = $('impAI'); if (!box) return;
   box.hidden = !aiShown(); if (box.hidden) return;
-  if (!AI.loaded) { aiLoad(); }
+  if (!AI.loaded || AI.for !== meUid()) { aiLoad(); }
   const mode = aiMode(), kind = App.imp.kind;
   const make = kind === 'mcq' ? 'Make MCQs' : kind === 'notes' ? 'Make revision notes' : 'Read my syllabus';
   const what = kind === 'syllabus' ? 'your official syllabus (PDF or photo)' : 'your notes, a chapter, or photos of your notes';
@@ -291,10 +306,10 @@ async function aiNotify() {
 }
 function aiManage() {
   const box = $('impAI'), foot = box.querySelector('.ai-foot');
-  foot.innerHTML = `<div class="confirm"><span>Remove your Google AI key from this device? You can connect it again any time.</span>
+  foot.innerHTML = `<div class="confirm"><span>Remove your Google AI key from your account (all your devices)? You can connect it again any time.</span>
     <div class="btns"><button class="btn small" type="button" id="aiKeep">Keep it</button><button class="btn small" type="button" id="aiNew">Connect a different key</button><button class="btn small danger" type="button" id="aiDel">Remove</button></div></div>`;
   $('aiKeep').onclick = aiRender; $('aiNew').onclick = () => aiGuide(0);
-  $('aiDel').onclick = () => { aiStore.set('rc-gkey', ''); aiStore.set('rc-gmodel', ''); Activity.log('ai_key_removed'); toast('Key removed from this device.'); aiRender(); };
+  $('aiDel').onclick = async () => { await aiKeepKey('', ''); Activity.log('ai_key_removed'); toast('Key removed from your account.'); aiRender(); };
 }
 
 // ---- the step-by-step guide to get a free key (for anyone, no tech words) ----
@@ -445,7 +460,7 @@ function aiGuide(step) {
       b.disabled = true; b.textContent = 'Checking…'; m('');
       const t = await aiTestKey(key);
       if (!t.ok) { b.disabled = false; b.textContent = 'Try again'; return m(t.error); }
-      aiStore.set('rc-gkey', key); aiStore.set('rc-gmodel', t.model); AI.err = '';
+      await aiKeepKey(key, t.model); AI.err = '';
       Activity.log('ai_key_connected', { model: t.model });
       Sound.play('done');
       aiGuide(2);
