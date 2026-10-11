@@ -406,8 +406,30 @@ const scrollToEnd = () => { const l = $('msgList'); try { l.scrollTop = l.scroll
 // the chat fills the screen exactly: header on top, messages scroll in the middle, the box to type at the bottom
 function fitThread() {
   const top = document.querySelector('.topbar'), vv = window.visualViewport;
-  const h = (vv ? vv.height : innerHeight) - (top ? top.getBoundingClientRect().height : 0);
+  const h = (vv ? vv.height : innerHeight) - (top ? top.getBoundingClientRect().height : 0) - KB.h;   // KB.h: a keyboard drawn over the app
   document.documentElement.style.setProperty('--thread-h', Math.max(320, Math.round(h)) + 'px');
+}
+/* The phone keyboard: on newer Android phones the app is drawn edge to edge and the keyboard can open OVER it
+   instead of pushing it up. The keyboard tells us its height; if the app did not get smaller by itself,
+   we lift the chat (and any page) by that much, so the box you type in stays above the keyboard. */
+const KB = { h: 0, base: 0 };
+const viewH = () => window.visualViewport ? visualViewport.height : innerHeight;
+if (NATIVE && window.capacitorExports) {
+  try {
+    const K = capacitorExports.registerPlugin('Keyboard');
+    KB.base = viewH();
+    const apply = kb => setTimeout(() => {
+      if (!kb) KB.base = viewH();
+      const shrunk = KB.base && KB.base - viewH() > kb * 0.6;           // the app already made room by itself
+      KB.h = kb && !shrunk ? kb : 0;
+      document.documentElement.style.setProperty('--kb', KB.h + 'px');
+      document.body.classList.toggle('kb-open', !!kb);
+      if (Social.open) { fitThread(); scrollToEnd(); }
+      else if (KB.h && document.activeElement && document.activeElement.scrollIntoView) document.activeElement.scrollIntoView({ block: 'center' });
+    }, 60);
+    K.addListener('keyboardDidShow', i => apply((i && i.keyboardHeight) || 0));
+    K.addListener('keyboardDidHide', () => apply(0));
+  } catch (e) { console.warn('keyboard', e); }
 }
 addEventListener('resize', () => { if (Social.open) { const n = nearBottom(); fitThread(); if (n) scrollToEnd(); } });
 if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (Social.open) { const n = nearBottom(); fitThread(); if (n) scrollToEnd(); } });

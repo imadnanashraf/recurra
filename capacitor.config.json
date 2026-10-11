@@ -23,6 +23,9 @@
       "resetWhenUpdate": true,
       "autoDeleteFailed": true,
       "appReadyTimeout": 10000
+    },
+    "Keyboard": {
+      "resizeOnFullScreen": true
     }
   }
 }
