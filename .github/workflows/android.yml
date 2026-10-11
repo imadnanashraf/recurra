@@ -67,11 +67,24 @@ jobs:
           RUN: ${{ github.run_number }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          gh release delete android --yes --cleanup-tag || true
-          gh release create android "$RUNNER_TEMP/recurra.apk" "$RUNNER_TEMP/bundle.zip" \
-            --title "Recurra for Android $VERSION (build $RUN)" \
-            --notes "Install: download recurra.apk on your Android phone and open it. Updates install over the old version; your data stays in your account." \
-            --latest
+          TITLE="Recurra for Android $VERSION (build $RUN)"
+          NOTES="Install: download recurra.apk on your Android phone and open it. Updates install over the old version; your data stays in your account."
+          # an unfinished draft from an earlier run would hide the download: remove drafts first
+          gh api "repos/${{ github.repository }}/releases" --jq '.[] | select(.draft) | .id' | while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && echo "removed draft $id"; done
+          # keep ONE published download page and swap its files (never delete it, so the link always works)
+          if gh release view android >/dev/null 2>&1; then
+            gh release upload android "$RUNNER_TEMP/recurra.apk" "$RUNNER_TEMP/bundle.zip" --clobber
+            gh release edit android --title "$TITLE" --notes "$NOTES" --draft=false --latest
+          else
+            gh release create android "$RUNNER_TEMP/recurra.apk" "$RUNNER_TEMP/bundle.zip" --title "$TITLE" --notes "$NOTES" --latest
+          fi
+          # check the public link really works
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L "https://github.com/${{ github.repository }}/releases/download/android/recurra.apk")
+            [ "$code" = "200" ] && echo "Download link works" && exit 0
+            sleep 10
+          done
+          echo "::error::The download link does not work (HTTP $code)"; exit 1
       - name: Tell installed apps about this build
         working-directory: reminder
         env:
