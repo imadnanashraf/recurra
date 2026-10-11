@@ -506,7 +506,7 @@ async function sendShare(what) {
   }
   let data, title = App.prep.name, subjectName = '', topicName = '', n = 0;
   if (what === 'syllabus') {
-    data = { type: 'syllabus', name: App.prep.name, examDate: App.prep.examDate || '', marking: App.prep.marking || null, subjects: App.subjects.map(x => ({ code: x.code, name: x.name, marks: x.marks || 0, part: x.part || '', topics: x.topics || [] })) };
+    data = { type: 'syllabus', name: App.prep.name, examDate: App.prep.examDate || '', subjects: App.subjects.map(x => ({ code: x.code, name: x.name, part: x.part || '', topics: x.topics || [] })) };
     n = App.subjects.length;
   } else {
     const sub = App.subjects.find(x => x.code === Share.subject), groups = shareGroups(what, Share.subject), g = groups.find(x => x.key === Share.topic);

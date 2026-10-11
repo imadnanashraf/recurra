@@ -90,7 +90,7 @@ function topicPanel(s, t) {
 }
 function sylCard(x) {
   const { s, topics } = x, n = topics.length, shut = Syl.shut.has(s.code) && Syl.edit !== s.code;
-  const meta = [s.part && `Part ${s.part}`, s.marks && `${s.marks} marks`].filter(Boolean).map(esc).join(' · ');
+  const meta = s.part ? esc(`Part ${s.part}`) : '';
   const head = `<header class="syl-head">
       ${n ? sylRing(x.doneN / n, x.strongN / n, 48, `${x.doneN} of ${n} topics studied`) : '<span class="syl-code">' + esc(s.code) + '</span>'}
       <button class="syl-title" type="button" data-sfold="${esc(s.code)}" aria-expanded="${!shut}"><strong>${esc(s.name)}</strong><small>${meta || esc(s.code)}${n ? ` · <b>${x.doneN}/${n}</b> studied` : ''}</small></button>

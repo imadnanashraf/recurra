@@ -46,7 +46,7 @@ function cleanSyllabus(o) {
     if (!name) return problems.push(`Subject ${code}: missing "name"`);
     if (out.subjects.some(x => x.code === code)) return problems.push(`Subject code ${code} is used twice`);
     const topics = topicsOf(s);
-    out.subjects.push({ code, name, marks: num(s.marks, 0), part: str(s.part), ...(topics.length ? { topics } : {}) });
+    out.subjects.push({ code, name, part: str(s.part), ...(topics.length ? { topics } : {}) });
   });
   return { syllabus: out, problems };
 }
@@ -186,10 +186,9 @@ function parseImport(text) {
 const SAMPLES = {
   syllabus: {
     type: 'syllabus', name: 'State Engineering Exam', examDate: '2027-03-15',
-    marking: { correct: 2, wrong: -0.5, totalQuestions: 100, minutes: 120 },
     subjects: [
-      { code: 'CN', name: 'Computer Networks', marks: 20, part: 'B', topics: ['OSI and TCP/IP models', 'IP addressing and subnetting', 'Routing protocols'] },
-      { code: 'DE', name: 'Digital Electronics', marks: 20, part: 'B', topics: ['Number systems', 'Logic gates', 'Flip-flops'] },
+      { code: 'CN', name: 'Computer Networks', part: 'B', topics: ['OSI and TCP/IP models', 'IP addressing and subnetting', 'Routing protocols'] },
+      { code: 'DE', name: 'Digital Electronics', part: 'B', topics: ['Number systems', 'Logic gates', 'Flip-flops'] },
     ],
   },
   mcq: {
@@ -234,12 +233,11 @@ ${json}
 
 Rules:
 1. "code": a short, unique code of 2 to 5 capital letters for each subject.
-2. "marks": the marks or weightage of that subject (0 if not given). "part": the section name if the syllabus has parts, otherwise "".
+2. "part": the section name if the syllabus has parts, otherwise "".
 3. "examDate": the exam date as YYYY-MM-DD, or "" if not known.
-4. "marking": marks for a correct answer, marks for a wrong answer (a negative number, 0 if no negative marking), total number of questions, and duration in minutes. Use 0 for anything not given.
-5. Copy subject names as they are written in the syllabus.
-6. "topics": every topic listed under that subject, one short item each, copied as written. Split long comma-separated lists into separate topics. Use [] if none are listed.
-${subjects && subjects.length ? `7. I already have these subjects. When the syllabus has one of them, use exactly this code and name, so nothing is added twice:
+4. Copy subject names as they are written in the syllabus.
+5. "topics": every topic listed under that subject, one short item each, copied as written. Split long comma-separated lists into separate topics. Use [] if none are listed.
+${subjects && subjects.length ? `6. I already have these subjects. When the syllabus has one of them, use exactly this code and name, so nothing is added twice:
 ${subjects.map(x => `   ${x.code} = ${x.name}`).join('\n')}
    Make new codes only for subjects that are not in this list.
 ` : ''}
@@ -293,7 +291,7 @@ function examLine(prep) {
   const when = d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   return `I am preparing for the exam "${name}"${when ? ` (exam on ${when})` : ''}.`;
 }
-const subjectInfo = s => [s.part && `Part ${s.part}`, s.marks ? `${s.marks} marks` : ''].filter(Boolean).join(', ');
+const subjectInfo = s => s.part ? `Part ${s.part}` : '';
 function promptForSubject(kind, prep, subject, allowed, pinned, focus) {
   const strip = o => { const c = { ...o }; delete c.subject; return c; };
   const sample = kind === 'mcq' ? { type: 'mcq', questions: SAMPLES.mcq.questions.map(strip) } : { type: 'notes', notes: SAMPLES.notes.notes.map(strip) };

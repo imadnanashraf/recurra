@@ -53,7 +53,7 @@ async function copyText(text, okMsg) {
 }
 const examMs = () => examMsFrom(App.prep && App.prep.examDate);
 const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code),
-  prefs().byMarks && App.subjects.some(s => s.marks) ? Object.fromEntries(App.subjects.map(s => [s.code, s.marks || 0])) : null);
+  null);
 
 /* ---------- prep loading ---------- */
 function rebuild() {
@@ -307,7 +307,7 @@ $('calNext').addEventListener('click', () => { Cal.month = new Date(Cal.month.ge
 
 /* ---------- practice a topic ---------- */
 function subjectMeta(s) {
-  return [s.part && `Part ${esc(s.part)}`, s.marks ? `${s.marks} marks` : ''].filter(Boolean).join(' · ');
+  return s.part ? `Part ${esc(s.part)}` : '';
 }
 function openSubjectPicker() {
   App.pick = { mode: 'subject' };
@@ -586,7 +586,7 @@ function renderProgress() {
   // one card per subject (works as the table view of the memory chart)
   $('pSubjects').innerHTML = App.subjects.map(s => {
     const o = summary(App.questions.filter(q => q.code === s.code)), pct = o.total ? Math.round(100 * o.strong / o.total) : 0;
-    return `<div class="subj"><div class="subj-top"><strong>${esc(s.name)}</strong><span class="mono muted">${esc(s.code)}${s.marks ? ` · ${s.marks} marks` : ''}</span></div>
+    return `<div class="subj"><div class="subj-top"><strong>${esc(s.name)}</strong><span class="mono muted">${esc(s.code)}</span></div>
       <div class="meter wide" role="img" aria-label="${pct}% strong"><i style="width:${pct}%"></i></div>
       <dl class="subj-nums"><div><dt>In bank</dt><dd>${o.total || '–'}</dd></div><div><dt>Seen</dt><dd>${o.total ? o.seen : '–'}</dd></div>
       <div><dt>Strong</dt><dd>${o.total ? o.strong : '–'}</dd></div><div><dt>Accuracy</dt><dd>${o.acc === null ? '–' : o.acc + '%'}</dd></div><div><dt>Due</dt><dd>${o.due || '–'}</dd></div></dl></div>`;
@@ -803,7 +803,7 @@ async function createFromChecked(c) {
   const pid = Store.newId();
   const s = c.syllabus;
   const subjects = [...s.subjects];
-  for (const code of [...(c.newSubjects || [])]) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, marks: 0, part: '' });
+  for (const code of [...(c.newSubjects || [])]) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, part: '' });
   const writes = [{ path: Store.prepPath(pid), data: { name: s.name || 'My prep', examDate: s.examDate || '', marking: s.marking || null, subjects, created: Date.now(), resetAt: 0 } }];
   const qBy = {}, nBy = {};
   (c.questions || []).forEach(q => { (qBy[q.subject] = qBy[q.subject] || {})[q.id] = q; });
@@ -872,7 +872,7 @@ function renderShareBanner() {
   const W = { mcq: ['📝', 'MCQs'], notes: ['📒', 'notes'], syllabus: ['🗂️', 'syllabus'] }[sh.what];
   const what = sh.what === 'syllabus' ? `the syllabus “${esc(sh.title || '')}”` : `${sh.count} ${W[1]}${sh.subjectName ? ` · ${esc(sh.subjectName)}` : ''}${sh.topicName ? ` · ${esc(sh.topicName)}` : ''}`;
   box.innerHTML = `<span class="sb-ic">${W[0]}</span><div><strong>From ${esc(sh.from)}</strong><span>${what}</span>
-    <small class="muted">${sh.what === 'syllabus' ? (App.imp.target === 'new' ? 'A new prep will be made from it.' : `It will be merged into <b>${esc(App.prep ? App.prep.name : '')}</b>: subjects you already have keep your names and marks; new topics are added.`)
+    <small class="muted">${sh.what === 'syllabus' ? (App.imp.target === 'new' ? 'A new prep will be made from it.' : `It will be merged into <b>${esc(App.prep ? App.prep.name : '')}</b>: subjects you already have keep your names; new topics are added.`)
       : 'Pick the subject in your prep where they belong. Anything you already have is merged, not added twice.'}</small>
     ${sh.what === 'syllabus' && App.imp.target !== 'new' ? '<button class="linkbtn" type="button" data-sharenew>Start a new prep from it instead</button>' : ''}</div>`;
   const nb = box.querySelector('[data-sharenew]');
@@ -969,13 +969,12 @@ function renderSubjectsCard() {
     ${none ? `<p class="small subj-note">${needs ? 'Add at least one subject first. The AI prompt lists your subjects, so every question and note lands in the right subject.' : 'Add subjects here one by one, or import a whole syllabus below.'}</p>`
       : `<ol class="subj-list">${subs.map(s => {
           const nq = App.questions.filter(q => q.code === s.code).length, nt = (s.topics || []).length;
-          const meta = [s.part && `Part ${esc(s.part)}`, s.marks ? `${s.marks} marks` : '', nt ? plural(nt, 'topic') : '', nq ? plural(nq, 'Q') : ''].filter(Boolean).join(' · ');
-          return `<li class="subj-row${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b class="sc-code">${esc(s.code)}</b><span class="sc-name">${esc(s.name)}<small>${meta || 'Tap to add marks or part'}</small></span></button>${used(s.code) ? '<span class="sc-lock" title="Has questions or notes, so it can\'t be removed" aria-hidden="true"></span>' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</li>`; }).join('')}</ol>`}
+          const meta = [s.part && `Part ${esc(s.part)}`, nt ? plural(nt, 'topic') : '', nq ? plural(nq, 'Q') : ''].filter(Boolean).join(' · ');
+          return `<li class="subj-row${editing && editing.code === s.code ? ' on' : ''}"><button type="button" class="sc-main" data-sedit="${esc(s.code)}" title="Edit ${esc(s.name)}"><b class="sc-code">${esc(s.code)}</b><span class="sc-name">${esc(s.name)}<small>${meta || 'Tap to edit'}</small></span></button>${used(s.code) ? '<span class="sc-lock" title="Has questions or notes, so it can\'t be removed" aria-hidden="true"></span>' : `<button type="button" class="sc-x" data-sdel="${esc(s.code)}" aria-label="Remove ${esc(s.name)}">×</button>`}</li>`; }).join('')}</ol>`}
     <details class="subj-add"${none || editing ? ' open' : ''}><summary>${editing ? `Edit ${esc(editing.name)}` : none ? 'Add a subject' : 'Add another subject'}</summary>
       <div class="subj-form">
         <label>Subject name<input id="sName" maxlength="80" placeholder="e.g. Computer Networks" value="${esc(editing ? editing.name : '')}"></label>
         <label>Short code<input id="sCode" maxlength="8" placeholder="CN" autocapitalize="characters" spellcheck="false" value="${esc(editing ? editing.code : '')}"${editing ? ' readonly' : ''}></label>
-        <label>Marks <span class="muted">optional</span><input id="sMarks" type="number" min="0" max="999" inputmode="numeric" value="${editing && editing.marks ? editing.marks : ''}"></label>
         <label>Part <span class="muted">optional</span><input id="sPart" maxlength="20" placeholder="e.g. B" value="${esc(editing ? editing.part || '' : '')}"></label>
       </div>
       <div class="btns"><button class="btn primary" type="button" id="sSave">${editing ? 'Save changes' : 'Add subject'}</button>${editing ? '<button class="btn" type="button" id="sCancel">Cancel</button>' : ''}</div>
@@ -987,11 +986,11 @@ function renderSubjectsCard() {
   $('sName').oninput = () => { if (!codeTouched) $('sCode').value = $('sName').value.trim() ? suggestCode($('sName').value, subs.map(s => s.code)) : ''; };
   if ($('sCancel')) $('sCancel').onclick = () => { App.imp.editSubject = null; renderSubjectsCard(); };
   $('sSave').onclick = async () => {
-    const name = $('sName').value.trim(), code = $('sCode').value.trim().toUpperCase(), marks = Number($('sMarks').value) || 0, part = $('sPart').value.trim();
+    const name = $('sName').value.trim(), code = $('sCode').value.trim().toUpperCase(), part = $('sPart').value.trim();
     if (!name) return msg('sMsg', 'Give the subject a name.', 'err');
     if (!/^[A-Z0-9]{1,8}$/.test(code)) return msg('sMsg', 'The short code is 1 to 8 capital letters or numbers, like CN.', 'err');
     if (!editing && subs.some(s => s.code === code)) return msg('sMsg', `${code} is already used. Pick another short code.`, 'err');
-    const next = editing ? subs.map(s => s.code === code ? { ...s, name, marks, part } : s) : [...subs, { code, name, marks, part }];
+    const next = editing ? subs.map(s => s.code === code ? { ...s, name, part } : s) : [...subs, { code, name, part }];
     $('sSave').disabled = true;
     try {
       await Store.setPrep(App.prepId, { subjects: next });
@@ -1170,8 +1169,8 @@ function renderPreview() {
     else parts.push((c.all || c.notes).slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
   } else {
     const s = c.syllabus;
-    parts.push(`<strong>${esc(s.name || (App.imp.target === 'active' && App.prep ? App.prep.name : 'My prep'))}</strong><span class="muted">${s.examDate ? `Exam ${esc(s.examDate)}` : 'No exam date'}${s.marking ? ` · +${s.marking.correct} / ${s.marking.wrong} per question` : ''} · ${plural(s.subjects.length, 'subject')}</span>`);
-    if (s.subjects.length) parts.push(`<ul>${s.subjects.map(x => `<li>${esc(x.code)} · ${esc(x.name)}${x.marks ? ` (${x.marks} marks)` : ''}</li>`).join('')}</ul>`);
+    parts.push(`<strong>${esc(s.name || (App.imp.target === 'active' && App.prep ? App.prep.name : 'My prep'))}</strong><span class="muted">${s.examDate ? `Exam ${esc(s.examDate)}` : 'No exam date'} · ${plural(s.subjects.length, 'subject')}</span>`);
+    if (s.subjects.length) parts.push(`<ul>${s.subjects.map(x => `<li>${esc(x.code)} · ${esc(x.name)}</li>`).join('')}</ul>`);
     if (c.kind === 'prep') parts.push(`<span>${plural(c.questions.length, 'question')} and ${plural(c.notes.length, 'note')} included.</span>`);
     if (App.imp.target === 'new') { canAdd = true; addLabel = 'Create prep'; }
     else {
@@ -1208,7 +1207,7 @@ async function applyImport(btn) {
         if (i < 0) { subjects.push(ns); continue; }
         const topics = [...(subjects[i].topics || [])];          // keep your topics, add the new ones
         (ns.topics || []).forEach(t => { if (!topics.some(x => normTopic(x) === normTopic(t) || matchTopic(t, [x]) >= 0)) topics.push(t); });
-        const mine = subjects[i], keepMine = !!App.imp.share;     // from a friend: your names and marks stay, only gaps are filled
+        const mine = subjects[i], keepMine = !!App.imp.share;     // from a friend: your names stay, only gaps are filled
         subjects[i] = keepMine ? { ...ns, ...Object.fromEntries(Object.entries(mine).filter(([, v]) => !isEmptyVal(v))), ...(topics.length ? { topics } : {}) }
           : { ...mine, ...ns, ...(topics.length ? { topics } : {}) };
       }
@@ -1221,7 +1220,7 @@ async function applyImport(btn) {
         if (s.marking) prepFields.marking = s.marking;
       }
     }
-    for (const code of c.newSubjects || []) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, marks: 0, part: '' });
+    for (const code of c.newSubjects || []) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, part: '' });
     if (JSON.stringify(subjects) !== JSON.stringify(App.subjects) || Object.keys(prepFields).length) {
       writes.push({ path: base, data: { ...stripId(App.prep), ...prepFields, subjects } });
     }
@@ -1269,7 +1268,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optMarks').checked = !!pf.byMarks;
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
   $('optHaptic').checked = pf.haptics !== false; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
@@ -1284,7 +1283,6 @@ async function savePrefs(fields) {
 }
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
-$('optMarks').addEventListener('change', () => savePrefs({ byMarks: $('optMarks').checked }));
 $('themeChips').addEventListener('click', e => {
   const b = e.target.closest('[data-theme-set]'); if (!b) return;
   try { localStorage.setItem(THEME_KEY, b.dataset.themeSet); } catch (err) {}

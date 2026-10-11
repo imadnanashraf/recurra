@@ -18,13 +18,12 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 
 ## Syllabus (optional)
 
-- A prep's syllabus is its subjects (name, code, marks, part) and, optionally, each subject's **topics**.
+- A prep's syllabus is its subjects (name, short code, part) and, optionally, each subject's **topics**.
   Subjects can be added by hand (Add questions or notes → Subjects) or imported; topics are typed one per line on the
   **Syllabus** tab or imported from the official syllabus with the AI prompt. Importing adds new topics and keeps yours.
 - Questions and notes are matched to topics automatically by their topic name (nothing extra to do). Topics with no
   questions show as gaps; **Fill the gaps** copies an AI prompt for exactly those topics.
 - One tap on a topic's circle marks it studied. Rings show % studied (outer) and % strong in memory (inner).
-- Settings → Study → **Share new questions by marks** gives high-mark subjects more of each day's new questions.
 
 ## Friends and chat
 
@@ -34,7 +33,7 @@ testing yourself (retrieval practice), spacing reviews just before you would for
 - **Chats are live:** messages, "Seen", requests and the unread badge update on their own. Tap your own message to delete it.
 - **Private:** the database rules let only the two friends read a chat. The admin cannot read chats; the activity log only notes things like "sent a friend request".
 - **Sharing:** the **+** in a chat shares MCQs or notes (a whole subject or one topic, up to 300), your syllabus, or **asks** your friend for one. Nothing is copied until the receiver taps **Add to my prep**; they pick the subject (the same checks as a normal paste) and get their own copy. Progress is never shared.
-- **Merging:** the same question (same subject and question text) or the same note (same title) is never added twice. From a friend, *your* version is kept and only missing parts are filled in (note points are combined); you can choose **Use theirs**. Reworded questions with the same answer are shown as "similar" and skipped unless you choose **Add anyway**. A shared syllabus is merged into yours by subject name, keeping your names and marks.
+- **Merging:** the same question (same subject and question text) or the same note (same title) is never added twice. From a friend, *your* version is kept and only missing parts are filled in (note points are combined); you can choose **Use theirs**. Reworded questions with the same answer are shown as "similar" and skipped unless you choose **Add anyway**. A shared syllabus is merged into yours by subject name, keeping your names.
 - **Live tests:** start one from Friends (🏁 Live test) or the **+** in a chat. Invite up to 4 friends, pick a subject or topic (or mixed), 10/20/30 questions and a time limit. Everyone gets the same questions, each in their own order with shuffled options. A live race bar and short pop-ups ("⚡ You're faster than Faria!", "🏁 Ali finished: 17/20") keep it fun. Results show a podium, scores and times, and the **trap questions** most people got wrong, with explanations. Questions you got wrong can be added to your prep, and answers to questions already in your prep count toward your revision.
 - **Test history** (Progress → Live tests, or 🏆 My tests in Friends): every test is saved: your score chart, wins, head-to-head against each friend, and badges.
 - When an account is erased, its username, profile, friendships, chats and live tests are erased too.
