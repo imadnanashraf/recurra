@@ -8,6 +8,7 @@
     "android:prepare": "node scripts/build.mjs && npx cap add android && node scripts/patch-android.mjs && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "7.5.0",
     "@capacitor/android": "7.6.9",
     "@capacitor/cli": "7.6.9",
     "@capacitor/core": "7.6.9",
@@ -20,7 +21,7 @@
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
     "firebase": "11.10.0"
   },
-  "nativeLevel": 3,
+  "nativeLevel": 4,
   "devDependencies": {
     "qrcode-generator": "^2.0.4"
   }

@@ -41,8 +41,13 @@ jobs:
         working-directory: reminder
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           npm install --no-audit --no-fund
+          # the signing key's public fingerprints (not secret): Firebase needs them for "Continue with Google" in the app
+          FP=$(keytool -list -v -keystore "$RUNNER_TEMP/recurra.p12" -storetype PKCS12 -storepass "$PW" 2>/dev/null)
+          export KEY_SHA1=$(echo "$FP" | grep -m1 -E '^\s*SHA1:' | awk '{print $2}')
+          export KEY_SHA256=$(echo "$FP" | grep -m1 -E '^\s*SHA256:' | awk '{print $2}')
           node android-config.mjs "$RUNNER_TEMP/google-services.json"
       - name: Prepare Android project
         env:

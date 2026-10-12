@@ -61,6 +61,20 @@ if (gs && existsSync(gs)) {
   writeFileSync(mf, m);
   push = true;
 }
+// 7. "Continue with Google" inside the app: the Google sign-in parts of the sign-in add-on, and a flag for the app
+//    when the Firebase settings carry the Google web client (they do once the app's signing fingerprint is registered)
+let google = false;
+{
+  const vf = join(root, 'android', 'variables.gradle');
+  let v = readFileSync(vf, 'utf8');
+  if (!v.includes('rgcfaIncludeGoogle')) v = v.replace(/ext \{/, 'ext {\n    rgcfaIncludeGoogle = true');
+  writeFileSync(vf, v);
+  if (gs && existsSync(gs)) {
+    try { google = (JSON.parse(readFileSync(gs, 'utf8')).client || []).some(c => (c.oauth_client || []).some(o => o.client_type === 3)); } catch (e) {}
+  }
+  const cfgFile = join(root, 'www', 'config.js');
+  if (google && existsSync(cfgFile)) writeFileSync(cfgFile, readFileSync(cfgFile, 'utf8') + '\nwindow.APP_CONFIG.androidGoogle = true;\n');
+}
 // 6. which build this app code is (for background updates)
 {
   const cfgFile = join(root, 'www', 'config.js');
@@ -75,4 +89,4 @@ if (gs && existsSync(gs)) {
   if (!m.includes('android.hardware.camera')) m = m.replace(/<application/, `<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application`);
   writeFileSync(mf, m);
 }
-console.log(`Android patched: version ${pkg.version}-n${nativeLevel}-b${versionCode}, signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}`);
+console.log(`Android patched: version ${pkg.version}-n${nativeLevel}-b${versionCode}, signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}, Google sign-in ${google ? 'ON' : 'off'}`);

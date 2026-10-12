@@ -1364,7 +1364,7 @@ $('remTest').addEventListener('click', async () => {
   try { msg('remMsg', await Reminders.test(), 'ok'); }
   catch (e) { msg('remMsg', REM_ERRORS[e.message] || 'Could not send a test.', 'err'); }
 });
-$('signOut').addEventListener('click', async () => { if (!App.fb) return; await Activity.log('signed_out'); App.fb.auth.signOut(); });
+$('signOut').addEventListener('click', async () => { if (!App.fb) return; await Activity.log('signed_out'); App.fb.auth.signOut(); const P = nativeAuth(); if (P && googleOK()) P.signOut().catch(() => {}); });   // also forget the Google account choice in the Android app
 $('installBtn').addEventListener('click', async () => {
   if (!Install.prompt) return;
   Install.prompt.prompt();
@@ -1447,7 +1447,7 @@ function setAuthMode(m) {
   $('loginPass').autocomplete = up ? 'new-password' : 'current-password';
   $('nameRow').hidden = !up; $('confirmRow').hidden = !up; $('forgotBtn').hidden = up || reset;
   $('passRow').hidden = reset; $('resetIntro').hidden = !reset;
-  $('googleBtn').hidden = reset || NATIVE; $('orLine').hidden = reset || NATIVE;
+  $('googleBtn').hidden = reset || !googleOK(); $('orLine').hidden = reset || !googleOK();
   $('loginForm').hidden = false; $('resetDone').hidden = true; $('authTitle').hidden = false;
   msg('loginMsg', '');
 }
@@ -1548,9 +1548,30 @@ $('loginForm').addEventListener('submit', async e => {
   } catch (err) { authErrorWithAction(err, email); }
   $('loginBtn').disabled = false;
 });
+// "Continue with Google". In the Android app the web pop-up cannot open, so Android's own Google account
+// picker is used: it hands back a Google sign-in token, and Firebase signs in with it.
+function nativeAuth() { try { return NATIVE && window.capacitorExports ? capacitorExports.registerPlugin('FirebaseAuthentication') : null; } catch (e) { return null; } }
+function googleOK() { return !NATIVE || !!(window.APP_CONFIG && APP_CONFIG.androidGoogle && window.capacitorExports); }
+async function nativeGoogle() {
+  const P = nativeAuth(); if (!P) throw new Error('not available');
+  const r = await P.signInWithGoogle({ skipNativeAuth: true });
+  const tok = r && r.credential && r.credential.idToken;
+  if (!tok) throw new Error('no token');
+  await App.fb.auth.signInWithCredential(firebase.auth.GoogleAuthProvider.credential(tok, (r.credential && r.credential.accessToken) || null));
+}
 $('googleBtn').addEventListener('click', async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
   App.signingIn = true;
+  if (NATIVE) {
+    const b = $('googleBtn'); b.disabled = true; msg('loginMsg', '');
+    try { await nativeGoogle(); }
+    catch (err) {
+      App.signingIn = false;
+      const t = String((err && (err.message || err.code)) || '');
+      if (!/cancel/i.test(t)) { console.warn('google', err); const m = err && err.code && err.code.startsWith('auth/') ? authError(err) : ''; msg('loginMsg', m || 'Google sign-in did not work. Try again, or sign in with your email and password.', 'err'); }
+    }
+    b.disabled = false; return;
+  }
   try { await App.fb.auth.signInWithPopup(provider); }
   catch (err) {
     if (/popup-blocked|operation-not-supported/.test(err.code || '')) { try { await App.fb.auth.signInWithRedirect(provider); return; } catch (e2) { err = e2; } }
@@ -1748,7 +1769,7 @@ function updateAdminTab() {
 (async function init() {
   document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon); });
   applyTheme();
-  if (NATIVE) { $('googleBtn').hidden = true; $('orLine').hidden = true; }
+  if (!googleOK()) { $('googleBtn').hidden = true; $('orLine').hidden = true; }
   else if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   // the Android app download link (only in a normal browser tab)
   const apk = `https://github.com/${REPO}/releases/download/android/recurra.apk`, onAndroid = /Android/i.test(navigator.userAgent);
