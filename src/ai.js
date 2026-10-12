@@ -167,33 +167,49 @@ async function aiGenerate() {
     for (let i = 0; i < AI.files.length; i++) { AI.st.i = i + 1; aiPaintStatus(); parts.push(await filePart(AI.files[i])); if (AI.stopped) return fail('Stopped. Nothing was added.', true); }
   } catch (e) { return fail('Could not open this file on your device. Try choosing it again.', true); }
   parts.push({ text: aiPrompt() });
-  const body = JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } });
-  // 2–3. send, then Google writes (up to 3 tries when Google is busy or the line breaks)
-  let res = null, out = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const schema = aiSchema(PROMPT_SAMPLE);
+  // 2–3. send, then Google writes. When a Google model is busy (or its free limit for today is used up),
+  // the next model is tried straight away; only when all are busy do we wait and start again.
+  const chain = aiChain(mode), MAX_TRIES = chain.length + 2;
+  let res = null, out = null, at = 0, plain = false, lastBad = null, round = 1;
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    const model = chain[at];
+    const body = JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: aiConfig(model, plain ? null : schema, plain) });
     Object.assign(AI.st, { stage: 'send', up: 0, count: 0, attempt, wait: 0, tWrite: 0 }); aiPaintStatus();
     try {
       const onUp = f => { AI.st.up = f; if (f >= 0.999 && AI.st.stage === 'send') { AI.st.stage = 'write'; AI.st.tWrite = Date.now(); } aiPaintStatus(); };
       const onText = raw => { if (AI.st.stage !== 'write') { AI.st.stage = 'write'; AI.st.tWrite = AI.st.tWrite || Date.now(); } AI.st.count = countItems(sseText(raw).text, kind); aiPaintStatus(); };
-      if (mode === 'own') res = await aiPost(`${GEM}/models/${encodeURIComponent(aiModel())}:streamGenerateContent?alt=sse`, { 'x-goog-api-key': aiKey(), 'content-type': 'application/json' }, body, onUp, onText);
+      if (mode === 'own') res = await aiPost(`${GEM}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, { 'x-goog-api-key': aiKey(), 'content-type': 'application/json' }, body, onUp, onText);
       else {
         const token = await App.fb.auth.currentUser.getIdToken();
-        res = await aiPost(AI.trialUrl.replace(/\/+$/, '') + '/ai?stream=1', { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body, onUp, onText);
+        res = await aiPost(AI.trialUrl.replace(/\/+$/, '') + '/ai?stream=1' + (model ? '&model=' + encodeURIComponent(model) : ''), { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body, onUp, onText);
+        const used = res.header('x-model'); if (!model && used && res.status === 200) aiStore.set('rc-trialmodel', used);
       }
     } catch (e) { return fail('Stopped. Nothing was added. Your file is still here: tap Try again when you’re ready.', true); }
+    const next = async () => {                       // move on to the next model (or, after the last one, wait and start over)
+      at++;
+      if (at < chain.length) { AI.st.stage = 'switch'; aiPaintStatus(); await sleep(1200); return true; }
+      if (round >= 2 || (lastBad && lastBad.status === 429)) return false;     // every model's limit for today is used up: no point waiting
+      round++; at = 0; await aiWait(2); return true;
+    };
     if (res.status === 200) {
       if (mode === 'trial') { const u = Number(res.header('x-trial-used')); AI.used = isFinite(u) && u > 0 ? u : AI.used + 1; }
       out = sseText(res.text);
       if (out.text.trim()) break;
       if (out.block || /SAFETY|RECITATION|PROHIBITED/.test(out.finish)) return fail('Google would not read this file. Try a different page or photo.', false);
-      if (attempt < 3) { await aiWait(attempt); if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; }
+      lastBad = { status: 200 };
+      if (mode === 'own' && await next()) { if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; }   // (the free trial counts every answer, so it does not try again by itself)
       return fail('Google did not give anything back for this file. Try a clearer photo or fewer pages.', true);
     }
-    const busy = res.status === 0 || res.status >= 500;
-    if (busy && attempt < 3) { await aiWait(attempt); if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; }
+    // our extra settings (answer shape, less thinking) not accepted by this model: same model, plain request
+    if (res.status === 400 && !plain && /thinking|schema|generation_?config|responseSchema|propertyOrdering|Invalid JSON payload/i.test(res.text)) { plain = true; attempt--; continue; }
+    const tooFast = mode === 'trial' && res.status === 429 && /slow down/i.test(res.text);
+    const busy = res.status === 0 || res.status >= 500 || (res.status === 429 && !tooFast) || res.status === 404;
+    if (busy) { lastBad = res; if (await next()) { if (AI.stopped) return fail('Stopped. Nothing was added.', true); continue; } }
     if (mode === 'trial' && res.status === 402) AI.used = AI.FREE;
     return fail(aiError(res.status, res.text, mode === 'own'), busy || res.status === 400);
   }
+  if (!out || !out.text.trim()) return fail(aiError(lastBad ? lastBad.status : 0, lastBad ? lastBad.text : '', mode === 'own'), true);
   // 4. check it, like a paste
   AI.st.stage = 'check'; aiPaintStatus();
   $('impText').value = out.text.trim();
@@ -219,6 +235,35 @@ async function aiGenerate() {
   const pv = $('impPreview'); if (pv && !pv.hidden) pv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   else $('impPaste').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+// Google models to try, best first. Each model has its own "busy" state and its own free daily limit,
+// so when one is busy the next usually works. (Free trial: '' = the model the Recurra server picks.)
+function aiChain(mode) {
+  const first = mode === 'own' ? aiModel() : (aiStore.get('rc-trialmodel') || '');
+  const list = [first, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
+  return list.filter((m, i) => list.indexOf(m) === i && (m || i === 0));
+}
+// how Google should answer: JSON in exactly the shape of the example, and little "thinking" first
+// (thinking makes the answer start much later and is not needed to turn notes into questions)
+function aiConfig(model, schema, plain) {
+  const c = { responseMimeType: 'application/json', temperature: 0.4 };
+  if (plain) return c;
+  if (schema) c.responseSchema = schema;
+  if (/gemini-2\.5-flash/.test(model)) c.thinkingConfig = { thinkingBudget: 0 };
+  else if (/gemini-[3-9]/.test(model)) c.thinkingConfig = { thinkingLevel: 'low' };
+  return c;
+}
+// the answer shape for Google, made from the example in the prompt (so they always match)
+function aiSchema(sample) {
+  if (!sample) return null;
+  const of = v => {
+    if (Array.isArray(v)) return { type: 'ARRAY', items: v.length ? of(v[0]) : { type: 'STRING' } };
+    if (v && typeof v === 'object') { const k = Object.keys(v), properties = {}; k.forEach(x => { properties[x] = of(v[x]); }); return { type: 'OBJECT', properties, required: k, propertyOrdering: k }; }
+    if (typeof v === 'number') return { type: Number.isInteger(v) ? 'INTEGER' : 'NUMBER' };
+    if (typeof v === 'boolean') return { type: 'BOOLEAN' };
+    return { type: 'STRING' };
+  };
+  try { const s = of(sample); if (s.properties && s.properties.type && sample.type) s.properties.type = { type: 'STRING', enum: [sample.type] }; return s; } catch (e) { return null; }
+}
 // Google is busy: wait a little, showing the countdown, then try again
 async function aiWait(attempt) {
   const secs = attempt === 1 ? 4 : 8;
@@ -228,18 +273,19 @@ function aiStop() { AI.stopped = true; if (AI.xhr) try { AI.xhr.abort(); } catch
 // the live status inside the card: one short line + a slim bar (4 parts: prepare, send, write, check)
 function aiPaintStatus() {
   const box = $('aiSteps'), st = AI.st; if (!box || !st) return;
-  const order = ['prep', 'send', 'write', 'check'], at = st.stage === 'wait' ? 1 : order.indexOf(st.stage);
+  const order = ['prep', 'send', 'write', 'check'], at = st.stage === 'wait' || st.stage === 'switch' ? 1 : order.indexOf(st.stage);
   const word = st.kind === 'mcq' ? 'question' : st.kind === 'notes' ? 'note' : 'subject';
   const long = (Date.now() - (st.tWrite || Date.now())) > 25e3;
   const line = {
     prep: st.n > 1 ? `Preparing file ${Math.min(st.i, st.n)} of ${st.n}…` : 'Preparing your file…',
     send: `Sending… ${Math.round(st.up * 100)}%`,
     wait: `Google is busy, retrying in ${st.wait}s…`,
+    switch: 'Google is busy, trying another model…',
     write: st.count ? `Writing… ${plural(st.count, word)} so far` : long ? 'Reading your file (long files take longer)…' : 'Google is reading your file…',
     check: 'Almost done…',
   }[st.stage];
   const fill = k => k < at ? 1 : k > at ? 0 : st.stage === 'send' ? st.up : st.stage === 'prep' ? (st.n ? (st.i - 1) / st.n : 0) : .5;
-  box.innerHTML = `<p class="ai-line${st.stage === 'wait' ? ' warn' : ''}"><span class="ai-spin" aria-hidden="true"></span>${esc(line)}</p>
+  box.innerHTML = `<p class="ai-line${st.stage === 'wait' || st.stage === 'switch' ? ' warn' : ''}"><span class="ai-spin" aria-hidden="true"></span>${esc(line)}</p>
     <div class="ai-seg" aria-hidden="true">${order.map((_, k) => `<i><i style="width:${Math.round(fill(k) * 100)}%"></i></i>`).join('')}</div>`;
   const c = $('aiClock'); if (c) c.textContent = fmtDur2(Math.round((Date.now() - st.t0) / 1000));
 }

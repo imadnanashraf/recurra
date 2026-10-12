@@ -500,7 +500,10 @@ function subjectLines(subjects, focus) {
 }
 const hasTopics = (subjects, focus) => !!focus || subjects.some(s => (s.topics || []).length);
 
+// the example in the last prompt made: uploads ask Google to answer in exactly this shape
+let PROMPT_SAMPLE = null;
 function promptFor(kind, prepName, subjects, focus) {
+  PROMPT_SAMPLE = SAMPLES[kind];
   const json = JSON.stringify(SAMPLES[kind], null, 2);
   if (kind === 'syllabus') return `${subjects && subjects.length ? examLine(prepName) + '\n' : ''}Convert the exam syllabus I attach (PDF, photo or text) into JSON for my revision app.
 
@@ -572,6 +575,7 @@ function promptForSubject(kind, prep, subject, allowed, pinned, focus) {
   const strip = o => { const c = { ...o }; delete c.subject; return c; };
   const sample = kind === 'mcq' ? { type: 'mcq', questions: SAMPLES.mcq.questions.map(strip) } : { type: 'notes', notes: SAMPLES.notes.notes.map(strip) };
   if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
+  PROMPT_SAMPLE = sample;
   const json = JSON.stringify(sample, null, 2);
   const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
     : allowed && allowed.length ? `"topic": copy exactly one of these topics of ${subject.name}:\n   ${allowed.join('; ')}\n   If an item fits none of them, write "Others" as the topic and suggest a short new topic name (2 to 5 words) in "subtopic".`

@@ -11,7 +11,7 @@ const enc = new TextEncoder();
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...CORS } });
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-trial-used' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-trial-used, x-model' };
 
 // ---- who is asking: verify the Firebase ID token (RS256, Google's public keys) ----
 let keys = null, keysUntil = 0;
@@ -89,8 +89,10 @@ async function aiTrial(req, env) {
     const doc = await fsGet(env, tok, `aiTrial/${uid}`), used = doc ? Number(fields(doc.fields).used || 0) : 0;
     if (used >= FREE) return json({ error: 'trial used', used }, 402);
     // the file goes straight through to Google (not read or kept here)
-    const stream = new URL(req.url).searchParams.get('stream') === '1';      // live progress: Google's answer arrives piece by piece
-    const r = await fetch(`${GEM}/models/${await trialModel(env)}:${stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`, { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' }, body: req.body });
+    const q = new URL(req.url).searchParams, stream = q.get('stream') === '1';      // live progress: Google's answer arrives piece by piece
+    // the app may ask for another everyday Flash model when the usual one is busy (never the paid-tier "Pro" ones)
+    const ask = q.get('model') || '', mdl = /^gemini-[a-z0-9.\-]*flash[a-z0-9.\-]*$/.test(ask) && !/image|tts|audio|live|pro/.test(ask) ? ask : await trialModel(env);
+    const r = await fetch(`${GEM}/models/${mdl}:${stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`, { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'content-type': 'application/json' }, body: req.body });
     let now = used;
     if (r.ok) {
       const name = `projects/${env.PROJECT_ID}/databases/(default)/documents/aiTrial/${uid}`;
@@ -98,7 +100,7 @@ async function aiTrial(req, env) {
         body: JSON.stringify({ writes: [{ update: { name, fields: {} }, updateMask: { fieldPaths: [] }, updateTransforms: [{ fieldPath: 'used', increment: { integerValue: '1' } }, { fieldPath: 'at', setToServerValue: 'REQUEST_TIME' }] }] }) });
       now = used + 1;
     }
-    return new Response(r.body, { status: r.status, headers: { 'content-type': r.ok && stream ? 'text/event-stream' : 'application/json', 'cache-control': 'no-store', 'x-trial-used': String(now), ...CORS } });
+    return new Response(r.body, { status: r.status, headers: { 'content-type': r.ok && stream ? 'text/event-stream' : 'application/json', 'cache-control': 'no-store', 'x-trial-used': String(now), 'x-model': mdl, ...CORS } });
   } catch (e) {
     return json({ error: String(e && e.message || e).slice(0, 100) }, /token|key/.test(String(e && e.message)) ? 401 : 500);
   }
