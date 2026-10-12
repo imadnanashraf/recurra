@@ -174,8 +174,9 @@ function parseImport(text) {
   }
   if (!o || typeof o !== 'object') return { error: 'This JSON is not in a format the app knows.' };
   const type = norm(o.type);
-  if (['prep', 'syllabus', 'mcq', 'notes'].includes(type)) return { kind: type, data: o };
+  if (['prep', 'syllabus', 'mcq', 'notes', 'both'].includes(type)) return { kind: type, data: o };
   if (Array.isArray(o.questions) && Array.isArray(o.subjects)) return { kind: 'prep', data: o };
+  if (Array.isArray(o.questions) && Array.isArray(o.notes)) return { kind: 'both', data: o };
   if (Array.isArray(o.questions)) return { kind: 'mcq', data: o };
   if (Array.isArray(o.notes)) return { kind: 'notes', data: o };
   if (Array.isArray(o.subjects)) return { kind: 'syllabus', data: o };
@@ -215,6 +216,8 @@ const SAMPLES = {
   },
 };
 
+// MCQs, notes, or both from the same material: these three are made for one subject at a time
+function perKind(k) { return k === 'mcq' || k === 'notes' || k === 'both'; }
 // focus = { CODE: [topics] }: only these subjects and topics (used for "fill the gaps")
 function subjectLines(subjects, focus) {
   const list = focus ? subjects.filter(s => focus[s.code]) : subjects;
@@ -297,8 +300,9 @@ function examLine(prep) {
 const subjectInfo = s => s.part ? `Part ${s.part}` : '';
 function promptForSubject(kind, prep, subject, allowed, pinned, focus) {
   const strip = o => { const c = { ...o }; delete c.subject; return c; };
-  const sample = kind === 'mcq' ? { type: 'mcq', questions: SAMPLES.mcq.questions.map(strip) } : { type: 'notes', notes: SAMPLES.notes.notes.map(strip) };
-  if (pinned) (kind === 'mcq' ? sample.questions : sample.notes).forEach(x => { x.topic = pinned; });
+  const qs = SAMPLES.mcq.questions.map(strip), ns = SAMPLES.notes.notes.map(strip);
+  const sample = kind === 'mcq' ? { type: 'mcq', questions: qs } : kind === 'notes' ? { type: 'notes', notes: ns } : { type: 'both', questions: qs, notes: ns };
+  if (pinned) [...(sample.questions || []), ...(sample.notes || [])].forEach(x => { x.topic = pinned; });
   PROMPT_SAMPLE = sample;
   const json = JSON.stringify(sample, null, 2);
   const topicRule = pinned ? `"topic": always exactly "${pinned}". Use only material about ${pinned}.`
@@ -307,45 +311,50 @@ function promptForSubject(kind, prep, subject, allowed, pinned, focus) {
   const cover = focus && focus.length && !pinned ? `\nCover ONLY these topics: ${focus.join('; ')}.` : '';
   const material = focus && focus.length || pinned ? 'My material (optional; if I give none, use standard textbook knowledge of these topics):' : 'My material:';
   const info = subjectInfo(subject), subjLine = `Subject: ${subject.name}${info ? ` (${info})` : ''}.`;
-  if (kind === 'mcq') return `${examLine(prep)}
-${subjLine}
-Turn the study material at the end of this message into multiple-choice questions at the level of this exam, for my revision app.
+  const mcqRules = [
+    'Give exactly 4 options. "answer" must be copied exactly from "options" (the option text, never a letter like "A").',
+    'Mix the question types and write the type in "type": Factual, Conceptual, Application, Comparison, Confusion, Trap.',
+    '"difficulty": Easy, Medium or Hard.',
+    '"explanation": 1 to 3 short sentences in simple English: why the answer is right and why the most tempting wrong option is wrong.',
+    '"hint": a short memory trick. "trap": the mistake examiners try to catch. "concept": the idea being tested.',
+  ];
+  const noteRules = [
+    'One note per important idea, or per pair of concepts that are easy to confuse.',
+    '"keyDifference": one sentence for comparisons; use "" if the note is not a comparison.',
+    '"points": 3 to 6 short points. "memoryTrick" and "examTrap": one short sentence each.',
+  ];
+  const num = list => list.map((r, i) => `${i + 1}. ${r}`).join('\n');
+  const head = `${examLine(prep)}\n${subjLine}\n`, tail = `\n\n${material}\n[paste your notes here, or attach the PDF or photo]`;
+  if (kind === 'mcq') return `${head}Turn the study material at the end of this message into multiple-choice questions at the level of this exam, for my revision app.
 Every question is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
 
 Reply with ONLY one JSON code block in exactly this format:
 ${json}
 
 Rules:
-1. ${topicRule}
-2. Give exactly 4 options. "answer" must be copied exactly from "options" (the option text, never a letter like "A").
-3. Mix the question types and write the type in "type": Factual, Conceptual, Application, Comparison, Confusion, Trap.
-4. "difficulty": Easy, Medium or Hard.
-5. "explanation": 1 to 3 short sentences in simple English: why the answer is right and why the most tempting wrong option is wrong.
-6. "hint": a short memory trick. "trap": the mistake examiners try to catch. "concept": the idea being tested.
-7. Write in simple English even if my material is in Hinglish.
-8. Use only facts from my material or standard textbook facts. If my material looks wrong, use the correct fact and mention it in the explanation.
-9. Make 15 to 25 questions. Do not add an "id".
-
-${material}
-[paste your notes here, or attach the PDF or photo]`;
-  return `${examLine(prep)}
-${subjLine}
-From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
+${num([topicRule, ...mcqRules, 'Write in simple English even if my material is in Hinglish.', 'Use only facts from my material or standard textbook facts. If my material looks wrong, use the correct fact and mention it in the explanation.', 'Make 15 to 25 questions. Do not add an "id".'])}${tail}`;
+  if (kind === 'notes') return `${head}From the study material at the end of this message, make short revision notes for my app. Focus on things students confuse and on exam traps.
 Every note is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
 
 Reply with ONLY one JSON code block in exactly this format:
 ${json}
 
 Rules:
-1. ${topicRule}
-2. One note per important idea, or per pair of concepts that are easy to confuse.
-3. "keyDifference": one sentence for comparisons; use "" if the note is not a comparison.
-4. "points": 3 to 6 short points. "memoryTrick" and "examTrap": one short sentence each.
-5. Write in simple English even if my material is in Hinglish. Keep it short and to the point.
-6. Make 5 to 12 notes. Do not add an "id".
+${num([topicRule, ...noteRules, 'Write in simple English even if my material is in Hinglish. Keep it short and to the point.', 'Make 5 to 12 notes. Do not add an "id".'])}${tail}`;
+  return `${head}From the study material at the end of this message, make BOTH multiple-choice questions at the level of this exam AND short revision notes, for my revision app.
+Everything is for ONE subject: ${subject.name}. Do not add a "subject" field.${cover}
 
-${material}
-[paste your notes here, or attach the PDF or photo]`;
+Reply with ONLY one JSON code block in exactly this format (both lists in the same reply):
+${json}
+
+Rules for both:
+${num([topicRule, 'Write in simple English even if my material is in Hinglish.', 'Use only facts from my material or standard textbook facts. If my material looks wrong, use the correct fact and mention it.', 'Do not add an "id".'])}
+
+Rules for "questions" (15 to 25 questions):
+${num(mcqRules)}
+
+Rules for "notes" (5 to 12 notes; focus on things students confuse and on exam traps):
+${num(noteRules)}${tail}`;
 }
 
 // ---- merging what you already have with what comes in ----

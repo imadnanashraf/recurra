@@ -34,7 +34,7 @@ function aiShown() {
   const { kind, target, share } = App.imp || {};
   if (share || !App.authUser || App.viewAs) return false;
   if (kind === 'syllabus') return true;
-  return target !== 'new' && (kind === 'mcq' || kind === 'notes') && !!App.subjects.find(s => s.code === App.imp.subject);
+  return target !== 'new' && perKind(kind) && !!App.subjects.find(s => s.code === App.imp.subject);
 }
 async function aiLoad() {
   if (AI.loading || !App.authUser || App.viewAs) return; AI.loading = true; AI.for = meUid();
@@ -143,7 +143,9 @@ function sseText(raw) {
   }
   return { text, finish, block };
 }
-const countItems = (t, kind) => (t.match(kind === 'mcq' ? /"question"\s*:/g : kind === 'notes' ? /"title"\s*:/g : /"name"\s*:/g) || []).length;
+const countItems = (t, kind) => (t.match(kind === 'mcq' ? /"question"\s*:/g : kind === 'notes' ? /"title"\s*:/g : kind === 'both' ? /"(question|title)"\s*:/g : /"name"\s*:/g) || []).length;
+// "18 questions and 7 notes" from Google's answer
+const madeText = (t, kind) => kind === 'both' ? `${plural(countItems(t, 'mcq'), 'question')} and ${plural(countItems(t, 'notes'), 'note')}` : kind === 'mcq' ? plural(countItems(t, kind), 'question') : kind === 'notes' ? plural(countItems(t, kind), 'note') : 'your syllabus';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function aiGenerate() {
   const mode = aiMode(); if (!AI.files.length || AI.busy) return;
@@ -226,10 +228,10 @@ async function aiGenerate() {
   }
   const secs = Math.round((Date.now() - AI.st.t0) / 1000);
   Activity.log('ai_upload', { files: names, size: fmtSize(total), pages: AI.pages.trim(), kind, subject: sub ? sub.name : '', via,
-    result: kind === 'mcq' ? plural(countItems(out.text, kind), 'MCQ') : kind === 'notes' ? plural(countItems(out.text, kind), 'note') : 'a syllabus' });
+    result: kind === 'syllabus' ? 'a syllabus' : madeText(out.text, kind) });
   AI.busy = false; AI.xhr = null; AI.files = []; AI.pages = '';          // done: forget the file
   const made = countItems(out.text, kind);
-  AI.done = { what: kind === 'mcq' ? plural(made, 'question') : kind === 'notes' ? plural(made, 'note') : 'your syllabus', secs };
+  AI.done = { what: madeText(out.text, kind), secs };
   Sound.play('check');
   aiRender();
   const pv = $('impPreview'); if (pv && !pv.hidden) pv.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -274,7 +276,7 @@ function aiStop() { AI.stopped = true; if (AI.xhr) try { AI.xhr.abort(); } catch
 function aiPaintStatus() {
   const box = $('aiSteps'), st = AI.st; if (!box || !st) return;
   const order = ['prep', 'send', 'write', 'check'], at = st.stage === 'wait' || st.stage === 'switch' ? 1 : order.indexOf(st.stage);
-  const word = st.kind === 'mcq' ? 'question' : st.kind === 'notes' ? 'note' : 'subject';
+  const word = st.kind === 'mcq' ? 'question' : st.kind === 'notes' ? 'note' : st.kind === 'both' ? 'item' : 'subject';
   const long = (Date.now() - (st.tWrite || Date.now())) > 25e3;
   const line = {
     prep: st.n > 1 ? `Preparing file ${Math.min(st.i, st.n)} of ${st.n}…` : 'Preparing your file…',
@@ -297,7 +299,7 @@ function aiRender() {
   box.hidden = !aiShown(); if (box.hidden) return;
   if (!AI.loaded || AI.for !== meUid()) { aiLoad(); }
   const mode = aiMode(), kind = App.imp.kind;
-  const make = kind === 'mcq' ? 'Make MCQs' : kind === 'notes' ? 'Make revision notes' : 'Read my syllabus';
+  const make = kind === 'mcq' ? 'Make MCQs' : kind === 'notes' ? 'Make revision notes' : kind === 'both' ? 'Make MCQs and notes' : 'Read my syllabus';
   const what = kind === 'syllabus' ? 'your official syllabus (PDF or photo)' : 'your notes, a chapter, or photos of your notes';
   const left = Math.max(0, AI.FREE - AI.used);
   const status = mode === 'own' ? `<span class="ai-ok">✓ Your own Google AI key is connected</span>`
@@ -314,7 +316,7 @@ function aiRender() {
   const filesHtml = AI.files.map((f, i) => `<li><span>${/^image\//.test(f.type) ? '🖼️' : /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? '📕' : '📄'}</span><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small><button class="x" type="button" data-airm="${i}" aria-label="Remove ${esc(f.name)}">×</button></li>`).join('');
   const hasPdf = AI.files.some(f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name));
   const body = mode === 'none'
-    ? `<p class="muted">Turn ${what} into ${kind === 'mcq' ? 'MCQs' : kind === 'notes' ? 'revision notes' : 'your syllabus'} in one tap. Connect your own <b>free</b> Google AI key first. It takes about a minute and needs no card.</p>
+    ? `<p class="muted">Turn ${what} into ${kind === 'mcq' ? 'MCQs' : kind === 'notes' ? 'revision notes' : kind === 'both' ? 'MCQs and revision notes' : 'your syllabus'} in one tap. Connect your own <b>free</b> Google AI key first. It takes about a minute and needs no card.</p>
        <div class="btns"><button class="btn primary" type="button" id="aiConnect">Connect my free key</button></div>`
     : `<label class="ai-drop" for="aiFile"><span class="ai-drop-ic">⬆️</span><b>${AI.files.length ? 'Add more' : 'Choose a PDF or photos'}</b><small>PDF up to ${fmtSize(AI_MAX)} · photos · Hinglish is fine</small></label>
        <input id="aiFile" type="file" accept="application/pdf,image/*,.txt,.md" multiple hidden>

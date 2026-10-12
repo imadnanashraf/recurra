@@ -887,20 +887,21 @@ function exportPrep() {
 }
 
 /* ---------- import screen ---------- */
-const KIND_LABEL = { mcq: 'MCQs', notes: 'Revision notes', syllabus: 'Syllabus', prep: 'Prep file' };
+const KIND_LABEL = { mcq: 'MCQs', notes: 'Revision notes', both: 'MCQs + notes', syllabus: 'Syllabus', prep: 'Prep file' };
 // opts: { subject: CODE, topic: 'one topic', focus: ['topics to cover'] } (from the Syllabus tab)
 function openImport(target, kind, opts = {}) {
   App.imp = { target, kind, checked: null, back: visible('preps') ? 'preps' : visible('syllabus') ? 'syllabus' : 'home',
     subject: opts.subject || (App.subjects.length === 1 && target !== 'new' ? App.subjects[0].code : null), topic: opts.topic || '', focus: opts.focus || null,
     share: opts.share || null, takeTheirs: false, addSimilar: false };
   if (opts.share) App.imp.back = 'thread';
-  $('impText').value = opts.share ? opts.share.text : ''; $('impFile').value = ''; msg('impMsg', '');
+  $('impText').value = opts.share ? opts.share.text : ''; $('impFile').value = ''; msg('impMsg', ''); $('impDone').hidden = true;
   renderImport(); show('import');
   if (opts.share && (kind === 'syllabus' || App.imp.subject)) doCheck();
 }
 // the prompt "Copy AI prompt" copies right now: for the chosen kind, subject and topic
 function currentPrompt() {
-  const { kind } = App.imp, sub = (kind === 'mcq' || kind === 'notes') && App.subjects.find(s => s.code === App.imp.subject);
+  const { kind } = App.imp, sub = perKind(kind) && App.subjects.find(s => s.code === App.imp.subject);
+  if (kind === 'both' && !sub) return '';
   return sub ? promptForSubject(kind, App.prep, sub, sub.topics || [], App.imp.topic, App.imp.focus)
     : promptFor(kind, App.prep || 'my exam', App.subjects);
 }
@@ -919,13 +920,13 @@ function renderShareBanner() {
 }
 function renderImport() {
   const { target, kind } = App.imp;
-  const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
+  const kinds = target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'both', 'syllabus'];
   $('impTitle').textContent = target === 'new' ? 'New prep from a file' : `Add to ${App.prep ? App.prep.name : ''}`;
-  $('impText').placeholder = { mcq: '{ "type": "mcq", "questions": [ ... ] }', notes: '{ "type": "notes", "notes": [ ... ] }', syllabus: '{ "type": "syllabus", "subjects": [ ... ] }', prep: '{ "type": "prep", ... }' }[kind] || '';
+  $('impText').placeholder = { mcq: '{ "type": "mcq", "questions": [ ... ] }', notes: '{ "type": "notes", "notes": [ ... ] }', both: '{ "type": "both", "questions": [ ... ], "notes": [ ... ] }', syllabus: '{ "type": "syllabus", "subjects": [ ... ] }', prep: '{ "type": "prep", ... }' }[kind] || '';
   renderShareBanner();
   $('impKinds').hidden = !!App.imp.share;
   $('impKinds').innerHTML = kinds.map(k => `<button class="chip" type="button" data-kind="${k}" aria-pressed="${k === kind}">${KIND_LABEL[k]}</button>`).join('');
-  const perSubject = target !== 'new' && (kind === 'mcq' || kind === 'notes'), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
+  const perSubject = target !== 'new' && perKind(kind), sub = perSubject && App.subjects.find(s => s.code === App.imp.subject);
   if (perSubject && !sub) App.imp.subject = null;
   aiRender();
   $('impHelp').hidden = $('impPaste').hidden = (perSubject && !sub) || !!App.imp.share;
@@ -935,7 +936,7 @@ function renderImport() {
     $('impHelp').innerHTML = `<strong>Prep file</strong><p class="muted">A prep file is what <em>Export</em> makes on the Preps screen. Use it to copy a whole prep (syllabus, questions and notes) from a friend. Choose the file or paste its text below.</p>`;
   } else {
     const what = kind === 'syllabus' ? 'your syllabus' : `your study notes on ${sub ? sub.name : 'the subject'}`;
-    $('impHelp').innerHTML = `<strong>${aiShown() ? '📋 Or use any AI chat (always free)' : sub ? `How to make ${kind === 'mcq' ? 'MCQs' : 'notes'} for ${esc(sub.name)}` : 'How to make this with any AI chat'}</strong>
+    $('impHelp').innerHTML = `<strong>${aiShown() ? '📋 Or use any AI chat (always free)' : sub ? `How to make ${kind === 'mcq' ? 'MCQs' : kind === 'both' ? 'MCQs and notes' : 'notes'} for ${esc(sub.name)}` : 'How to make this with any AI chat'}</strong>
       <ol class="steps">
         <li>Tap <strong>Copy AI prompt</strong>.</li>
         <li>Open ChatGPT, Claude or Gemini, paste the prompt, and attach or paste ${what} (PDF, photo or text; English or Hinglish is fine).</li>
@@ -945,7 +946,7 @@ function renderImport() {
       <button class="btn" type="button" id="togglePrompt">${App.imp.showPrompt ? 'Hide prompt' : 'Show prompt'}</button>
       <button class="btn ghost" type="button" id="toggleSample">Show sample format</button></div>
       <div class="prompt-view" id="promptBox"${App.imp.showPrompt ? '' : ' hidden'}><div class="prompt-bar"><span class="label">The exact prompt that will be copied</span><button class="btn small" type="button" id="copyPrompt2">Copy</button></div><pre class="sample prompt-text">${esc(currentPrompt())}</pre></div>
-      <pre class="sample" id="sampleBox" hidden>${esc(JSON.stringify(SAMPLES[kind], null, 2))}</pre>`;
+      <pre class="sample" id="sampleBox" hidden>${esc(JSON.stringify(kind === 'both' ? { type: 'both', questions: SAMPLES.mcq.questions, notes: SAMPLES.notes.notes } : SAMPLES[kind], null, 2))}</pre>`;
     const copied = sub ? `Prompt for ${sub.name} copied. Paste it into your AI chat.` : 'Prompt copied. Paste it into your AI chat.';
     $('copyPrompt').onclick = $('copyPrompt2').onclick = () => copyText(currentPrompt(), copied);
     $('togglePrompt').onclick = () => { const b = $('promptBox'); b.hidden = !b.hidden; App.imp.showPrompt = !b.hidden; $('togglePrompt').textContent = b.hidden ? 'Show prompt' : 'Hide prompt'; if (!b.hidden) $('sampleBox').hidden = true, $('toggleSample').textContent = 'Show sample format'; };
@@ -956,9 +957,9 @@ function renderImport() {
 }
 // Step 1 for MCQs and notes: which subject (and, optionally, which topic) they are for
 function renderPick() {
-  const box = $('impPick'), { target, kind } = App.imp, on = target !== 'new' && (kind === 'mcq' || kind === 'notes') && !!App.prep;
+  const box = $('impPick'), { target, kind } = App.imp, on = target !== 'new' && perKind(kind) && !!App.prep;
   box.hidden = !on || !App.subjects.length; if (box.hidden) return;
-  const sub = App.subjects.find(s => s.code === App.imp.subject), word = kind === 'mcq' ? 'questions' : 'notes';
+  const sub = App.subjects.find(s => s.code === App.imp.subject), word = kind === 'mcq' ? 'questions' : kind === 'both' ? 'questions and notes' : 'notes';
   if (!sub) {
     box.classList.remove('chosen');
     box.innerHTML = `<strong class="pick-q">Which subject are these ${word} for?</strong>
@@ -972,9 +973,9 @@ function renderPick() {
   }
   box.classList.add('chosen');
   const topics = sub.topics || [];
-  box.innerHTML = `<div class="pick-chosen"><span class="pick-badge">${esc(sub.code)}</span><div><small class="muted">${kind === 'mcq' ? 'MCQs' : 'Notes'} for</small><strong>${esc(sub.name)}</strong></div>
+  box.innerHTML = `<div class="pick-chosen"><span class="pick-badge">${esc(sub.code)}</span><div><small class="muted">${KIND_LABEL[kind] === 'Revision notes' ? 'Notes' : KIND_LABEL[kind]} for</small><strong>${esc(sub.name)}</strong></div>
       <button class="btn ghost" type="button" data-pickchange>Change</button></div>
-    ${topics.length ? `<label class="pick-topic">Topic <span class="muted">optional</span>
+    ${topics.length ? `<label class="pick-topic">Topic
       <select id="impTopic">
         <option value="">Whole subject (any of its ${topics.length} topics)</option>
         ${App.imp.focus ? `<option value="__focus" selected>Only the ${plural(App.imp.focus.length, 'empty topic')}</option>` : ''}
@@ -986,7 +987,7 @@ function renderPick() {
 $('impPick').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.pick) { App.imp.subject = b.dataset.pick; App.imp.topic = ''; App.imp.focus = null; App.imp.checked = null; renderImport(); if ($('impText').value.trim()) doCheck(); }
-  if ('pickchange' in b.dataset) { App.imp.subject = null; App.imp.topic = ''; App.imp.focus = null; App.imp.checked = null; msg('impMsg', ''); renderImport(); }
+  if ('pickchange' in b.dataset) { $('impDone').hidden = true; App.imp.subject = null; App.imp.topic = ''; App.imp.focus = null; App.imp.checked = null; msg('impMsg', ''); renderImport(); }
   if ('pickmanage' in b.dataset) { App.imp.manage = true; renderSubjectsCard(); if ($('impSubjects').scrollIntoView) $('impSubjects').scrollIntoView({ block: 'center' }); }
 });
 /* ---------- subjects of a prep, added and edited by hand ---------- */
@@ -998,10 +999,10 @@ function suggestCode(name, taken) {
   return code;
 }
 function renderSubjectsCard() {
-  const perSubject = App.imp && (App.imp.kind === 'mcq' || App.imp.kind === 'notes');
+  const perSubject = App.imp && perKind(App.imp.kind);
   const box = $('impSubjects'), active = App.imp && App.imp.target !== 'new' && !!App.prep && (!perSubject || !App.subjects.length || (App.imp.manage && !App.imp.subject));
   box.hidden = !active; if (!active) return;
-  const subs = App.subjects, none = !subs.length, needs = App.imp.kind === 'mcq' || App.imp.kind === 'notes';
+  const subs = App.subjects, none = !subs.length, needs = perKind(App.imp.kind);
   const used = code => App.questions.some(q => q.code === code) || App.notes.some(n => n.code === code);
   const editing = App.imp.editSubject ? subs.find(s => s.code === App.imp.editSubject) : null;
   box.classList.toggle('needs', none && needs);
@@ -1035,7 +1036,7 @@ function renderSubjectsCard() {
     try {
       await Store.setPrep(App.prepId, { subjects: next });
       App.subjects = next; App.prep.subjects = next; App.imp.editSubject = null; rebuild();
-      if (!editing && !App.imp.subject && (App.imp.kind === 'mcq' || App.imp.kind === 'notes')) { App.imp.subject = code; App.imp.manage = false; }   // a new subject added here is the one you want
+      if (!editing && !App.imp.subject && perKind(App.imp.kind)) { App.imp.subject = code; App.imp.manage = false; }   // a new subject added here is the one you want
       Activity.log('subject_saved', { prep: App.prep.name, subject: name, edit: !!editing });
       renderImport(); toast(editing ? 'Subject saved.' : `Added ${name}.`);
     } catch (e) { $('sSave').disabled = false; msg('sMsg', 'Could not save. Check your internet.', 'err'); }
@@ -1056,7 +1057,7 @@ $('impSubjects').addEventListener('click', async e => {
 });
 $('impKinds').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]'); if (!b) return;
-  App.imp.kind = b.dataset.kind; App.imp.checked = null; renderImport();
+  App.imp.kind = b.dataset.kind; App.imp.checked = null; $('impDone').hidden = true; renderImport();
 });
 $('impBack').addEventListener('click', () => { if (App.imp.back === 'thread' && App.imp.share && friendship(App.imp.share.fid)) openThread(App.imp.share.fid); else if (App.imp.back === 'preps' || !App.prep) showPreps(); else if (App.imp.back === 'syllabus') MODES.syllabus(); else show('home'); });
 $('impFile').addEventListener('change', () => {
@@ -1070,9 +1071,14 @@ $('impText').addEventListener('input', () => { if (App.imp.checked) { App.imp.ch
 $('impCheck').addEventListener('click', doCheck);
 
 function doCheck() {
-  const parsed = parseImport($('impText').value);
+  let parsed = parseImport($('impText').value);
   if (parsed.error) { App.imp.checked = null; renderPreview(); return msg('impMsg', parsed.error, 'err'); }
-  const allowed = App.imp.target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'syllabus'];
+  const allowed = App.imp.target === 'new' ? ['syllabus', 'prep'] : ['mcq', 'notes', 'both', 'syllabus'];
+  // MCQs and notes for the same subject go together: "MCQs + notes" takes either, and a combined reply switches to it
+  if (App.imp.target !== 'new' && !parsed.error) {
+    if (parsed.kind === 'both' && (App.imp.kind === 'mcq' || App.imp.kind === 'notes')) { App.imp.kind = 'both'; renderImport(); }
+    else if (App.imp.kind === 'both' && (parsed.kind === 'mcq' || parsed.kind === 'notes')) parsed = { kind: 'both', data: parsed.kind === 'mcq' ? { questions: parsed.data.questions || [], notes: [] } : { questions: [], notes: parsed.data.notes || [] } };
+  }
   if (!allowed.includes(parsed.kind)) {
     App.imp.checked = null; renderPreview();
     return msg('impMsg', App.imp.target === 'new'
@@ -1094,6 +1100,11 @@ function doCheck() {
 
 // Works out what an import would change, without saving anything
 function checkImport(parsed, target) {
+  if (parsed.kind === 'both') {                     // the two halves are checked like two pastes, and shown and saved together
+    const q = checkImport({ kind: 'mcq', data: { questions: parsed.data.questions || [] } }, target);
+    const n = checkImport({ kind: 'notes', data: { notes: parsed.data.notes || [] } }, target);
+    return { kind: 'both', parts: [q, n], problems: [], newSubjects: [...new Set([...(q.newSubjects || []), ...(n.newSubjects || [])])] };
+  }
   const today = todayKey(), d = parsed.data;
   const subjects = target === 'new' ? [] : App.subjects;
   if (parsed.kind === 'syllabus' || parsed.kind === 'prep') {
@@ -1179,34 +1190,50 @@ function renderPreview() {
   if (!c) { box.innerHTML = ''; return; }
   const parts = [];
   let canAdd = false, addLabel = 'Add';
-  if (c.blocked) {
-    const word = c.kind === 'mcq' ? 'question' : 'note', sub = c.subject;
+  const blockedPart = c.blocked ? c : c.kind === 'both' ? c.parts.find(p => p.blocked) : null;
+  if (blockedPart) {
+    const word = c.kind === 'both' ? 'item' : blockedPart.kind === 'mcq' ? 'question' : 'note', sub = blockedPart.subject;
+    const wrong = c.kind === 'both' ? Object.values(c.parts.filter(p => p.blocked).flatMap(p => p.wrongSubjects).reduce((m, w) => { m[w.key] = m[w.key] ? { ...w, n: m[w.key].n + w.n } : { ...w }; return m; }, {})) : blockedPart.wrongSubjects;
     box.classList.add('blocked');
     parts.push(`<strong class="msg err">Nothing was added</strong><span>Everything you paste here must be for <b>${esc(sub.name)}</b>.</span>`);
-    c.wrongSubjects.forEach(w => parts.push(`<div class="block-row"><span>${plural(w.n, word)} ${w.n === 1 ? 'is' : 'are'} meant for <b>${esc(w.name)}</b>${w.code ? '' : ', which is not a subject in this prep'}.</span>
+    wrong.forEach(w => parts.push(`<div class="block-row"><span>${plural(w.n, word)} ${w.n === 1 ? 'is' : 'are'} meant for <b>${esc(w.name)}</b>${w.code ? '' : ', which is not a subject in this prep'}.</span>
       ${w.code ? `<button class="btn" type="button" data-impswitch="${esc(w.code)}">Switch to ${esc(w.name)}</button>` : ''}</div>`));
     parts.push(`<span class="muted small">Fix the pasted text or ask the AI again with the prompt above, then tap Check.</span>`);
     box.innerHTML = parts.join('');
     return;
   }
   box.classList.remove('blocked');
-  if (c.kind === 'mcq' || c.kind === 'notes') {
-    const word = c.kind === 'mcq' ? 'question' : 'note';
-    parts.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.filled ? `, ${c.filled} merged` : ''}${c.same ? `, ${c.same} already in the app` : ''}${c.conflicts ? `, ${c.conflicts} you already have in another version` : ''}</strong>`);
-    if (c.updated) parts.push(`<span class="muted">Updated ${word}s keep your progress.</span>`);
-    if (c.filled) parts.push(`<span class="muted">Merged: you already had ${c.filled === 1 ? 'this one' : 'these'}; only the parts you were missing are added${c.kind === 'notes' ? ' (note points are combined)' : ''}. Your progress stays.</span>`);
-    if (c.conflicts) parts.push(`<div class="merge-choice"><span>${plural(c.conflicts, word)} ${c.conflicts === 1 ? 'is' : 'are'} different from yours${c.conflictList.some(x => x.field === 'answer') ? ' — <b>including a different answer</b>' : ''}. Which version should stay?</span>
+  // one list (questions or notes): what will happen, choices, a peek at the first three
+  const listPreview = (c, titled) => {
+    const word = c.kind === 'mcq' ? 'question' : 'note', out = [];
+    if (titled) out.push(`<span class="label prev-part">${c.kind === 'mcq' ? 'Questions' : 'Revision notes'}</span>`);
+    out.push(`<strong>${plural(c.fresh, 'new ' + word)}${c.updated ? `, ${c.updated} updated` : ''}${c.filled ? `, ${c.filled} merged` : ''}${c.same ? `, ${c.same} already in the app` : ''}${c.conflicts ? `, ${c.conflicts} you already have in another version` : ''}</strong>`);
+    if (c.updated) out.push(`<span class="muted">Updated ${word}s keep your progress.</span>`);
+    if (c.filled) out.push(`<span class="muted">Merged: you already had ${c.filled === 1 ? 'this one' : 'these'}; only the parts you were missing are added${c.kind === 'notes' ? ' (note points are combined)' : ''}. Your progress stays.</span>`);
+    if (c.conflicts) out.push(`<div class="merge-choice"><span>${plural(c.conflicts, word)} ${c.conflicts === 1 ? 'is' : 'are'} different from yours${c.conflictList.some(x => x.field === 'answer') ? ' — <b>including a different answer</b>' : ''}. Which version should stay?</span>
       <div class="seg seg2" role="group"><button type="button" data-imptheirs="0" aria-pressed="${!App.imp.takeTheirs}">Keep mine</button><button type="button" data-imptheirs="1" aria-pressed="${!!App.imp.takeTheirs}">Use theirs</button></div></div>`);
-    if (c.similar && c.similar.length) parts.push(`<div class="merge-choice"><span>${plural(c.similar.length, word)} ${c.similar.length === 1 ? 'looks' : 'look'} like ${c.similar.length === 1 ? 'one' : 'ones'} you already have (same answer, slightly different words), for example “${esc(c.similar[0].item.question)}” ≈ “${esc(c.similar[0].like.question)}”.</span>
+    if (c.similar && c.similar.length) out.push(`<div class="merge-choice"><span>${plural(c.similar.length, word)} ${c.similar.length === 1 ? 'looks' : 'look'} like ${c.similar.length === 1 ? 'one' : 'ones'} you already have (same answer, slightly different words), for example “${esc(c.similar[0].item.question)}” ≈ “${esc(c.similar[0].like.question)}”.</span>
       <div class="seg seg2" role="group"><button type="button" data-impsimilar="0" aria-pressed="${!App.imp.addSimilar}">Skip them</button><button type="button" data-impsimilar="1" aria-pressed="${!!App.imp.addSimilar}">Add anyway</button></div></div>`);
     if (c.others && c.others.length) {
       const names = [...new Set(c.others)];
-      parts.push(`<div class="others-note"><span>${plural(c.others.length, word)} did not match a syllabus topic, so ${c.others.length === 1 ? 'it goes' : 'they go'} under <b>Others</b>: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}.</span><small class="muted">If one belongs to another subject, don't add; switch subject instead. You can turn any of these into a syllabus topic later from the Syllabus tab.</small></div>`);
+      out.push(`<div class="others-note"><span>${plural(c.others.length, word)} did not match a syllabus topic, so ${c.others.length === 1 ? 'it goes' : 'they go'} under <b>Others</b>: ${names.slice(0, 6).map(n => `“${esc(n)}”`).join(', ')}${names.length > 6 ? '…' : ''}.</span><small class="muted">If one belongs to another subject, don't add; switch subject instead. You can turn any of these into a syllabus topic later from the Syllabus tab.</small></div>`);
     }
+    if (c.kind === 'mcq') out.push((c.all || c.questions).slice(0, 3).map(q => `<div class="qpreview"><span class="mono muted">${esc(q.subject)} · ${esc(q.topic)}</span><span>${esc(q.question)}</span><span class="muted">Answer: ${esc(q.answer)}</span></div>`).join(''));
+    else out.push((c.all || c.notes).slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
+    if (c.problems.length) out.push(`<strong class="msg err">${plural(c.problems.length, word)} will be skipped:</strong><ul class="bad">${c.problems.slice(0, 30).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`);
     const n = (c.kind === 'mcq' ? c.questions : c.notes).length;
-    canAdd = n > 0; addLabel = c.fresh + c.updated === n ? `Add ${plural(n, word)}` : `Add and merge (${n})`;
-    if (c.kind === 'mcq') parts.push((c.all || c.questions).slice(0, 3).map(q => `<div class="qpreview"><span class="mono muted">${esc(q.subject)} · ${esc(q.topic)}</span><span>${esc(q.question)}</span><span class="muted">Answer: ${esc(q.answer)}</span></div>`).join(''));
-    else parts.push((c.all || c.notes).slice(0, 3).map(n => `<div class="qpreview"><span class="mono muted">${esc(n.subject)}</span><span>${esc(n.title)}</span></div>`).join(''));
+    return { html: out.join(''), n, word, whole: c.fresh + c.updated === n };
+  };
+  if (c.kind === 'both') {
+    const r = c.parts.map(p => listPreview(p, true)).filter((x, i) => x.n || (c.parts[i].all || []).length || c.parts[i].problems.length);
+    r.forEach(x => parts.push(`<div class="prev-sec">${x.html}</div>`));
+    const add = r.filter(x => x.n);
+    canAdd = add.length > 0;
+    addLabel = `Add ${add.map(x => plural(x.n, x.word)).join(' and ')}`;
+  } else if (c.kind === 'mcq' || c.kind === 'notes') {
+    const x = listPreview(c, false);
+    parts.push(x.html);
+    canAdd = x.n > 0; addLabel = x.whole ? `Add ${plural(x.n, x.word)}` : `Add and merge (${x.n})`;
   } else {
     const s = c.syllabus;
     parts.push(`<strong>${esc(s.name || (App.imp.target === 'active' && App.prep ? App.prep.name : 'My prep'))}</strong><span class="muted">${s.examDate ? `Exam ${esc(s.examDate)}` : 'No exam date'} · ${plural(s.subjects.length, 'subject')}</span>`);
@@ -1220,7 +1247,7 @@ function renderPreview() {
     }
   }
   if (c.newSubjects && c.newSubjects.length) parts.push(`<span class="muted">New subject codes will be created: ${esc(c.newSubjects.join(', '))}. Import a syllabus later to give them full names.</span>`);
-  if (c.problems.length) parts.push(`<strong class="msg err">${plural(c.problems.length, 'item')} will be skipped:</strong><ul class="bad">${c.problems.slice(0, 30).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`);
+  if (c.problems.length && !perKind(c.kind)) parts.push(`<strong class="msg err">${plural(c.problems.length, 'item')} will be skipped:</strong><ul class="bad">${c.problems.slice(0, 30).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`);
   parts.push(canAdd ? `<div class="btns"><button class="btn primary" type="button" id="impAdd">${addLabel}</button></div>` : `<span class="muted">Nothing new to add.</span>`);
   box.innerHTML = parts.join('');
   const add = $('impAdd'); if (add) add.onclick = () => applyImport(add);
@@ -1264,8 +1291,10 @@ async function applyImport(btn) {
     if (JSON.stringify(subjects) !== JSON.stringify(App.subjects) || Object.keys(prepFields).length) {
       writes.push({ path: base, data: { ...stripId(App.prep), ...prepFields, subjects } });
     }
-    if (c.kind === 'mcq' || c.kind === 'notes') {
-      const isQ = c.kind === 'mcq', current = isQ ? App.bank : App.notesMap, items = isQ ? c.questions : c.notes;
+    for (const part of c.kind === 'both' ? c.parts : [c]) {
+      if (part.kind !== 'mcq' && part.kind !== 'notes') continue;
+      const isQ = part.kind === 'mcq', current = isQ ? App.bank : App.notesMap, items = isQ ? part.questions : part.notes;
+      if (!items || !items.length) continue;
       const by = {};
       items.forEach(it => {
         if (!by[it.subject]) { by[it.subject] = {}; Object.values(current).forEach(o => { if (o.subject === it.subject) by[it.subject][o.id] = o; }); }
@@ -1277,10 +1306,22 @@ async function applyImport(btn) {
     await Store.write(writes);
     Sound.play('done');
     if (await shareAdded(c)) return;
-    toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added. ${c.kind === 'mcq' ? 'New questions join your next review.' : 'See them in Revision notes.'}`);
-    const summary = c.kind === 'mcq' ? plural(c.questions.length, 'question') : c.kind === 'notes' ? plural(c.notes.length, 'note') : 'a syllabus update';
+    const lists = c.kind === 'both' ? c.parts : [c];
+    const nq = lists.reduce((n, p) => n + (p.kind === 'mcq' ? p.questions.length : 0), 0), nn = lists.reduce((n, p) => n + (p.kind === 'notes' ? p.notes.length : 0), 0);
+    const summary = c.kind === 'syllabus' ? 'a syllabus update' : [nq && plural(nq, 'question'), nn && plural(nn, 'note')].filter(Boolean).join(' and ');
     Activity.log('content_added', { prep: App.prep.name, kind: c.kind, summary });
-    show('home');
+    // stay here, on the same subject, ready for the next file or paste
+    const sub = App.subjects.find(s => s.code === App.imp.subject);
+    App.imp.checked = null; App.imp.takeTheirs = false; App.imp.addSimilar = false;
+    $('impText').value = ''; $('impFile').value = '';
+    if (typeof AI !== 'undefined') AI.done = null;
+    renderImport();
+    msg('impMsg', '');
+    const done = $('impDone'); done.hidden = false;
+    done.innerHTML = `<span class="imp-done-ic" aria-hidden="true">✓</span><div><b>${c.kind === 'syllabus' ? 'Syllabus updated' : `Added ${esc(summary)}`}</b><small>${sub && c.kind !== 'syllabus' ? `to ${esc(sub.name)}. ` : ''}${nq ? 'New questions join your next review. ' : ''}Add more, or tap Back.</small></div><button class="btn ghost iconbtn" type="button" aria-label="Close" data-donex>✕</button>`;
+    done.querySelector('[data-donex]').onclick = () => { done.hidden = true; };
+    toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added ${summary}.`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
     console.warn(e);
     btn.disabled = false; btn.textContent = 'Try again';
