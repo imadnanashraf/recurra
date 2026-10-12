@@ -2201,3 +2201,5 @@ body.viewing #roomView [data-ltnew] { display: none !important; }
 .prev-sec { display: grid; gap: 8px; }
 .prev-sec + .prev-sec { border-top: 1px dashed var(--line); padding-top: 12px; }
 .prev-part { margin: 0; }
+
+.ai-cam { justify-self: center; display: inline-flex; gap: 6px; align-items: center; margin-top: -2px; }

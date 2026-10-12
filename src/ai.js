@@ -101,8 +101,65 @@ async function photoPart(file) {            // photos are made smaller first (sh
   } catch (e) {}
   return { inline_data: { mime_type: file.type || 'image/jpeg', data: String(await readAs(file, 'readAsDataURL')).split(',')[1] } };
 }
+const hasTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+// ---- Word files (.docx): Google cannot read them directly, so the text (and diagrams) are taken out here, on your device ----
+const isDocx = f => /\.docx$/i.test(f.name) || f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const isOldDoc = f => /\.doc$/i.test(f.name) || f.type === 'application/msword';
+const userErr = m => Object.assign(new Error(m), { user: m });
+// a .docx is a zip: list its files (name → bytes), unzipping only the ones asked for
+async function unzip(buf, want) {
+  const v = new DataView(buf), out = {};
+  let e = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) if (v.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw userErr('This Word file could not be opened. Save it again as .docx or PDF and try again.');
+  let p = v.getUint32(e + 16, true);
+  const n = v.getUint16(e + 10, true), dec = new TextDecoder();
+  for (let k = 0; k < n && v.getUint32(p, true) === 0x02014b50; k++) {
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), nl = v.getUint16(p + 28, true), el = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true), off = v.getUint32(p + 42, true);
+    const name = dec.decode(new Uint8Array(buf, p + 46, nl));
+    p += 46 + nl + el + cl;
+    if (!want(name)) continue;
+    const start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true), raw = new Uint8Array(buf, start, size);
+    if (method === 0) out[name] = raw;
+    else if (method === 8) {
+      if (typeof DecompressionStream === 'undefined') throw userErr('This phone or browser cannot open Word files. Save it as PDF and upload that.');
+      out[name] = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    }
+  }
+  return out;
+}
+// the document's text in reading order: paragraphs on their own lines, tables as "cell | cell" rows
+function docxText(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml'), lines = [];
+  const local = el => el.localName || el.nodeName.replace(/^.*:/, '');
+  const runText = el => { let t = ''; (function walk(x) { for (const c of x.children) { const n = local(c); if (n === 't') t += c.textContent; else if (n === 'tab') t += '\t'; else if (n === 'br' || n === 'cr') t += '\n'; else walk(c); } })(el); return t; };
+  (function walk(x) {
+    for (const c of x.children) {
+      const n = local(c);
+      if (n === 'p') { const t = runText(c).trim(); if (t) lines.push(t); }
+      else if (n === 'tbl') { for (const tr of c.getElementsByTagNameNS('*', 'tr')) { const cells = [...tr.children].filter(td => local(td) === 'tc').map(td => [...td.getElementsByTagNameNS('*', 'p')].map(runText).join(' ').trim()); if (cells.some(Boolean)) lines.push(cells.join(' | ')); } }
+      else walk(c);
+    }
+  })(doc.documentElement);
+  return lines.join('\n');
+}
+async function docxParts(file) {
+  const files = await unzip(await readAs(file, 'readAsArrayBuffer'), n => n === 'word/document.xml' || /^word\/media\/[^/]+\.(png|jpe?g|gif|webp|bmp)$/i.test(n));
+  if (!files['word/document.xml']) throw userErr('This does not look like a Word document. Save it again as .docx or PDF and try again.');
+  const text = docxText(new TextDecoder().decode(files['word/document.xml']));
+  // diagrams and pictures in the document (the bigger ones, at most 10), made smaller like photos
+  const pics = Object.entries(files).filter(([n, b]) => n !== 'word/document.xml' && b.length > 15000).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).slice(0, 10);
+  const parts = [];
+  if (text.trim()) parts.push({ text: `My material (from the Word file "${file.name}"):\n` + text.slice(0, 200000) });
+  for (const [n, b] of pics) { const ext = n.split('.').pop().toLowerCase(); parts.push(await photoPart(new File([b], n.split('/').pop(), { type: 'image/' + (ext === 'jpg' ? 'jpeg' : ext) }))); }
+  if (!parts.length) throw userErr(`“${file.name}” looks empty. Check the file, or upload a PDF instead.`);
+  if (pics.length && text.trim()) parts.push({ text: 'The pictures above are the diagrams from the same Word file.' });
+  return parts;
+}
 async function filePart(file) {
   if (/^image\//.test(file.type)) return photoPart(file);
+  if (isDocx(file)) return docxParts(file);
+  if (isOldDoc(file)) throw userErr(`“${file.name}” is an old Word file (.doc). Open it in Word or Google Docs, save it as .docx or PDF, and upload that.`);
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return { inline_data: { mime_type: 'application/pdf', data: String(await readAs(file, 'readAsDataURL')).split(',')[1] } };
   return { text: 'My material:\n' + String(await readAs(file, 'readAsText')).slice(0, 200000) };
 }
@@ -166,8 +223,8 @@ async function aiGenerate() {
   // 1. prepare
   const parts = [];
   try {
-    for (let i = 0; i < AI.files.length; i++) { AI.st.i = i + 1; aiPaintStatus(); parts.push(await filePart(AI.files[i])); if (AI.stopped) return fail('Stopped. Nothing was added.', true); }
-  } catch (e) { return fail('Could not open this file on your device. Try choosing it again.', true); }
+    for (let i = 0; i < AI.files.length; i++) { AI.st.i = i + 1; aiPaintStatus(); parts.push(...[].concat(await filePart(AI.files[i]))); if (AI.stopped) return fail('Stopped. Nothing was added.', true); }
+  } catch (e) { console.warn('file', e); return fail(e && e.user ? e.user : 'Could not open this file on your device. Try choosing it again.', !(e && e.user)); }
   parts.push({ text: aiPrompt() });
   const schema = aiSchema(PROMPT_SAMPLE);
   // 2–3. send, then Google writes. When a Google model is busy (or its free limit for today is used up),
@@ -306,27 +363,28 @@ function aiRender() {
     : mode === 'trial' ? `<span class="ai-free">🎁 ${left} of ${AI.FREE} free uploads left</span>`
     : AI.trialOn && AI.loaded ? `<span class="ai-free">Your ${AI.FREE} free uploads are used up</span>` : '';
   if (AI.busy) {
-    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div></div>
+    box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF, Word file or photo</strong>${status}</div></div>
       <div class="ai-live" id="aiSteps" aria-live="polite"></div>
       <div class="ai-livefoot"><span class="ai-clock" id="aiClock">0:00</span><span>Keep this screen open</span><button class="btn small" type="button" id="aiStop">Stop</button></div>`;
     $('aiStop').onclick = aiStop;
     aiPaintStatus();
     return;
   }
-  const filesHtml = AI.files.map((f, i) => `<li><span>${/^image\//.test(f.type) ? '🖼️' : /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? '📕' : '📄'}</span><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small><button class="x" type="button" data-airm="${i}" aria-label="Remove ${esc(f.name)}">×</button></li>`).join('');
+  const filesHtml = AI.files.map((f, i) => `<li><span>${/^image\//.test(f.type) ? '🖼️' : /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? '📕' : isDocx(f) || isOldDoc(f) ? '📘' : '📄'}</span><b>${esc(f.name)}</b><small>${fmtSize(f.size)}</small><button class="x" type="button" data-airm="${i}" aria-label="Remove ${esc(f.name)}">×</button></li>`).join('');
   const hasPdf = AI.files.some(f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name));
   const body = mode === 'none'
     ? `<p class="muted">Turn ${what} into ${kind === 'mcq' ? 'MCQs' : kind === 'notes' ? 'revision notes' : kind === 'both' ? 'MCQs and revision notes' : 'your syllabus'} in one tap. Connect your own <b>free</b> Google AI key first. It takes about a minute and needs no card.</p>
        <div class="btns"><button class="btn primary" type="button" id="aiConnect">Connect my free key</button></div>`
-    : `<label class="ai-drop" for="aiFile"><span class="ai-drop-ic">⬆️</span><b>${AI.files.length ? 'Add more' : 'Choose a PDF or photos'}</b><small>PDF up to ${fmtSize(AI_MAX)} · photos · Hinglish is fine</small></label>
-       <input id="aiFile" type="file" accept="application/pdf,image/*,.txt,.md" multiple hidden>
+    : `<label class="ai-drop" for="aiFile"><span class="ai-drop-ic">⬆️</span><b>${AI.files.length ? 'Add more' : 'Choose a PDF, Word file or photos'}</b><small>PDF or Word up to ${fmtSize(AI_MAX)} · photos · Hinglish is fine</small></label>
+       <input id="aiFile" type="file" accept="application/pdf,image/*,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.txt,.md" multiple hidden>
+       ${hasTouch() ? `<label class="btn ai-cam" for="aiCam"><span aria-hidden="true">📷</span> Take a photo</label><input id="aiCam" type="file" accept="image/*" capture="environment" hidden>` : ''}
        ${AI.files.length ? `<ul class="ai-files">${filesHtml}</ul>` : ''}
        ${hasPdf ? `<label for="aiPages" class="ai-pages-l">Only some pages? <small>(optional)</small></label><input id="aiPages" class="ai-pages" placeholder="e.g. 5-12" value="${esc(AI.pages)}" inputmode="numeric" autocomplete="off">` : ''}
        <p class="ai-note">🔒 Your file goes only to Google to be read, and is not kept by Recurra. Don’t upload anything private: Google may use free uploads to improve its AI.</p>
        ${AI.err && AI.retry && AI.files.length ? '' : `<div class="btns"><button class="btn primary" type="button" id="aiGo"${AI.files.length ? '' : ' disabled'}>${make}</button></div>`}`;
   const foot = mode === 'own' ? `<div class="ai-foot"><button class="linkbtn" type="button" id="aiManage">Change or remove my key</button></div>`
     : mode === 'trial' ? `<div class="ai-foot"><button class="linkbtn" type="button" id="aiConnect2">Connect my own free key</button> for unlimited uploads</div>` : '';
-  box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF or photo</strong>${status}</div></div>
+  box.innerHTML = `<div class="ai-head"><span class="ai-ic">📄</span><div><strong>Upload a PDF, Word file or photo</strong>${status}</div></div>
     ${body}
     ${AI.done && !AI.err ? `<div class="ai-done" role="status">✓ Made ${esc(AI.done.what)} in ${fmtDur2(AI.done.secs)}. Check them below, then tap <b>Add</b>.</div>` : ''}
     ${AI.err ? `<div class="ai-err" role="alert"><p>${esc(AI.err)}</p><div class="btns">${AI.retry && AI.files.length && mode !== 'none' ? '<button class="btn small primary" type="button" id="aiRetry">Try again</button><button class="btn small" type="button" id="aiOther">Choose other files</button>' : ''}<button class="btn small" type="button" id="aiUseCopy">Use Copy AI prompt instead</button>${/key|used up|limit/.test(AI.err) && mode !== 'own' ? '<button class="btn small" type="button" id="aiConnect3">Connect my free key</button>' : ''}</div></div>` : ''}
@@ -340,8 +398,13 @@ function aiRender() {
   on('aiManage', aiManage);
   on('aiNotify', aiNotify);
   on('aiUseCopy', () => { const h = $('impHelp'); h.scrollIntoView({ behavior: 'smooth', block: 'start' }); h.classList.remove('hl'); void h.offsetWidth; h.classList.add('hl'); });
-  const inp = $('aiFile');
-  if (inp) inp.onchange = () => { AI.files.push(...[...inp.files].slice(0, 12)); AI.files = AI.files.slice(0, 12); AI.err = ''; AI.done = null; inp.value = ''; aiRender(); };
+  const add = inp => () => {
+    const got = [...inp.files], old = got.filter(isOldDoc);
+    // a photo from the camera is named "image.jpg" on many phones: give each one its own name
+    AI.files.push(...got.filter(f => !isOldDoc(f)).map(f => inp.id === 'aiCam' ? new File([f], `Photo ${AI.files.filter(x => /^Photo \d+/.test(x.name)).length + 1}.jpg`, { type: f.type || 'image/jpeg' }) : f));
+    AI.files = AI.files.slice(0, 12); AI.err = old.length ? `“${old[0].name}” is an old Word file (.doc). Open it in Word or Google Docs, save it as .docx or PDF, and choose that.` : ''; AI.retry = false; AI.done = null; inp.value = ''; aiRender();
+  };
+  ['aiFile', 'aiCam'].forEach(id => { const inp = $(id); if (inp) inp.onchange = add(inp); });
   const pg = $('aiPages'); if (pg) pg.oninput = () => { AI.pages = pg.value.replace(/[^0-9,\- ]/g, '').slice(0, 30); };
   box.querySelectorAll('[data-airm]').forEach(b => { b.onclick = () => { AI.files.splice(Number(b.dataset.airm), 1); aiRender(); }; });
 }
