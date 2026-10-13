@@ -363,7 +363,7 @@ ${num(noteRules)}${tail}`;
 // mode 'share' (from a friend): yours is kept; only empty fields are filled, and note points are combined.
 //   takeTheirs: where both have a different value, use theirs. Reworded questions with the same answer are "similar".
 const isEmptyVal = v => v === undefined || v === null || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && !v.length);
-const SKIP_MERGE = new Set(['id', 'subject', 'added', 'retired']);
+const SKIP_MERGE = new Set(['id', 'subject', 'added', 'retired', 'at', 'order']);
 const qWords = s => new Set(norm(s).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(w => w.length > 2));
 function similarQuestion(a, b) {
   if (norm(a.answer) !== norm(b.answer)) return false;
@@ -385,7 +385,8 @@ function mergePlan(kind, items, existing, mode, takeTheirs) {
     }
     if (mode !== 'share') {
       const nu = { ...it, id: old.id, added: old.added || it.added };
-      if (JSON.stringify({ ...nu, added: '' }) === JSON.stringify({ ...old, added: '' })) out.same++;
+      const bare = o => { const c = { ...o, added: '' }; delete c.at; delete c.order; return JSON.stringify(c); };   // the time it was added is not a change
+      if (bare(nu) === bare(old)) out.same++;
       else { out.updated++; out.write.push(nu); }
       continue;
     }

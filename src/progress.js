@@ -18,7 +18,7 @@ const Progress = {
   key: null,
   map: {},              // question id -> state
   days: {},             // day key -> { by: {device: {n, c}}, n, c, done, paused, pt, left, mins, lt }
-  meta: { spq: 0, next: null },
+  meta: { spq: 0, next: null, ns: {} },   // ns: notes you have read { id: time }
   resetAt: 0,
   cloud: null, unsub: null,
   dirty: new Set(), timer: null, chains: {},
@@ -31,7 +31,7 @@ const Progress = {
     this.detach();
     clearTimeout(this.timer); this.timer = null;
     this.key = key; this.dirty = new Set();
-    this.map = {}; this.days = {}; this.meta = { spq: 0, next: null }; this.resetAt = 0;
+    this.map = {}; this.days = {}; this.meta = { spq: 0, next: null, ns: {} }; this.resetAt = 0;
     this.loadLocal();
     if ((resetAt || 0) > this.resetAt) this.wipeTo(resetAt);
   },
@@ -48,7 +48,8 @@ const Progress = {
     try {
       const raw = JSON.parse(localStorage.getItem(this.key) || '{}') || {};
       this.map = raw.q || {}; this.days = raw.days || {};
-      this.meta = Object.assign({ spq: 0, next: null }, raw.meta || {});
+      this.meta = Object.assign({ spq: 0, next: null, ns: {} }, raw.meta || {});
+      if (!this.meta.ns || typeof this.meta.ns !== 'object') this.meta.ns = {};
       this.resetAt = raw.r || 0;
     } catch (e) { /* keep empty */ }
   },
@@ -57,8 +58,8 @@ const Progress = {
     try { localStorage.setItem(this.key, JSON.stringify({ q: this.map, days: this.days, meta: this.meta, r: this.resetAt })); } catch (e) { /* storage blocked: keep in memory */ }
   },
   wipeTo(r) {
-    const spq = this.meta.spq;
-    this.map = {}; this.days = {}; this.meta = { spq, next: null };
+    const spq = this.meta.spq, ns = this.meta.ns || {};         // notes you have read stay read after a reset
+    this.map = {}; this.days = {}; this.meta = { spq, next: null, ns };
     this.resetAt = r; this.dirty.clear();
     this.saveLocal();
   },
@@ -100,6 +101,13 @@ const Progress = {
     this.meta.next = next;
     this.later('_days');
   },
+  // ----- revision notes you have read (the "New" tag goes away), kept in your account -----
+  noteRead(id) { return !!(this.meta.ns && this.meta.ns[id]); },
+  markNoteRead(id) {
+    if (!this.key || this.noteRead(id)) return;
+    (this.meta.ns = this.meta.ns || {})[id] = Date.now();
+    this.later('_days');
+  },
   pace(seconds) {
     const s = Math.min(180, Math.max(5, seconds));
     this.meta.spq = this.meta.spq ? Math.round(this.meta.spq * 0.85 + s * 0.15) : Math.round(s);
@@ -122,11 +130,11 @@ const Progress = {
   applyRemote(docs) {
     let changed = false;
     for (const d of docs) if ((d.data.r || 0) > this.resetAt) { this.wipeTo(d.data.r); changed = true; }   // reset on another device
-    let remoteDays = {}, remoteNext = null, remoteSpq = 0;
+    let remoteDays = {}, remoteNext = null, remoteSpq = 0, remoteNs = {};
     const remote = {};
     for (const { id, data } of docs) {
       if ((data.r || 0) < this.resetAt) continue;              // from before a reset: ignore
-      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; }
+      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; remoteNs = data.ns || {}; }
       else Object.assign(remote, data.q || {});
     }
     for (const [id, st] of Object.entries(remote)) {
@@ -143,6 +151,9 @@ const Progress = {
       if (!mine || dayAhead(e, mine)) { this.days[k] = mergeDay(mine, e); changed = true; }
     }
     for (const [k, e] of Object.entries(this.days)) if (dayAhead(e, remoteDays[k])) this.dirty.add('_days');
+    const ns = this.meta.ns = this.meta.ns || {};             // read notes: the union of all your devices
+    for (const [k, t] of Object.entries(remoteNs)) if (!ns[k]) { ns[k] = t; changed = true; }
+    if (Object.keys(ns).some(k => !remoteNs[k])) this.dirty.add('_days');
     if (!this.meta.spq && remoteSpq) this.meta.spq = remoteSpq;
     if (!this.meta.next && remoteNext) this.meta.next = remoteNext;
     this.saveLocal();
@@ -157,7 +168,7 @@ const Progress = {
       if (!code) continue;
       this.chains[code] = (this.chains[code] || Promise.resolve()).then(() => {
         if (this.resetAt !== r || this.discarded === cloud) return;   // reset or prep deleted meanwhile: don't upload old data
-        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, r, updated: Date.now() });
+        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, ns: this.meta.ns || {}, r, updated: Date.now() });
         const q = {};
         for (const [id, st] of Object.entries(this.map)) if (st.k === code) q[id] = st;
         return cloud.save(code, { q, r, updated: Date.now() });

@@ -1,11 +1,15 @@
 /* =====================================================================
    QUESTION BANK: every MCQ, like a book you can browse.
-   Contents (subject → topic, numbered 1.1, 1.2 …), Weakest first, Newest,
-   search, and a reader that shows the answer, explanation and your record.
+   By default in the order added (oldest first, by date and time); also newest first, by topic
+   (subject → topic, numbered 1.1, 1.2 …) or weakest first; filter by subject, date and "New only"
+   (never answered). Search, and a reader that shows the answer, explanation and your record.
    Practising still happens in the normal question screen.
    ===================================================================== */
-const BankUI = { view: 'contents', q: '', open: null };
-MODES.bank = () => { BankUI.open = null; renderBank(); show('bank'); };
+const BankUI = { q: '', open: null, list: null, ...listDefaults() };
+const BANK_SORTS = [['date', 'Oldest first'], ['newest', 'Newest first'], ['topic', 'By topic'], ['weak', 'Weakest first']];
+// every time you open it: default order and no filters
+MODES.bank = () => { Object.assign(BankUI, listDefaults(), { open: null, q: '' }); $('bankSearch').value = ''; $('bankFilter').value = ''; renderBank(); show('bank'); };
+const qNew = q => { const s = getState(q.id); return !s || !s.t; };
 
 function bankLinkRow() {
   const n = App.questions.length;
@@ -25,80 +29,89 @@ function bankBook() {
     G.forEach(g => { g.list.sort((a, b) => (a.added || '').localeCompare(b.added || '') || a.question.localeCompare(b.question)); g.list = g.list.map(q => ({ q, num: `${ci + 1}.${++k}`, topic: g.name })); });
     return { code, name: subjName(code), n: ci + 1, groups: G, count: k };
   });
-  return { chapters, flat: chapters.flatMap(c => c.groups.flatMap(g => g.list)) };
+  const flat = chapters.flatMap(c => c.groups.flatMap(g => g.list));
+  // in date order every question gets a running number: 1, 2, 3 … (oldest is 1)
+  const topicOf = new Map(flat.map(e => [e.q.id, e.topic]));
+  const dated = [...App.questions].sort(byAdded).map((q, i) => ({ q, num: String(i + 1), topic: topicOf.get(q.id) || q.topic, added: q.added }));
+  return { chapters, flat, dated };
 }
 function memState(q) {
   const s = getState(q.id);
-  if (!s || !s.t) return { cls: 'new', text: 'New', lv: 0, s };
+  if (!s || !s.t) return { cls: 'new', text: 'Not answered', lv: 0, s };
   if (s.w && s.lv < 2) return { cls: 'weak', text: `Wrong ${s.w}×`, lv: s.lv, s };
   if (s.lv >= 4) return { cls: 'strong', text: 'Strong', lv: s.lv, s };
   return { cls: 'learn', text: 'Learning', lv: s.lv, s };
 }
 const bankText = q => [q.question, q.answer, q.options.join(' '), q.explanation, q.hint, q.trap, q.concept, q.topic, q.subtopic].filter(Boolean).join(' ');
 function bankEntry(e, extra, re) {
-  const m = memState(e.q);
-  return `<li><button type="button" class="bq-e" data-bq="${esc(e.q.id)}">
+  const m = memState(e.q), nw = m.cls === 'new';
+  return `<li${nw ? ' class="is-new"' : ''}><button type="button" class="bq-e" data-bq="${esc(e.q.id)}">
     <span class="toc-n">${esc(e.num)}</span>
     <span class="bq-main"><span class="bq-t">${mark(esc(e.q.question), re)}</span>${extra ? `<small class="toc-sub">${extra}</small>` : ''}</span>
-    <span class="bq-m m-${m.cls}">${levelBars(m.lv)}<small>${esc(m.text)}</small></span></button></li>`;
+    <span class="bq-m m-${m.cls}">${nw ? newPill(true) : `${levelBars(m.lv)}<small>${esc(m.text)}</small>`}</span></button></li>`;
 }
 function renderBank() {
-  const book = bankBook(), filter = $('bankFilter'), keep = filter.value;
+  const book = bankBook(), filter = $('bankFilter'), keep = filter.value, U = BankUI;
   filter.innerHTML = `<option value="">All subjects (${book.flat.length})</option>` + book.chapters.map(c => `<option value="${esc(c.code)}">${esc(c.name)} (${c.count})</option>`).join('');
   filter.value = book.chapters.some(c => c.code === keep) ? keep : '';
-  const sub = filter.value, inSub = e => !sub || e.q.code === sub;
-  [...$('bankView').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bv === BankUI.view)));
+  const sub = filter.value, pass = e => (!sub || e.q.code === sub) && dateOK(e.q.added, U) && (!U.newOnly || qNew(e.q));
   const empty = !book.flat.length;
   $('bankTools').hidden = empty; document.querySelector('#bank .nsearch').hidden = empty;
-  const reader = !!BankUI.open && book.flat.some(e => e.q.id === BankUI.open);
+  paintListTools('bank', U, BANK_SORTS, App.questions.filter(q => (!sub || q.code === sub) && qNew(q)).length);
+  const reader = !!U.open && book.flat.some(e => e.q.id === U.open);
   $('bankReader').hidden = !reader; $('bankIndex').hidden = reader;
   if (empty) { $('bankIndex').innerHTML = `<div class="empty-state">${ART.empty}<strong>No questions yet</strong><p>Add MCQs from Today → “Add questions or notes”. They'll be listed here like a book.</p></div>`; return; }
-  if (reader) return renderBankReader(book);
-  const q = BankUI.q.trim(), re = qRe(q), where = e => `${esc(subjName(e.q.code))} · ${esc(e.topic)}`;
-  let html = '';
+  const weakPr = e => { const s = getState(e.q.id); return !s || !s.t ? -1 : (s.w || 0) * 10 + (5 - s.lv); };
+  const isWeak = e => { const s = getState(e.q.id); return weakPr(e) > 0 && (s.w || s.lv < 2); };
+  const ordered = U.sort === 'topic' ? book.flat : U.sort === 'newest' ? [...book.dated].reverse() : U.sort === 'weak' ? book.dated.filter(isWeak).sort((a, b) => weakPr(b) - weakPr(a)) : book.dated;
+  const list = ordered.filter(pass);
+  const q = U.q.trim(), re = qRe(q), where = e => `${esc(subjName(e.q.code))} · ${esc(e.topic)}`;
+  let hits = null;
   if (q) {
     const lq = q.toLowerCase();
-    const hits = book.flat.filter(inSub).map(e => {
+    hits = list.map(e => {
       const t = e.q.question.toLowerCase(), body = bankText(e.q).toLowerCase();
       const score = t.includes(lq) ? 3 : (e.topic + ' ' + e.q.subtopic).toLowerCase().includes(lq) ? 2 : body.includes(lq) ? 1 : 0;
       if (!score) return null;
       const raw = bankText(e.q).slice(e.q.question.length + 1), i = raw.toLowerCase().indexOf(lq);
       const snip = score === 1 && i >= 0 ? (i > 40 ? '…' : '') + raw.slice(Math.max(0, i - 40), i + lq.length + 60) + '…' : '';
       return { e, score, snip };
-    }).filter(Boolean).sort((a, b) => b.score - a.score || a.e.num.localeCompare(b.e.num, undefined, { numeric: true }));
+    }).filter(Boolean).sort((a, b) => b.score - a.score || list.indexOf(a.e) - list.indexOf(b.e));
+  }
+  U.list = hits ? hits.map(h => h.e) : list;            // what the reader steps through with ‹ ›
+  if (reader) return renderBankReader(book);
+  const none = U.sort === 'weak' && !U.newOnly && U.date === 'all'
+    ? `<div class="empty-state small">${ART.empty}<strong>Nothing weak right now</strong><p>Questions you get wrong will gather here, worst first.</p></div>`
+    : `<div class="empty-state small">${ART.empty}<strong>No questions here</strong><p>Nothing matches these filters. Try All dates, or turn off New only.</p></div>`;
+  const practise = n => n ? `<div class="btns bq-act"><button class="btn primary" type="button" data-bqpractice="shown">Practise ${U.newOnly ? 'these new ones' : 'these'} (${Math.min(30, n)})</button></div>` : '';
+  let html = '';
+  if (q) {
     html = `<p class="muted small results-count">${hits.length ? `${plural(hits.length, 'question')} ${hits.length === 1 ? 'matches' : 'match'} “${esc(q)}”` : `Nothing matches “${esc(q)}”. Try a shorter word.`}</p>` +
       (hits.length ? `<ol class="bq-list">${hits.map(h => bankEntry(h.e, where(h.e) + (h.snip ? `<span class="snip">${mark(esc(h.snip), re)}</span>` : ''), re)).join('')}</ol>` : '');
-  } else if (BankUI.view === 'weak') {
-    const pr = e => { const s = getState(e.q.id); return !s || !s.t ? -1 : (s.w || 0) * 10 + (5 - s.lv); };
-    const list = book.flat.filter(inSub).filter(e => pr(e) > 0 && (getState(e.q.id).w || getState(e.q.id).lv < 2)).sort((a, b) => pr(b) - pr(a));
-    html = list.length ? `<p class="muted small results-count">${plural(list.length, 'question')} you got wrong or still find hard, worst first.</p>
-      <div class="btns bq-act"><button class="btn primary" type="button" data-bqpractice="weak">Practise these (${Math.min(30, list.length)})</button></div>
-      <ol class="bq-list">${list.map(e => bankEntry(e, where(e))).join('')}</ol>`
-      : `<div class="empty-state small">${ART.empty}<strong>Nothing weak right now</strong><p>Questions you get wrong will gather here, worst first.</p></div>`;
-  } else if (BankUI.view === 'recent') {
-    const list = book.flat.filter(inSub).sort((a, b) => (b.q.added || '').localeCompare(a.q.added || '') || a.num.localeCompare(b.num, undefined, { numeric: true }));
-    let day = null;
-    html = `<div class="toc book recent">${list.map(e => {
-      const head = e.q.added !== day ? `${day !== null ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-day">${esc(longDate(e.q.added))}</h3><ol class="bq-list">` : '';
-      day = e.q.added; return head + bankEntry(e, where(e));
-    }).join('')}</ol></section></div>`;
+  } else if (!list.length) html = none;
+  else if (U.sort === 'weak') {
+    html = `<p class="muted small results-count">${plural(list.length, 'question')} you got wrong or still find hard, worst first.</p>${practise(list.length)}
+      <ol class="bq-list">${list.map(e => bankEntry(e, where(e))).join('')}</ol>`;
+  } else if (U.sort === 'date' || U.sort === 'newest') {
+    html = ((U.newOnly || U.date !== 'all') ? practise(list.length) : '') + byDayHTML(list, e => bankEntry(e, where(e)), 'bq-list');
   } else {
-    html = `<div class="toc book">${book.chapters.filter(c => !sub || c.code === sub).map(c => `
-      <section class="toc-ch"><h3><span class="toc-cn">${c.n}</span><span class="toc-ct">${esc(c.name)}</span><small>${plural(c.count, 'question')}</small></h3>
-      ${c.groups.map(g => `<div class="bq-topic"><span>${esc(g.name)}</span><small>${g.list.length}</small><button class="linkbtn" type="button" data-bqpractice="${esc(c.code)}|${esc(g.key)}">Practise</button></div>
+    html = (U.newOnly || U.date !== 'all' ? practise(list.length) : '') + `<div class="toc book">${book.chapters.map(c => ({ c, groups: c.groups.map(g => ({ ...g, list: g.list.filter(pass) })).filter(g => g.list.length) })).filter(x => x.groups.length).map(({ c, groups }) => `
+      <section class="toc-ch"><h3><span class="toc-cn">${c.n}</span><span class="toc-ct">${esc(c.name)}</span><small>${plural(groups.reduce((n, g) => n + g.list.length, 0), 'question')}</small></h3>
+      ${groups.map(g => `<div class="bq-topic"><span>${esc(g.name)}</span><small>${g.list.length}</small><button class="linkbtn" type="button" data-bqpractice="${esc(c.code)}|${esc(g.key)}">Practise</button></div>
         <ol class="bq-list">${g.list.map(e => bankEntry(e, e.q.subtopic ? esc(e.q.subtopic) : '')).join('')}</ol>`).join('')}</section>`).join('')}</div>`;
   }
-  $('bankIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${BankUI.view === 'weak' ? 'Weakest first' : BankUI.view === 'recent' ? 'By date added' : 'Contents'}</span></div>`) + html;
+  const nNew = list.filter(e => qNew(e.q)).length, label = { date: 'By date added', newest: 'Newest first', topic: 'Contents', weak: 'Weakest first' }[U.sort];
+  $('bankIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${label}</span><span class="toc-acts">${U.sort === 'date' && !U.newOnly && list.length && !qNew(list[0].q) ? jumpNewBtn(nNew, 'data-bqjump') : ''}</span></div>`) + html;
 }
 function renderBankReader(book) {
-  const list = book.flat, i = list.findIndex(e => e.q.id === BankUI.open), e = list[i], q = e.q;
+  const list = BankUI.list && BankUI.list.some(e => e.q.id === BankUI.open) ? BankUI.list : book.dated, i = list.findIndex(e => e.q.id === BankUI.open), e = list[i], q = e.q;
   const prev = list[i - 1], next = list[i + 1], re = qRe(BankUI.q.trim()), m = memState(q), s = m.s;
   const tags = [q.type, q.difficulty].filter(Boolean).map(t => `<span class="badge">${esc(t)}</span>`).join('');
   const extra = [['Explanation', q.explanation, ''], ['Memory hint', q.hint, 'trick'], ['Exam trap', q.trap, 'trap'], ['Concept', q.concept, '']].filter(x => x[1]);
   const record = !s || !s.t ? 'You have not answered this one yet.'
     : `Answered ${plural(s.a, 'time')}: ${s.c} right, ${s.w} wrong · last ${ago(s.t) === 'online now' ? 'just now' : ago(s.t).replace(/^1 (day|h)s? ago/, (m, u) => u === 'day' ? 'yesterday' : '1 hour ago')}${s.due ? ` · next review ${fmtDate(s.due)}` : ''}`;
   $('bankReader').innerHTML = `<div class="reader-bar">
-      <button class="btn ghost" type="button" data-bqback>${icon('back')}${BankUI.q.trim() ? 'Results' : 'Contents'}</button>
+      <button class="btn ghost" type="button" data-bqback>${icon('back')}${BankUI.q.trim() ? 'Results' : 'List'}</button>
       <span class="muted small">${i + 1} of ${list.length}</span>
       <span class="reader-nav"><button class="btn" type="button" data-bq="${prev ? esc(prev.q.id) : ''}" ${prev ? '' : 'disabled'} aria-label="Previous question">${icon('back')}</button><button class="btn" type="button" data-bq="${next ? esc(next.q.id) : ''}" ${next ? '' : 'disabled'} aria-label="Next question">${icon('next')}</button></span>
     </div>
@@ -117,6 +130,11 @@ function openBankQ(id) { BankUI.open = id; renderBank(); window.scrollTo(0, 0); 
 function bankPractice(arg) {
   const book = bankBook(), lv = q => { const s = getState(q.id); return s ? s.lv : -1; };
   let title, pool;
+  if (arg === 'shown') {                    // what is on screen now (filters applied), new and weak ones first
+    pool = (BankUI.list || []).map(e => e.q);
+    const title = BankUI.newOnly ? 'New questions' : BankUI.sort === 'weak' ? 'Weakest questions' : 'Questions';
+    return startSession(title, shuffle(shuffle(pool).sort((a, b) => lv(a) - lv(b)).slice(0, 30)));
+  }
   if (arg === 'weak') {
     const pr = q => { const s = getState(q.id); return !s || !s.t ? -1 : (s.w || 0) * 10 + (5 - s.lv); };
     pool = book.flat.map(e => e.q).filter(q => { const s = getState(q.id); return s && s.t && (s.w || s.lv < 2) && (!$('bankFilter').value || q.code === $('bankFilter').value); }).sort((a, b) => pr(b) - pr(a)).slice(0, 30);
@@ -135,9 +153,9 @@ $('bank').addEventListener('click', e => {
   if (t && t.dataset.bq) return openBankQ(t.dataset.bq);
   if (e.target.closest('[data-bqback]')) { BankUI.open = null; renderBank(); return; }
   const p = e.target.closest('[data-bqpractice]'); if (p) return bankPractice(p.dataset.bqpractice);
-  const v = e.target.closest('[data-bv]');
-  if (v) { BankUI.view = v.dataset.bv; BankUI.open = null; renderBank(); }
+  if (e.target.closest('[data-bqjump]')) return jumpToNew($('bankIndex'));
 });
+wireListTools('bank', BankUI, renderBank);
 $('bankSearch').addEventListener('input', () => { BankUI.q = $('bankSearch').value; BankUI.open = null; renderBank(); });
 $('bankFilter').addEventListener('change', () => { BankUI.open = null; renderBank(); });
 document.addEventListener('keydown', e => {

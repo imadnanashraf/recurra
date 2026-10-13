@@ -433,14 +433,12 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
       <input id="bankSearch" type="search" placeholder="Search questions, answers, explanations…" autocomplete="off" spellcheck="false" aria-label="Search questions">
     </div>
-    <div class="ntools" id="bankTools">
-      <div class="seg seg3" id="bankView" role="group" aria-label="Order">
-        <button type="button" data-bv="contents" aria-pressed="true">Contents</button>
-        <button type="button" data-bv="weak" aria-pressed="false">Weakest</button>
-        <button type="button" data-bv="recent" aria-pressed="false">Newest</button>
-      </div>
+    <div class="ntools lt-tools" id="bankTools">
       <select id="bankFilter" aria-label="Filter questions by subject"></select>
-      <button class="btn sel-toggle" type="button" data-seltoggle>Select</button>
+      <select id="bankDate" aria-label="Filter by date added"></select>
+      <input id="bankDay" type="date" aria-label="Pick a date" hidden>
+      <select id="bankSort" aria-label="Sort"></select>
+      <div class="lt-row"><button class="chip lt-new" type="button" id="bankNew" aria-pressed="false">New only</button><button class="btn sel-toggle" type="button" data-seltoggle>Select</button></div>
     </div>
     <div id="bankIndex"></div>
     <div id="bankReader" hidden></div>
@@ -456,14 +454,12 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
       <input id="notesSearch" type="search" placeholder="Search notes, topics, tricks, traps…" autocomplete="off" spellcheck="false" aria-label="Search notes">
     </div>
-    <div class="ntools" id="notesTools">
-      <div class="seg seg3" id="notesView" role="group" aria-label="Index order">
-        <button type="button" data-nv="contents" aria-pressed="true">Contents</button>
-        <button type="button" data-nv="az" aria-pressed="false">A–Z</button>
-        <button type="button" data-nv="recent" aria-pressed="false">Newest</button>
-      </div>
+    <div class="ntools lt-tools" id="notesTools">
       <select id="notesFilter" aria-label="Filter notes by subject"></select>
-      <button class="btn sel-toggle" type="button" data-seltoggle>Select</button>
+      <select id="notesDate" aria-label="Filter by date added"></select>
+      <input id="notesDay" type="date" aria-label="Pick a date" hidden>
+      <select id="notesSort" aria-label="Sort"></select>
+      <div class="lt-row"><button class="chip lt-new" type="button" id="notesNew" aria-pressed="false">New only</button><button class="btn sel-toggle" type="button" data-seltoggle>Select</button></div>
     </div>
     <div id="notesIndex"></div>
     <div id="notesReader" hidden></div>

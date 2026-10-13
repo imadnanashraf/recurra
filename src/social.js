@@ -689,7 +689,7 @@ function renderSharePanel() {
   $('spSubject').onchange = () => { Share.subject = $('spSubject').value; Share.topic = ''; renderSharePanel(); };
   $('spTopic').onchange = () => { Share.topic = $('spTopic').value; renderSharePanel(); };
 }
-const SHARE_STRIP = ['id', 'subject', 'code', 'retired', 'num'];
+const SHARE_STRIP = ['id', 'subject', 'code', 'retired', 'num', 'at', 'order'];
 const stripItem = o => Object.fromEntries(Object.entries(o).filter(([k, v]) => !SHARE_STRIP.includes(k) && !isEmptyVal(v)));
 async function sendShare(what) {
   const f = friendship(Social.open); if (!f || f.status !== 'accepted') return;

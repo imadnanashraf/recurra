@@ -78,9 +78,9 @@ const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.
 function rebuild() {
   const byCode = new Map(App.subjects.map(s => [s.code, s]));
   App.questions = Object.values(App.bank).filter(q => q && !q.retired)
-    .sort((a, b) => (a.added || '').localeCompare(b.added || '') || a.id.localeCompare(b.id))
+    .sort((a, b) => (a.added || '').localeCompare(b.added || '') || (a.at || 0) - (b.at || 0) || a.id.localeCompare(b.id))
     .map((q, i) => ({ ...q, code: q.subject, subject: (byCode.get(q.subject) || { name: q.subject }).name, order: i }));
-  App.notes = Object.values(App.notesMap).filter(Boolean).map(n => ({ ...n, code: n.subject }));
+  App.notes = Object.values(App.notesMap).filter(Boolean).map((n, i) => ({ ...n, code: n.subject, order: i }));
 }
 function refresh() {
   if (visible('home')) renderHome();
@@ -332,7 +332,9 @@ function subjectMeta(s) {
 function openSubjectPicker() {
   App.pick = { mode: 'subject' };
   $('pickerTitle').textContent = 'Practice a subject';
-  $('pickerList').innerHTML = (App.subjects.length ? sylLinkRow() + bankLinkRow() : '') + (App.subjects.length ? App.subjects.map(s => {
+  const fresh = App.questions.filter(q => { const st = getState(q.id); return !st || !st.t; });
+  const newRow = fresh.length ? `<button class="row topic new-row" type="button" data-newq><span class="name"><b>New questions <span class="new-pill">New</span></b><small>Ones you have never answered, the latest added first</small></span><span class="n">${fresh.length} Qs</span></button>` : '';
+  $('pickerList').innerHTML = (App.subjects.length ? newRow + sylLinkRow() + bankLinkRow() : '') + (App.subjects.length ? App.subjects.map(s => {
     const pool = App.questions.filter(q => q.code === s.code), n = pool.length, o = summary(pool), pct = n ? Math.round(100 * o.strong / n) : 0;
     return `<button class="row" type="button" data-code="${esc(s.code)}" ${n ? '' : 'disabled'}>
       <span class="code">${esc(s.code)}</span>
@@ -360,6 +362,10 @@ function openTopicPicker(code) {
 }
 $('pickerList').addEventListener('click', e => {
   const b = e.target.closest('button.row'); if (!b || b.disabled || b.dataset.mode) return;
+  if ('newq' in b.dataset) {                // never answered, the latest added first (up to 30), shown in a mixed order
+    const fresh = App.questions.filter(q => { const st = getState(q.id); return !st || !st.t; }).sort(byAdded).reverse().slice(0, 30);
+    return startSession('New questions', shuffle(fresh));
+  }
   if (App.pick.mode === 'subject') return openTopicPicker(b.dataset.code);
   const t = b.dataset.topic;
   const pool = App.questions.filter(q => q.code === App.pick.code && (!t || q.topic === t));
@@ -668,10 +674,63 @@ addEventListener('resize', () => { clearTimeout(chartResize); chartResize = setT
 
 /* ---------- revision notes ---------- */
 const NOTE_LABELS = { keyDifference: 'Key difference', points: 'Points', memoryTrick: 'Memory trick', examTrap: 'Exam trap', related: 'Related' };
-const NOTE_SKIP = new Set(['id', 'subject', 'code', 'topic', 'subtopic', 'title', 'added']);
+const NOTE_SKIP = new Set(['id', 'subject', 'code', 'topic', 'subtopic', 'title', 'added', 'at', 'order']);
 const labelOf = k => NOTE_LABELS[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
+/* ---------- lists of questions and notes: order, date filter, "New" ----------
+   Default every time you open the screen: everything, in the order it was added (oldest first),
+   by date and time. Filters and sort are not remembered. */
+const listDefaults = () => ({ sort: 'date', date: 'all', day: '', newOnly: false });
+const DATE_OPTS = [['all', 'All dates'], ['today', 'Today'], ['yesterday', 'Yesterday'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['pick', 'Pick a date…']];
+const daysAgoKey = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d.getTime()); };
+function dateOK(added, f) {
+  if (f.date === 'all') return true;
+  if (!added) return false;
+  if (f.date === 'today') return added === todayKey();
+  if (f.date === 'yesterday') return added === daysAgoKey(1);
+  if (f.date === '7') return added >= daysAgoKey(6);
+  if (f.date === '30') return added >= daysAgoKey(29);
+  return !f.day || added === f.day;
+}
+// order added: day, then time (newer items carry it), then the order they came in
+const byAdded = (a, b) => (a.added || '').localeCompare(b.added || '') || (a.at || 0) - (b.at || 0) || (a.order || 0) - (b.order || 0) || String(a.id).localeCompare(String(b.id));
+// paint the filter bar (subject, date, sort, New only) from the screen's state
+function paintListTools(p, st, sorts, newCount) {
+  const d = $(p + 'Date'), so = $(p + 'Sort'), day = $(p + 'Day'), nb = $(p + 'New');
+  d.innerHTML = DATE_OPTS.map(([v, t]) => `<option value="${v}">${t}</option>`).join(''); d.value = st.date;
+  day.hidden = st.date !== 'pick'; if (!day.hidden) { day.value = st.day || ''; day.max = todayKey(); }
+  so.innerHTML = sorts.map(([v, t]) => `<option value="${v}">${t}</option>`).join(''); so.value = st.sort;
+  nb.setAttribute('aria-pressed', String(!!st.newOnly)); nb.textContent = newCount ? `New only (${newCount})` : 'New only'; nb.disabled = !newCount && !st.newOnly;
+  nb.classList.toggle('has', !!newCount);
+}
+function wireListTools(p, st, render) {
+  $(p + 'Date').addEventListener('change', () => { st.date = $(p + 'Date').value; if (st.date !== 'pick') st.day = ''; st.open = null; st.all = false; render(); if (st.date === 'pick') try { $(p + 'Day').showPicker(); } catch (e) {} });
+  $(p + 'Day').addEventListener('change', () => { st.day = $(p + 'Day').value; st.open = null; render(); });
+  $(p + 'Sort').addEventListener('change', () => { st.sort = $(p + 'Sort').value; st.open = null; st.all = false; render(); });
+  $(p + 'New').addEventListener('click', () => { st.newOnly = !st.newOnly; st.open = null; st.all = false; render(); });
+}
+// day headings for the date orders
+function byDayHTML(list, entry, listCls) {
+  let day = null;
+  return `<div class="toc book recent">${list.map(x => {
+    const k = x.added || '';
+    const head = k !== day ? `${day !== null ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-day">${esc(longDate(k))}</h3><ol${listCls ? ` class="${listCls}"` : ''}>` : '';
+    day = k; return head + entry(x);
+  }).join('')}</ol></section></div>`;
+}
+const jumpNewBtn = (n, attr) => n ? `<button class="btn ghost jump-new" type="button" ${attr}>New (${n}) ${icon('next')}</button>` : '';
+function jumpToNew(box) {
+  const el = box.querySelector('.is-new'); if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash-new'); void el.offsetWidth; el.classList.add('flash-new');
+}
+
+// a note is "new" until you open it (or read it in "Read all"); notes added before this existed are not new
+const noteNew = n => !!n.at && !Progress.noteRead(n.id);
+function readNote(id) { const n = App.notes.find(x => x.id === id); if (n && n.at && !Progress.noteRead(id)) Progress.markNoteRead(id); }
+
 // Notes are numbered like a book: chapter = subject (in syllabus order), then topic A–Z, then title A–Z → 1.1, 1.2, 2.1 …
-const NotesUI = { view: 'contents', q: '', open: null, all: false };
+const NotesUI = { q: '', open: null, all: false, list: null, ...listDefaults() };
+const NOTE_SORTS = [['date', 'Oldest first'], ['newest', 'Newest first'], ['topic', 'By topic'], ['az', 'A–Z']];
 const subjName = c => (App.subjects.find(s => s.code === c) || { name: c }).name;
 const shortDate = k => { if (!k) return ''; const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 const longDate = k => { if (!k) return 'Date unknown'; const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }); };
@@ -685,75 +744,99 @@ function notesBook() {
     const notes = App.notes.filter(n => n.code === code).sort(cmp).map((n, ni) => ({ ...n, num: `${ci + 1}.${ni + 1}` }));
     return { code, name: subjName(code), n: ci + 1, notes };
   });
-  return { chapters, flat: chapters.flatMap(c => c.notes) };
+  // in date order every note gets a running number: 1, 2, 3 … (oldest is 1)
+  const dated = [...App.notes].sort(byAdded).map((n, i) => ({ ...n, num: String(i + 1) }));
+  return { chapters, flat: chapters.flatMap(c => c.notes), dated };
 }
 const qRe = q => q ? new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
 const mark = (html, re) => re ? html.replace(/(<[^>]+>)|([^<]+)/g, (m, tag, txt) => tag || txt.replace(re, '<mark>$&</mark>')) : html;
 const noteText = n => Object.entries(n).filter(([k]) => !NOTE_SKIP.has(k) && k !== 'num').map(([, v]) => Array.isArray(v) ? v.join(' ') : String(v)).join(' ');
+const newPill = on => on ? '<span class="new-pill">New</span>' : '';
 function noteHTML(n, re) {
   const ordered = [...NOTE_FIELDS, ...Object.keys(n).filter(k => !NOTE_FIELDS.includes(k) && k !== 'num')];
   const rows = ordered.filter(k => !NOTE_SKIP.has(k) && k !== 'num' && n[k] && (Array.isArray(n[k]) ? n[k].length : true)).map(k => `
     <div class="${/trap/i.test(k) ? 'trap' : /trick/i.test(k) ? 'trick' : ''}"><dt>${esc(labelOf(k))}</dt><dd>${Array.isArray(n[k]) ? `<ul>${n[k].map(x => `<li>${mark(rich(x), re)}</li>`).join('')}</ul>` : mark(rich(n[k]), re)}</dd></div>`).join('');
-  return `<article class="note" id="note-${esc(n.id)}"><div class="note-meta"><span class="note-num">${esc(n.num || '')}</span><span>${esc(subjName(n.code))}${n.topic ? ' · ' + mark(esc(n.topic), re) : ''}</span><span class="note-date">${esc(shortDate(n.added))}</span></div><h3>${mark(rich(n.title), re)}</h3><dl>${rows}</dl></article>`;
+  return `<article class="note${noteNew(n) ? ' is-new' : ''}" id="note-${esc(n.id)}" data-nid="${esc(n.id)}"><div class="note-meta"><span class="note-num">${esc(n.num || '')}</span><span>${esc(subjName(n.code))}${n.topic ? ' · ' + mark(esc(n.topic), re) : ''}</span>${newPill(noteNew(n))}<span class="note-date">${esc(shortDate(n.added))}</span></div><h3>${mark(rich(n.title), re)}</h3><dl>${rows}</dl></article>`;
 }
 function tocEntry(n, extra, re) {
-  return `<li><button type="button" class="toc-e" data-note="${esc(n.id)}"><span class="toc-n">${esc(n.num)}</span><span class="toc-main"><span class="toc-line"><span class="toc-t">${mark(esc(n.title), re)}</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-d">${esc(shortDate(n.added))}</span></span>${extra ? `<small class="toc-sub">${extra}</small>` : ''}</span></button></li>`;
+  const nw = noteNew(n);
+  return `<li${nw ? ' class="is-new"' : ''}><button type="button" class="toc-e" data-note="${esc(n.id)}"><span class="toc-n">${esc(n.num)}</span><span class="toc-main"><span class="toc-line"><span class="toc-t">${mark(esc(n.title), re)}</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-d">${esc(shortDate(n.added))}</span></span>${extra || nw ? `<small class="toc-sub">${newPill(nw)}${extra || ''}</small>` : ''}</span></button></li>`;
 }
 function renderNotes() {
   const book = notesBook(), filter = $('notesFilter'), keep = filter.value;
   filter.innerHTML = `<option value="">All subjects (${App.notes.length})</option>` + book.chapters.map(c => `<option value="${esc(c.code)}">${esc(c.name)} (${c.notes.length})</option>`).join('');
   filter.value = book.chapters.some(c => c.code === keep) ? keep : '';
-  const sub = filter.value, inSub = n => !sub || n.code === sub;
+  const sub = filter.value, U = NotesUI;
+  const pass = n => (!sub || n.code === sub) && dateOK(n.added, U) && (!U.newOnly || noteNew(n));
   $('notesTitle').textContent = 'Revision notes';
-  [...$('notesView').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.nv === NotesUI.view)));
   const empty = !App.notes.length;
   $('notesTools').hidden = empty; document.querySelector('#notes .nsearch').hidden = empty;
-  const reader = !!NotesUI.open && book.flat.some(n => n.id === NotesUI.open);
-  $('notesReader').hidden = !reader; $('notesIndex').hidden = reader || NotesUI.all; $('notesList').hidden = reader || !NotesUI.all;
+  paintListTools('notes', U, NOTE_SORTS, App.notes.filter(n => (!sub || n.code === sub) && noteNew(n)).length);
+  const byNum = (a, b) => a.num.localeCompare(b.num, undefined, { numeric: true });
+  const ordered = U.sort === 'topic' ? book.flat : U.sort === 'az' ? [...book.dated].sort((a, b) => a.title.localeCompare(b.title)) : U.sort === 'newest' ? [...book.dated].reverse() : book.dated;
+  const list = ordered.filter(pass);
+  const reader = !!U.open && App.notes.some(n => n.id === U.open);
+  $('notesReader').hidden = !reader; $('notesIndex').hidden = reader || U.all; $('notesList').hidden = reader || !U.all;
   if (empty) { $('notesIndex').hidden = false; $('notesIndex').innerHTML = `<div class="empty-state">${ART.notes}<strong>No revision notes yet</strong><p>Short notes on the things you mix up will live here. Add them from Today, then “Add questions or notes”.</p></div>`; return; }
-  if (reader) return renderReader(book);
-  if (NotesUI.all) {
-    const list = book.flat.filter(inSub);
-    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(list.length, 'note')} in book order</span></div>` + list.map(n => noteHTML(n)).join('');
-    return;
-  }
-  const q = NotesUI.q.trim(), re = qRe(q);
-  let html = '';
+  const q = U.q.trim(), re = qRe(q);
+  let hits = null;
   if (q) {
     const lq = q.toLowerCase();
-    const hits = book.flat.filter(inSub).map(n => {
+    hits = list.map(n => {
       const t = (n.title || '').toLowerCase(), tp = (n.topic || '').toLowerCase(), body = noteText(n).toLowerCase();
       const score = t.includes(lq) ? 3 : tp.includes(lq) || subjName(n.code).toLowerCase().includes(lq) ? 2 : body.includes(lq) ? 1 : 0;
       if (!score) return null;
       const raw = noteText(n), i = raw.toLowerCase().indexOf(lq);
       const snip = i < 0 ? '' : (i > 40 ? '…' : '') + raw.slice(Math.max(0, i - 40), i + lq.length + 70) + (i + lq.length + 70 < raw.length ? '…' : '');
       return { n, score, snip };
-    }).filter(Boolean).sort((a, b) => b.score - a.score || a.n.num.localeCompare(b.n.num, undefined, { numeric: true }));
+    }).filter(Boolean).sort((a, b) => b.score - a.score || list.indexOf(a.n) - list.indexOf(b.n));
+  }
+  U.list = hits ? hits.map(h => h.n) : list;             // what the reader steps through with ‹ ›
+  if (reader) return renderReader();
+  if (U.all) {
+    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(U.list.length, 'note')}</span></div>` + U.list.map(n => noteHTML(n)).join('');
+    watchReadAll();
+    return;
+  }
+  const where = n => `${esc(subjName(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}`;
+  const none = `<div class="empty-state small">${ART.empty}<strong>No notes here</strong><p>Nothing matches these filters. Try All dates, or turn off New only.</p></div>`;
+  let html = '';
+  if (q) {
     html = `<p class="muted small results-count">${hits.length ? `${plural(hits.length, 'note')} ${hits.length === 1 ? 'matches' : 'match'} “${esc(q)}”` : `Nothing matches “${esc(q)}”. Try a shorter word.`}</p>` +
-      (hits.length ? `<ol class="toc toc-flat results">${hits.map(h => tocEntry(h.n, `${esc(subjName(h.n.code))}${h.n.topic ? ' · ' + mark(esc(h.n.topic), re) : ''}${h.snip ? `<span class="snip">${mark(esc(h.snip), re)}</span>` : ''}`, re)).join('')}</ol>` : '');
-  } else if (NotesUI.view === 'az') {
-    const list = book.flat.filter(inSub).sort((a, b) => a.title.localeCompare(b.title));
+      (hits.length ? `<ol class="toc toc-flat results">${hits.map(h => tocEntry(h.n, `${where(h.n)}${h.snip ? `<span class="snip">${mark(esc(h.snip), re)}</span>` : ''}`, re)).join('')}</ol>` : '');
+  } else if (!list.length) html = none;
+  else if (U.sort === 'az') {
     let letter = '';
     html = `<div class="toc book az">${list.map(n => {
       const L = (n.title[0] || '#').toUpperCase(), head = L !== letter ? `${letter ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-letter">${esc(L)}</h3><ol>` : '';
-      letter = L; return head + tocEntry(n, `${esc(subjName(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}`);
+      letter = L; return head + tocEntry(n, where(n));
     }).join('')}</ol></section></div>`;
-  } else if (NotesUI.view === 'recent') {
-    const list = book.flat.filter(inSub).sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.num.localeCompare(b.num, undefined, { numeric: true }));
-    let day = null;
-    html = `<div class="toc book recent">${list.map(n => {
-      const head = n.added !== day ? `${day !== null ? '</ol></section>' : ''}<section class="toc-ch"><h3 class="toc-day">${esc(longDate(n.added))}</h3><ol>` : '';
-      day = n.added; return head + tocEntry(n, `${esc(subjName(n.code))}${n.topic ? ' · ' + esc(n.topic) : ''}`);
-    }).join('')}</ol></section></div>`;
+  } else if (U.sort === 'date' || U.sort === 'newest') {
+    html = byDayHTML(list, n => tocEntry(n, where(n)));
   } else {
-    html = `<div class="toc book">${book.chapters.filter(c => !sub || c.code === sub).map(c => `
-      <section class="toc-ch"><h3><span class="toc-cn">${c.n}</span><span class="toc-ct">${esc(c.name)}</span><small>${plural(c.notes.length, 'note')}</small></h3>
-      <ol>${c.notes.map(n => tocEntry(n, n.topic ? esc(n.topic) : '')).join('')}</ol></section>`).join('')}</div>`;
+    html = `<div class="toc book">${book.chapters.map(c => ({ c, notes: c.notes.filter(pass) })).filter(x => x.notes.length).map(({ c, notes }) => `
+      <section class="toc-ch"><h3><span class="toc-cn">${c.n}</span><span class="toc-ct">${esc(c.name)}</span><small>${plural(notes.length, 'note')}</small></h3>
+      <ol>${notes.map(n => tocEntry(n, n.topic ? esc(n.topic) : '')).join('')}</ol></section>`).join('')}</div>`;
   }
-  $('notesIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${NotesUI.view === 'az' ? 'Index' : NotesUI.view === 'recent' ? 'By date added' : 'Contents'}</span><button class="btn ghost" type="button" data-readall>Read all ${icon('next')}</button></div>`) + html;
+  const nNew = list.filter(noteNew).length, label = { date: 'By date added', newest: 'Newest first', topic: 'Contents', az: 'Index' }[U.sort];
+  $('notesIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${label}</span><span class="toc-acts">${U.sort === 'date' && !U.newOnly && list.length && !noteNew(list[0]) ? jumpNewBtn(nNew, 'data-njump') : ''}${list.length ? `<button class="btn ghost" type="button" data-readall>Read all ${icon('next')}</button>` : ''}</span></div>`) + html;
 }
-function renderReader(book) {
-  const list = book.flat, i = list.findIndex(n => n.id === NotesUI.open), n = list[i];
+// "Read all": a note counts as read after it has been on screen for about 2 seconds
+let readAllObs = null;
+function watchReadAll() {
+  if (readAllObs) readAllObs.disconnect();
+  if (!('IntersectionObserver' in window)) return;
+  const timers = new Map();
+  readAllObs = new IntersectionObserver(es => es.forEach(e => {
+    const id = e.target.dataset.nid;
+    if (e.isIntersecting) { if (!timers.has(id)) timers.set(id, setTimeout(() => { readNote(id); e.target.classList.remove('is-new'); const p = e.target.querySelector('.new-pill'); if (p) p.remove(); }, 2000)); }
+    else { clearTimeout(timers.get(id)); timers.delete(id); }
+  }), { threshold: 0.5 });
+  $('notesList').querySelectorAll('article.note.is-new').forEach(a => readAllObs.observe(a));
+}
+function renderReader() {
+  const list = NotesUI.list && NotesUI.list.some(n => n.id === NotesUI.open) ? NotesUI.list : notesBook().dated;
+  const i = list.findIndex(n => n.id === NotesUI.open), n = list[i];
   const prev = list[i - 1], next = list[i + 1], re = qRe(NotesUI.q.trim());
   $('notesReader').innerHTML = `<div class="reader-bar">
       <button class="btn ghost" type="button" data-nback>${icon('back')}${NotesUI.q.trim() ? 'Results' : 'Index'}</button>
@@ -762,6 +845,7 @@ function renderReader(book) {
     </div>
     <div class="reader-note">${noteHTML(n, re)}</div>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-note="${esc(prev.id)}"><small>Previous</small>${esc(prev.num)} ${esc(prev.title)}</button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-note="${esc(next.id)}"><small>Next</small>${esc(next.num)} ${esc(next.title)}</button>` : ''}</div>`;
+  readNote(n.id);                                       // opened: no longer new (the tag stays on screen until you leave this note)
 }
 function openNote(id) { NotesUI.open = id; NotesUI.all = false; renderNotes(); window.scrollTo(0, 0); }
 $('notes').addEventListener('click', e => {
@@ -769,9 +853,9 @@ $('notes').addEventListener('click', e => {
   if (t && t.dataset.note) return openNote(t.dataset.note);
   if (e.target.closest('[data-nback]')) { NotesUI.open = null; NotesUI.all = false; renderNotes(); return; }
   if (e.target.closest('[data-readall]')) { NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
-  const v = e.target.closest('[data-nv]');
-  if (v) { NotesUI.view = v.dataset.nv; NotesUI.open = null; NotesUI.all = false; renderNotes(); }
+  if (e.target.closest('[data-njump]')) return jumpToNew($('notesIndex'));
 });
+wireListTools('notes', NotesUI, renderNotes);
 $('notesSearch').addEventListener('input', () => { NotesUI.q = $('notesSearch').value; NotesUI.open = null; NotesUI.all = false; renderNotes(); });
 $('notesFilter').addEventListener('change', () => { NotesUI.open = null; renderNotes(); });
 document.addEventListener('keydown', e => {
@@ -845,8 +929,9 @@ async function createFromChecked(c) {
   for (const code of [...(c.newSubjects || [])]) if (!subjects.some(x => x.code === code)) subjects.push({ code, name: code, part: '' });
   const writes = [{ path: Store.prepPath(pid), data: { name: s.name || 'My prep', examDate: s.examDate || '', marking: s.marking || null, subjects, created: Date.now(), resetAt: 0 } }];
   const qBy = {}, nBy = {};
-  (c.questions || []).forEach(q => { (qBy[q.subject] = qBy[q.subject] || {})[q.id] = q; });
-  (c.notes || []).forEach(n => { (nBy[n.subject] = nBy[n.subject] || {})[n.id] = n; });
+  const now = Date.now();                    // the time each one was added (keeps the file's order)
+  (c.questions || []).forEach((q, i) => { (qBy[q.subject] = qBy[q.subject] || {})[q.id] = { ...q, at: q.at || now + i }; });
+  (c.notes || []).forEach((n, i) => { (nBy[n.subject] = nBy[n.subject] || {})[n.id] = { ...n, at: n.at || now + i }; });
   writes.push(...chunkWrites(`${Store.prepPath(pid)}/bank`, 'q', qBy, []), ...chunkWrites(`${Store.prepPath(pid)}/notes`, 'n', nBy, []));
   App.wantPrep = pid;
   await Store.write(writes);
@@ -1295,11 +1380,12 @@ async function applyImport(btn) {
       if (part.kind !== 'mcq' && part.kind !== 'notes') continue;
       const isQ = part.kind === 'mcq', current = isQ ? App.bank : App.notesMap, items = isQ ? part.questions : part.notes;
       if (!items || !items.length) continue;
-      const by = {};
-      items.forEach(it => {
+      const by = {}, now = Date.now();
+      items.forEach((it, i) => {
         if (!by[it.subject]) { by[it.subject] = {}; Object.values(current).forEach(o => { if (o.subject === it.subject) by[it.subject][o.id] = o; }); }
-        const old = current[it.id];
-        by[it.subject][it.id] = old ? { ...it, added: old.added || it.added } : it;
+        const old = current[it.id], clean = { ...it }; delete clean.order;
+        // "at": when it was added (date and time), so lists can show it in the order it came in; updates keep the original
+        by[it.subject][it.id] = old ? { ...clean, added: old.added || clean.added, ...(old.at ? { at: old.at } : {}) } : { ...clean, at: now + i };
       });
       writes.push(...chunkWrites(`${base}/${isQ ? 'bank' : 'notes'}`, isQ ? 'q' : 'n', by, isQ ? App.bankDocs : App.notesDocs));
     }
@@ -1417,7 +1503,7 @@ $('optHaptic').addEventListener('change', () => savePrefs({ haptics: $('optHapti
 /* ---------- navigation ---------- */
 const MODES = {
   topic: openSubjectPicker,
-  notes: () => { NotesUI.open = null; NotesUI.all = false; renderNotes(); show('notes'); },
+  notes: () => { Object.assign(NotesUI, listDefaults(), { open: null, all: false, q: '' }); $('notesSearch').value = ''; $('notesFilter').value = ''; renderNotes(); show('notes'); },
   progress: () => { show('progress'); renderProgress(); },
   calendar: () => { Cal.month = null; renderCalendar(); show('calendar'); },
   import: () => openImport('active', 'mcq'),

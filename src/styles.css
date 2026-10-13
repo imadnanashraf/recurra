@@ -2203,3 +2203,31 @@ body.viewing #roomView [data-ltnew] { display: none !important; }
 .prev-part { margin: 0; }
 
 .ai-cam { justify-self: center; display: inline-flex; gap: 6px; align-items: center; margin-top: -2px; }
+
+/* lists of questions and notes: filter bar, "New" tag, jump to new */
+.ntools.lt-tools, .ntools.lt-tools:has(.sel-toggle) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.lt-tools > select, .lt-tools > input[type=date] { width: 100%; min-width: 0; min-height: 42px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: .9rem; box-sizing: border-box; }
+.lt-tools > #bankFilter, .lt-tools > #notesFilter { grid-column: 1 / -1; }
+.lt-tools > input[type=date] { grid-column: 1 / -1; }
+.lt-tools > input[type=date][hidden] { display: none; }
+.lt-tools .lt-row { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.lt-new { min-height: 38px; }
+.lt-new.has:not([aria-pressed="true"]) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
+.lt-new:disabled { opacity: .55; }
+@media (min-width: 760px) {
+  .ntools.lt-tools, .ntools.lt-tools:has(.sel-toggle) { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.2fr) auto; align-items: center; }
+  .lt-tools > #bankFilter, .lt-tools > #notesFilter { grid-column: auto; }
+  .lt-tools .lt-row { grid-column: auto; }
+  .lt-tools > input[type=date] { grid-column: 1 / -1; max-width: 16rem; }
+}
+.new-pill { display: inline-block; flex: none; font-size: .64rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 1; padding: 4px 7px 3px; border-radius: 99px; background: var(--accent); color: #fff; vertical-align: middle; }
+.toc-sub .new-pill { margin-right: 6px; vertical-align: 1px; }
+.note-meta .new-pill { margin-left: auto; }
+.note-meta .new-pill + .note-date { margin-left: 8px; }
+.bq-m.m-new { align-self: center; }
+.toc-acts { display: inline-flex; gap: 4px; align-items: center; }
+.jump-new { color: var(--accent); font-weight: 700; }
+.jump-new .ic { transform: rotate(90deg); width: 16px; height: 16px; }
+li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; border-radius: 10px; }
+@keyframes flashNew { 0%, 60% { background: var(--accent-soft); } 100% { background: transparent; } }
+.new-row .new-pill { margin-left: 6px; }
