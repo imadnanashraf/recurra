@@ -2422,3 +2422,49 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- tips, what's new, did you know ---------- */
+.tipbub { position: fixed; z-index: 60; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; padding: 12px 14px; border-radius: 16px;
+  background: var(--ink); color: var(--bg); box-shadow: 0 14px 40px rgba(10, 20, 40, .28); font-size: .88rem; line-height: 1.45; animation: tipIn .28s cubic-bezier(.2,.8,.2,1) both; }
+.tipbub::after { content: ''; position: absolute; left: var(--ax, 50%); width: 14px; height: 14px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
+.tipbub.below::after { top: -6px; } .tipbub.above::after { bottom: -6px; } .tipbub.inside::after { display: none; }
+.tipbub.out { animation: tipOut .2s ease forwards; }
+.tip-ic { font-size: 1.05rem; line-height: 1.3; }
+.tip-t b { color: inherit; }
+.tip-x { grid-column: 2; justify-self: end; border: 0; background: color-mix(in srgb, var(--bg) 16%, transparent); color: var(--bg); font: inherit; font-size: .8rem; font-weight: 700; padding: 5px 12px; border-radius: 99px; cursor: pointer; }
+@keyframes tipIn { from { opacity: 0; transform: translateY(6px) scale(.97); } }
+@keyframes tipOut { to { opacity: 0; transform: translateY(4px); } }
+.tip-pulse { position: relative; }
+.tip-pulse::before { content: ''; position: absolute; inset: -4px; border-radius: 14px; box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); animation: tipPulse 1.6s ease-out infinite; pointer-events: none; }
+@keyframes tipPulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+@media (prefers-reduced-motion: reduce) { .tipbub, .tip-pulse::before { animation: none; } }
+.whats-new { display: grid; gap: 10px; padding: 14px 14px 10px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 70%, var(--surface)), var(--surface) 70%); }
+.whats-new[hidden] { display: none; }
+.whats-new.out { animation: tipOut .22s ease forwards; }
+#home > .whats-new { grid-column: 1 / -1; }
+.wn-head { display: flex; align-items: center; gap: 8px; }
+.wn-head b { flex: 1 1 auto; font-size: 1rem; }
+.wn-badge { font-size: .64rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 4px 8px 3px; border-radius: 99px; background: var(--accent); color: #fff; }
+.wn-x { width: 34px; height: 34px; padding: 0; }
+.wn-list { display: grid; gap: 8px; }
+@media (min-width: 760px) { .wn-list { grid-template-columns: 1fr 1fr; } }
+.wn-item { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--surface); border-radius: 14px; padding: 8px 10px 8px 8px; box-shadow: inset 0 0 0 1px var(--line); }
+.wn-art { width: 56px; height: 40px; border-radius: 10px; background: var(--sunken); display: grid; place-items: center; }
+.wn-art svg { width: 50px; height: 34px; }
+.wn-paper { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.wn-soft { fill: var(--accent-soft); }
+.wn-key { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; fill: none; }
+.wn-ink { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; fill: none; }
+.wn-new { fill: var(--accent); }
+.wn-w { font: 800 9px var(--f-body, sans-serif); fill: var(--accent-2, var(--accent)); }
+.wn-plus { font: 800 18px var(--f-body, sans-serif); fill: var(--accent); }
+.wn-txt { display: grid; gap: 1px; min-width: 0; }
+.wn-txt b { font-size: .88rem; line-height: 1.3; }
+.wn-txt small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.wn-try { white-space: nowrap; }
+.wn-foot { margin: 0; text-align: right; font-size: .82rem; }
+.sp-dyk { padding: 22px 6px 4px; gap: 6px; }
+.dyk-ic { font-size: 1.8rem; line-height: 1; }
+.dyk-l { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.dyk-go { font-size: .86rem; font-weight: 700; color: var(--accent); padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); margin-top: 2px; }
+@media (min-width: 1024px) { #home > .spark .sp-dyk { flex-direction: column; align-items: flex-start; padding: 22px 0; } }

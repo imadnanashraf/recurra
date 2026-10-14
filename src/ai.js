@@ -401,6 +401,7 @@ function aiRender() {
   const add = inp => () => {
     const got = [...inp.files], old = got.filter(isOldDoc);
     // a photo from the camera is named "image.jpg" on many phones: give each one its own name
+    if (got.some(f => isDocx(f)) || inp.id === 'aiCam') featUse('word');
     AI.files.push(...got.filter(f => !isOldDoc(f)).map(f => inp.id === 'aiCam' ? new File([f], `Photo ${AI.files.filter(x => /^Photo \d+/.test(x.name)).length + 1}.jpg`, { type: f.type || 'image/jpeg' }) : f));
     AI.files = AI.files.slice(0, 12); AI.err = old.length ? `“${old[0].name}” is an old Word file (.doc). Open it in Word or Google Docs, save it as .docx or PDF, and choose that.` : ''; AI.retry = false; AI.done = null; inp.value = ''; aiRender();
   };

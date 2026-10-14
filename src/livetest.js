@@ -65,6 +65,7 @@ function renderLtSetup(friends = Social.list.filter(f => f.status === 'accepted'
   const tp = $('ltTopic'); if (tp) tp.onchange = () => { S.topic = tp.value; renderLtSetup(); };
 }
 async function createRoom() {
+  if (typeof featUse === 'function') featUse('live');
   const S = LT.setup, me = meUid();
   const groups = S.subject ? shareGroups('mcq', S.subject) : [], g = groups.find(x => x.key === S.topic);
   const pool = S.subject ? (g ? g.items : groups.flatMap(x => x.items)) : App.questions;

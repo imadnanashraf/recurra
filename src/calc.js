@@ -168,6 +168,7 @@ function toolsPaintTabs() {
 }
 function toolsTab(t) {
   Calc.tab = t; if (t !== 'rough') Calc.full = false;
+  if (t === 'calc' && typeof featUse === 'function') { featUse('calc'); tipsCalc(); }
   calcPaint();
   if (t === 'rough' && typeof roughShown === 'function') roughShown();
   if (visible('quiz') && App.session) setKeyHint();
@@ -195,6 +196,7 @@ function calcOpen(tab) {
   if (Calc.tab === 'calc' && !calcOn()) Calc.tab = 'rough';
   const el = $('calc'), was = Calc.open;
   Calc.open = true; Calc.min = false; el.hidden = false; el.classList.remove('min');
+  if (typeof featUse === 'function') { featUse('tools'); if (Calc.tab === 'calc') { featUse('calc'); tipsCalc(); } }
   if (!was) { el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }
   calcPaint();
   requestAnimationFrame(() => { calcFit(); if (Calc.tab === 'rough' && typeof roughShown === 'function') roughShown(); });

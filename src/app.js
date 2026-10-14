@@ -38,6 +38,7 @@ function show(id) {
   window.scrollTo(0, 0);
   if (id === 'home' && typeof Spark !== 'undefined') Spark.auto = 0;     // Today again: the scene may change by itself again
   if (typeof calcOnScreen === 'function') calcOnScreen(id);
+  if (typeof tipsOnScreen === 'function') tipsOnScreen(id);
   // the Android download: website only, and not for people who already use the Android app
   if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
     a.hidden = inApp() || (id === 'settings' && !webAppOnAndroid() && !!(App.profile && App.profile.usedAndroid));
@@ -181,7 +182,7 @@ function greeting() {
    - after 6 changes it settles on one (starts again next time you open Today)
    - no scene or line from the last 5 comes back; swipe (or tap) to change it yourself
    - with "reduce motion" on in your phone, it only changes when you swipe */
-const Spark = { quote: null, scene: null, recent: [], back: [], auto: 0, el: 0, dur: 20000, hold: false, seen: true, tick: null, busy: false };
+const Spark = { quote: null, scene: null, dyk: null, recent: [], back: [], auto: 0, el: 0, dur: 20000, hold: false, seen: true, tick: null, busy: false };
 const SPARK_MAX = 6;
 const sparkDur = q => Math.min(30000, Math.max(12000, 8000 + q.split(/\s+/).length * 650));
 function sparkPickQuote() {
@@ -192,8 +193,11 @@ function sparkPickQuote() {
 }
 function renderSpark() {
   if (!Spark.quote) { Spark.quote = sparkPickQuote(); Spark.scene = pickScene(); }
-  Spark.dur = sparkDur(Spark.quote); Spark.el = 0;
-  $('spark').innerHTML = `<span class="sp-body">${sceneHtml(Spark.scene)}<q>${esc(Spark.quote)}</q></span><span class="sp-bar" aria-hidden="true"><i></i></span>`;
+  const d = Spark.dyk;
+  Spark.dur = sparkDur(d ? d.text : Spark.quote); Spark.el = 0;
+  $('spark').innerHTML = d
+    ? `<span class="sp-body sp-dyk"><span class="dyk-ic" aria-hidden="true">💡</span><small class="dyk-l">Did you know?</small><q>${esc(d.text)}</q><span class="dyk-go" data-tipgo="${d.key}">Show me ›</span></span><span class="sp-bar" aria-hidden="true"><i></i></span>`
+    : `<span class="sp-body">${sceneHtml(Spark.scene)}<q>${esc(Spark.quote)}</q></span><span class="sp-bar" aria-hidden="true"><i></i></span>`;
   sparkBar();
   sparkStart();
 }
@@ -214,8 +218,14 @@ function sparkChange(dir, byHand) {
   if (!byHand) Spark.auto++;
   body.classList.add(dir < 0 ? 'sp-out-r' : 'sp-out');
   setTimeout(() => {
-    if (dir < 0) { const p = Spark.back.pop(); Spark.quote = p.quote; Spark.scene = p.scene; }
-    else { Spark.back = [...Spark.back, { quote: Spark.quote, scene: Spark.scene }].slice(-10); Spark.scene = nextScene(Spark.scene); Spark.quote = sparkPickQuote(); }
+    if (dir < 0) { const p = Spark.back.pop(); Spark.quote = p.quote; Spark.scene = p.scene; Spark.dyk = p.dyk || null; }
+    else {
+      Spark.back = [...Spark.back, { quote: Spark.quote, scene: Spark.scene, dyk: Spark.dyk }].slice(-10);
+      // now and then (about 1 in 6, never twice in a row): a "Did you know?" about something you haven't tried
+      const d = !Spark.dyk && Spark.back.length > 1 && Math.random() < 1 / 6 && typeof dykPick === 'function' ? dykPick() : null;
+      Spark.dyk = d;
+      if (!d) { Spark.scene = nextScene(Spark.scene); Spark.quote = sparkPickQuote(); }
+    }
     renderSpark();
     const nb = $('spark').querySelector('.sp-body'); if (nb) nb.classList.add(dir < 0 ? 'sp-in-r' : 'sp-in');
     Spark.busy = false;
@@ -245,12 +255,17 @@ if ('IntersectionObserver' in window) new IntersectionObserver(es => es.forEach(
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) { moved = true; sparkChange(dx < 0 ? 1 : -1, true); }
   });
   sp.addEventListener('pointercancel', () => { x0 = null; setTimeout(() => { Spark.hold = false; }, 1500); });
-  sp.addEventListener('click', () => { if (moved) { moved = false; return; } sparkChange(1, true); });
+  sp.addEventListener('click', e => {
+    if (moved) { moved = false; return; }
+    const go = e.target.closest('[data-tipgo]'); if (go) return tryFeature(go.dataset.tipgo);
+    sparkChange(1, true);
+  });
 }
 function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
   if (!$('spark').innerHTML) renderSpark();
+  if (typeof renderWhatsNew === 'function') renderWhatsNew();
   setTimeout(() => { if (!Sky.timer) startSky(); else renderSky(); }, 0);   // after the page is laid out, so the sky fits it
   renderVerify();
   const p0 = App.prep, ex = examMs();
@@ -429,7 +444,8 @@ function openTopicPicker(code) {
 }
 $('pickerList').addEventListener('click', e => {
   const b = e.target.closest('button.row'); if (!b || b.disabled || b.dataset.mode) return;
-  if ('newq' in b.dataset) {                // never answered, the latest added first (up to 30), shown in a mixed order
+  if ('newq' in b.dataset) {
+    featUse('newq');                // never answered, the latest added first (up to 30), shown in a mixed order
     const fresh = App.questions.filter(q => { const st = getState(q.id); return !st || !st.t; }).sort(byAdded).reverse().slice(0, 30);
     return startSession('New questions', shuffle(fresh));
   }
@@ -470,6 +486,7 @@ function renderQuestion() {
   $('qText').innerHTML = rich(q.question);
   $('qCalc').innerHTML = calcBtnHTML();
   if (typeof toolsNewQuestion === 'function') toolsNewQuestion();      // a fresh rough page for every question
+  if (typeof tipsQuiz === 'function') tipsQuiz();
   replay($('qText'), 'in'); replay($('qRecall'), 'in');
   $('qOpts').innerHTML = it.opts.map((o, k) => `
     <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
@@ -778,7 +795,7 @@ function wireListTools(p, st, render) {
   $(p + 'Date').addEventListener('change', () => { st.date = $(p + 'Date').value; if (st.date !== 'pick') st.day = ''; st.open = null; st.all = false; render(); if (st.date === 'pick') try { $(p + 'Day').showPicker(); } catch (e) {} });
   $(p + 'Day').addEventListener('change', () => { st.day = $(p + 'Day').value; st.open = null; render(); });
   $(p + 'Sort').addEventListener('change', () => { st.sort = $(p + 'Sort').value; st.open = null; st.all = false; render(); });
-  $(p + 'New').addEventListener('click', () => { st.newOnly = !st.newOnly; st.open = null; st.all = false; render(); });
+  $(p + 'New').addEventListener('click', () => { if (p === 'bank') featUse('newonly'); st.newOnly = !st.newOnly; st.open = null; st.all = false; render(); });
 }
 // day headings for the date orders
 function byDayHTML(list, entry, listCls) {
@@ -924,7 +941,7 @@ $('notes').addEventListener('click', e => {
   const t = e.target.closest('[data-note]');
   if (t && t.dataset.note) return openNote(t.dataset.note);
   if (e.target.closest('[data-nback]')) { NotesUI.open = null; NotesUI.all = false; renderNotes(); return; }
-  if (e.target.closest('[data-readall]')) { NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
+  if (e.target.closest('[data-readall]')) { featUse('readall'); NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
   if (e.target.closest('[data-njump]')) return jumpToNew($('notesIndex'));
 });
 wireListTools('notes', NotesUI, renderNotes);
@@ -1215,6 +1232,7 @@ $('impSubjects').addEventListener('click', async e => {
 $('impKinds').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]'); if (!b) return;
   App.imp.kind = b.dataset.kind; App.imp.checked = null; $('impDone').hidden = true; renderImport();
+  if (App.imp.kind === 'both') featUse('both');
 });
 $('impBack').addEventListener('click', () => { if (App.imp.back === 'thread' && App.imp.share && friendship(App.imp.share.fid)) openThread(App.imp.share.fid); else if (App.imp.back === 'preps' || !App.prep) showPreps(); else if (App.imp.back === 'syllabus') MODES.syllabus(); else show('home'); });
 $('impFile').addEventListener('change', () => {
@@ -1508,7 +1526,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false;
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false;
   $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
@@ -1526,6 +1544,7 @@ $('optSound').addEventListener('change', () => { savePrefs({ sounds: $('optSound
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
 $('optCalc').addEventListener('change', () => savePrefs({ calc: $('optCalc').checked }));
+$('optTips').addEventListener('change', () => savePrefs({ tips: $('optTips').checked }));
 $('themeChips').addEventListener('click', e => {
   const b = e.target.closest('[data-theme-set]'); if (!b) return;
   try { localStorage.setItem(THEME_KEY, b.dataset.themeSet); } catch (err) {}

@@ -228,7 +228,12 @@ function roughUp(e) {
   clearInterval(c.hold);
   Rough.cur = null;
   if (c.kind === 'erase') { if (c.removed.length) Rough.undo.push({ t: 'erase', items: c.removed }); }
-  else { const last = roughAt(e); if (!c.snapped && Math.hypot(last[0] - c.s.pts[c.s.pts.length - 1][0], last[1] - c.s.pts[c.s.pts.length - 1][1]) > 0.5) c.s.pts.push(last); Rough.undo.push({ t: 'add', s: c.s }); }
+  else {
+    const last = roughAt(e); if (!c.snapped && Math.hypot(last[0] - c.s.pts[c.s.pts.length - 1][0], last[1] - c.s.pts[c.s.pts.length - 1][1]) > 0.5) c.s.pts.push(last);
+    Rough.undo.push({ t: 'add', s: c.s });
+    if (c.snapped && typeof tipMark === 'function') tipMark('snap');                // you found it yourself: no tip needed
+    else if (typeof tipsRoughStroke === 'function') tipsRoughStroke(c.s);
+  }
   roughPaintBar(); roughDraw();
 }
 function roughPanStart() {
@@ -374,12 +379,14 @@ function roughMarks() {
     return `<div class="rm-line" style="top:${pt + i * lh}px;height:${lh}px"><span class="rm-pad">${esc(ln)}</span>${html}</div>`;
   }).join('');
   roughPaintBar();
+  if (box.firstChild && typeof tipsTypedCheck === 'function') tipsTypedCheck();
 }
 
 /* ---------- ✨ Make neat (your own Google AI key) ---------- */
 async function roughNeat() {
   if (!roughNeatOK() || !Rough.strokes.length || Rough.neatBusy) return;
   Rough.neatBusy = true; roughPaintBar();
+  if (typeof featUse === 'function') featUse('neat');
   const card = $('roughNeat');
   card.hidden = false; card.innerHTML = `<p class="rn-busy"><span class="ai-spin"></span>Reading your writing…</p>`;
   try {
