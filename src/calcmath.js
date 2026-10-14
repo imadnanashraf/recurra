@@ -177,6 +177,68 @@ const CalcMath = (() => {
   }
   const ghost = T => ')'.repeat(Math.max(0, open(T)));
   const fromNumber = v => [{ t: 'num', v: String(clean(v)) }];
-  return { press, back, evaluate, tryEval, fmt, eng, show, ghost, fromNumber, open, PREFIX, FN };
+  // ---- typed rough work: read a line like "2k × (1 + 0.6²/2) = 2360" (null if it has letters we can't work out) ----
+  const UNIT = '(?:Hz|hz|W|V|A|Ω|ohm|ohms|F|H|bps|s|dB|dBm)';
+  const FNAMES = { sqrt: 'sqrt', '√': 'sqrt', log: 'log', ln: 'ln', sin: 'sin', cos: 'cos', tan: 'tan' };
+  function parseText(str) {
+    let s = String(str).trim(), T = [], pendingClose = 0;
+    const push = tok => { T.push(tok); };
+    while (s.length) {
+      let m;
+      if ((m = s.match(/^\s+/))) { s = s.slice(m[0].length); continue; }
+      if ((m = s.match(/^(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?|^\.\d+/))) {
+        push({ t: 'num', v: m[0].replace(/,/g, '') }); s = s.slice(m[0].length);
+        // a prefix and/or unit right after a number: 2k, 5 kHz, 10µF, 3 V
+        const u = s.match(new RegExp(`^\\s?([GMkKµunp]|m(?=${UNIT}))?(${UNIT})?(?![A-Za-z])`));
+        if (u && (u[1] || u[2])) {
+          if (u[1]) push({ t: 'pre', v: { K: 'k', u: 'µ' }[u[1]] || u[1] });
+          s = s.slice(u[0].length);
+        }
+        if (pendingClose && !/^\s*[\^²³]/.test(s)) { while (pendingClose) { push({ t: 'rp' }); pendingClose--; } }
+        continue;
+      }
+      if ((m = s.match(/^(sqrt|√|log|ln|sin|cos|tan)/i))) {
+        const f = FNAMES[m[0].toLowerCase()] || FNAMES[m[0]]; s = s.slice(m[0].length);
+        push({ t: 'fn', v: f });
+        if ((m = s.match(/^\s*\(/))) s = s.slice(m[0].length); else pendingClose++;   // √2: only the next number goes inside
+        continue;
+      }
+      if ((m = s.match(/^(π|pi)(?![A-Za-z])/i))) { push({ t: 'const', v: 'π' }); s = s.slice(m[0].length); continue; }
+      const c = s[0];
+      if ('+'.includes(c)) push({ t: 'op', v: '+' });
+      else if ('-−–'.includes(c)) push({ t: 'op', v: '−' });
+      else if ('*×·'.includes(c) || (c === 'x' || c === 'X') && T.length && /^\s*[\d.(√π]/.test(s.slice(1))) push({ t: 'op', v: '×' });
+      else if ('/÷'.includes(c)) push({ t: 'op', v: '÷' });
+      else if (c === '^') push({ t: 'op', v: '^' });
+      else if (c === '²') push({ t: 'post', v: '²' });
+      else if (c === '³') { push({ t: 'op', v: '^' }); push({ t: 'num', v: '3' }); }
+      else if (c === '%') push({ t: 'post', v: '%' });
+      else if ('([{'.includes(c)) push({ t: 'lp' });
+      else if (')]}'.includes(c)) push({ t: 'rp' });
+      else return null;                                   // a letter or sign we can't work out (a variable like Pc): don't check this line
+      s = s.slice(1);
+      if (pendingClose && /^[²%]$/.test(c)) { while (pendingClose) { push({ t: 'rp' }); pendingClose--; } }
+    }
+    while (pendingClose--) push({ t: 'rp' });
+    return T.length ? T : null;
+  }
+  // check one typed line: { kind: 'ok' | 'wrong' | 'answer', v } or null (nothing to check)
+  function checkLine(line, opt = {}) {
+    if (!line.includes('=')) return null;
+    const parts = line.split('=').map(x => x.trim());
+    const first = parseText(parts[0]); if (!first) return null;
+    const r = tryEval(first, opt); if (!r.ok) return null;
+    if (parts.length === 2 && !parts[1]) return { kind: 'answer', v: r.v };          // "2k × 1.18 =" → shows the answer
+    for (const p of parts.slice(1)) {
+      if (!p) continue;
+      const T = parseText(p); if (!T) return null;
+      const r2 = tryEval(T, opt); if (!r2.ok) return null;
+      const dec = ((p.match(/\.(\d+)/) || [])[1] || '').length;
+      const tol = Math.max(Math.abs(r.v) * 0.005, 0.5 * Math.pow(10, -dec) * (T.some(x => x.t === 'pre') ? PREFIX[T.find(x => x.t === 'pre').v] : 1), 1e-12);
+      if (Math.abs(r2.v - r.v) > tol) return { kind: 'wrong', v: r.v };
+    }
+    return { kind: 'ok', v: r.v };
+  }
+  return { press, back, evaluate, tryEval, fmt, eng, show, ghost, fromNumber, open, PREFIX, FN, parseText, checkLine };
 })();
 if (typeof module !== 'undefined') module.exports = CalcMath;

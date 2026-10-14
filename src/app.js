@@ -36,6 +36,7 @@ function show(id) {
   const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', room: 'tests', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
+  if (id === 'home' && typeof Spark !== 'undefined') Spark.auto = 0;     // Today again: the scene may change by itself again
   if (typeof calcOnScreen === 'function') calcOnScreen(id);
   // the Android download: website only, and not for people who already use the Android app
   if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
@@ -174,13 +175,78 @@ function greeting() {
   const h = new Date().getHours();
   return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
-// a fresh line and a little scene each time the app opens (kept for this visit, so it doesn't flicker)
-const Spark = { quote: null, scene: null };
-function renderSpark() {
-  if (!Spark.quote) { Spark.quote = pickQuote(); Spark.scene = pickScene(); }
-  $('spark').innerHTML = `${sceneHtml(Spark.scene)}<q>${esc(Spark.quote)}</q><small>Tap for another</small>`;
+/* A little scene and a study line on Today. It changes by itself, gently:
+   - each one stays 12–30 s: long enough for the scene to play and the line to be read (longer lines stay longer)
+   - it waits while the card is off screen, the app is in the background, or your finger / mouse is on it
+   - after 6 changes it settles on one (starts again next time you open Today)
+   - no scene or line from the last 5 comes back; swipe (or tap) to change it yourself
+   - with "reduce motion" on in your phone, it only changes when you swipe */
+const Spark = { quote: null, scene: null, recent: [], back: [], auto: 0, el: 0, dur: 20000, hold: false, seen: true, tick: null, busy: false };
+const SPARK_MAX = 6;
+const sparkDur = q => Math.min(30000, Math.max(12000, 8000 + q.split(/\s+/).length * 650));
+function sparkPickQuote() {
+  const pool = QUOTES.filter(q => !Spark.recent.includes(q) && q !== Spark.quote);
+  const q = pool[Math.floor(Math.random() * pool.length)] || pickQuote();
+  Spark.recent = [q, ...Spark.recent].slice(0, 5);
+  return q;
 }
-$('spark').addEventListener('click', () => { Spark.scene = nextScene(Spark.scene); Spark.quote = pickQuote(); renderSpark(); });
+function renderSpark() {
+  if (!Spark.quote) { Spark.quote = sparkPickQuote(); Spark.scene = pickScene(); }
+  Spark.dur = sparkDur(Spark.quote); Spark.el = 0;
+  $('spark').innerHTML = `<span class="sp-body">${sceneHtml(Spark.scene)}<q>${esc(Spark.quote)}</q></span><span class="sp-bar" aria-hidden="true"><i></i></span>`;
+  sparkBar();
+  sparkStart();
+}
+function sparkBar() {
+  const b = $('spark').querySelector('.sp-bar'); if (!b) return;
+  const on = sparkAuto();
+  b.classList.toggle('off', !on);
+  b.firstChild.style.transform = `scaleX(${on ? Math.min(1, Spark.el / Spark.dur) : 0})`;
+}
+const sparkReduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const sparkAuto = () => !sparkReduced() && Spark.auto < SPARK_MAX;
+// change it: dir 1 = next (new), -1 = back to the one before
+function sparkChange(dir, byHand) {
+  if (Spark.busy) return;
+  const el = $('spark'), body = el.querySelector('.sp-body'); if (!body) return renderSpark();
+  if (dir < 0 && !Spark.back.length) return;
+  Spark.busy = true;
+  if (!byHand) Spark.auto++;
+  body.classList.add(dir < 0 ? 'sp-out-r' : 'sp-out');
+  setTimeout(() => {
+    if (dir < 0) { const p = Spark.back.pop(); Spark.quote = p.quote; Spark.scene = p.scene; }
+    else { Spark.back = [...Spark.back, { quote: Spark.quote, scene: Spark.scene }].slice(-10); Spark.scene = nextScene(Spark.scene); Spark.quote = sparkPickQuote(); }
+    renderSpark();
+    const nb = $('spark').querySelector('.sp-body'); if (nb) nb.classList.add(dir < 0 ? 'sp-in-r' : 'sp-in');
+    Spark.busy = false;
+  }, sparkReduced() ? 0 : 380);
+}
+function sparkStart() {
+  if (Spark.tick) return;
+  let last = Date.now();
+  Spark.tick = setInterval(() => {
+    const now = Date.now(), dt = now - last; last = now;
+    if (!visible('home') || document.hidden || !Spark.seen || Spark.hold || !sparkAuto()) { sparkBar(); return; }
+    Spark.el += Math.min(dt, 1000);
+    if (Spark.el >= Spark.dur) sparkChange(1); else sparkBar();
+  }, 200);
+}
+// only counts down while the card is on screen
+if ('IntersectionObserver' in window) new IntersectionObserver(es => es.forEach(e => { Spark.seen = e.isIntersecting && e.intersectionRatio >= 0.4; }), { threshold: [0, 0.4, 1] }).observe($('spark'));
+{
+  const sp = $('spark'); let x0 = null, y0 = 0, moved = false;
+  sp.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') Spark.hold = true; });
+  sp.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') Spark.hold = false; });
+  sp.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; moved = false; Spark.hold = true; });
+  sp.addEventListener('pointerup', e => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null;
+    if (e.pointerType !== 'mouse') setTimeout(() => { Spark.hold = false; }, 1500);
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) { moved = true; sparkChange(dx < 0 ? 1 : -1, true); }
+  });
+  sp.addEventListener('pointercancel', () => { x0 = null; setTimeout(() => { Spark.hold = false; }, 1500); });
+  sp.addEventListener('click', () => { if (moved) { moved = false; return; } sparkChange(1, true); });
+}
 function renderHome() {
   if (!App.prep) return;
   $('hello').textContent = `${greeting()}, ${displayName().split(' ')[0]}`;
@@ -403,6 +469,7 @@ function renderQuestion() {
   ].filter(Boolean).join('');
   $('qText').innerHTML = rich(q.question);
   $('qCalc').innerHTML = calcBtnHTML();
+  if (typeof toolsNewQuestion === 'function') toolsNewQuestion();      // a fresh rough page for every question
   replay($('qText'), 'in'); replay($('qRecall'), 'in');
   $('qOpts').innerHTML = it.opts.map((o, k) => `
     <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
@@ -418,7 +485,7 @@ function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.cla
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
   const chosen = prefs().confidence ? 'Enter: sure · N: not sure · G: guessed · 1–4: change' : 'Enter: check · 1–4: change';
-  if (typeof Calc !== 'undefined' && Calc.open && !Calc.min && !it.result) { $('keyHint').textContent = 'Typing goes to the calculator · Esc closes it'; return; }
+  if (typeof Calc !== 'undefined' && Calc.open && !Calc.min && Calc.tab === 'calc' && !it.result) { $('keyHint').textContent = 'Typing goes to the calculator · Esc closes it'; return; }
   $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: choose · S: don\'t know', chosen, done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
 }
 function showOptions() {
@@ -438,6 +505,7 @@ function pick(k) {
   if (it.phase === 'recall') showOptions();
   if (it.picked === k && it.phase === 'chosen') return;
   it.picked = k; it.phase = 'chosen'; Sound.play('tap');
+  if (typeof toolsShrink === 'function') toolsShrink();               // the tools step aside so you can confirm
   [...$('qOpts').children].forEach((b, idx) => { b.classList.toggle('picked', idx === k); b.setAttribute('aria-pressed', idx === k ? 'true' : 'false'); });
   const conf = prefs().confidence;
   $('qConf').hidden = !conf; $('qCheck').hidden = conf; setKeyHint();
@@ -461,6 +529,7 @@ function finish(k, conf) {
     z.firstCount++;
   }
   Progress.record(q, it.result, it.retry, conf);
+  if (typeof toolsShrink === 'function') toolsShrink();
   Native.answer(it.result === 'correct');
   // a soft sound for right or wrong (quieter than live tests); a small sparkle every 5 right in a row
   z.run = it.result === 'correct' ? (z.run || 0) + 1 : 0;

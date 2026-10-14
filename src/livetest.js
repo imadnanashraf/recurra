@@ -165,6 +165,7 @@ function renderLive() {
       <div class="lt-fb" id="ltFb"></div>
     </article></div>`;
   LT.opts = opts; LT.qi = i;
+  if (typeof toolsNewQuestion === 'function') toolsNewQuestion();
   paintRace();
 }
 function paintRace() {
@@ -188,6 +189,7 @@ async function pickAnswer(k) {
   if (LT.picked !== null || !LT.room) return;
   const r = LT.room, i = LT.qi, q = r.qs[i], pick = LT.opts[k], ok = pick === q.answer, me = { ...LT.players[meUid()] };
   LT.picked = k; LT.sel = null;
+  if (typeof toolsShrink === 'function') toolsShrink();
   const lock = document.querySelector('#ltQ [data-ltlock]'); if (lock) lock.hidden = true;
   document.querySelectorAll('#ltQ .lt-opt').forEach((b, j) => { b.disabled = true; b.classList.remove('picked'); b.removeAttribute('aria-pressed'); if (LT.opts[j] === q.answer) b.classList.add('right'); else if (j === k) b.classList.add('wrong'); });
   const streak = ok ? (me.streak || 0) + 1 : 0;
