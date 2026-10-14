@@ -36,6 +36,7 @@ function show(id) {
   const tab = { home: 'home', picker: 'topic', syllabus: 'syllabus', bank: 'topic', room: 'tests', notes: 'notes', progress: 'progress', calendar: 'progress', admin: 'admin', adminUser: 'admin' }[id];
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   window.scrollTo(0, 0);
+  if (typeof calcOnScreen === 'function') calcOnScreen(id);
   // the Android download: website only, and not for people who already use the Android app
   if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
     a.hidden = inApp() || (id === 'settings' && !webAppOnAndroid() && !!(App.profile && App.profile.usedAndroid));
@@ -401,6 +402,7 @@ function renderQuestion() {
     s && `<span class="label" style="display:inline-flex;gap:6px;align-items:center">Memory ${levelBars(s.lv)}</span>`,
   ].filter(Boolean).join('');
   $('qText').innerHTML = rich(q.question);
+  $('qCalc').innerHTML = calcBtnHTML();
   replay($('qText'), 'in'); replay($('qRecall'), 'in');
   $('qOpts').innerHTML = it.opts.map((o, k) => `
     <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
@@ -416,6 +418,7 @@ function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.cla
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
   const chosen = prefs().confidence ? 'Enter: sure · N: not sure · G: guessed · 1–4: change' : 'Enter: check · 1–4: change';
+  if (typeof Calc !== 'undefined' && Calc.open && !Calc.min && !it.result) { $('keyHint').textContent = 'Typing goes to the calculator · Esc closes it'; return; }
   $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: choose · S: don\'t know', chosen, done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
 }
 function showOptions() {
@@ -1436,7 +1439,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence;
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false;
   $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
@@ -1453,6 +1456,7 @@ $('optFocus').addEventListener('change', () => { savePrefs({ focusSound: $('optF
 $('optSound').addEventListener('change', () => { savePrefs({ sounds: $('optSound').checked }); if ($('optSound').checked) Sound.play('join'); });
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
+$('optCalc').addEventListener('change', () => savePrefs({ calc: $('optCalc').checked }));
 $('themeChips').addEventListener('click', e => {
   const b = e.target.closest('[data-theme-set]'); if (!b) return;
   try { localStorage.setItem(THEME_KEY, b.dataset.themeSet); } catch (err) {}

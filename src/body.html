@@ -190,6 +190,7 @@
         <h3>Study</h3>
         <label class="toggle"><input type="checkbox" id="optRecall"><span>Recall first<small>See the question alone, think of the answer, then show the options. Recalling builds stronger memory than recognising.</small></span></label>
         <label class="toggle"><input type="checkbox" id="optConf"><span>Ask how sure I was<small>A lucky guess comes back sooner; a confident mistake gets extra attention.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="optCalc"><span>Calculator in quizzes<small>A calculator button in quizzes and live tests, for numericals. Turn it off to practise like the real exam, where calculators are usually not allowed.</small></span></label>
         <label class="toggle"><input type="checkbox" id="optSound"><span>Sounds<small>Soft sounds for messages, friend requests and live tests. Never on loop; off here any time.</small></span></label>
         <label class="selrow" for="optFocus"><span>Focus sound while practising<small>A soft background sound during questions and live tests. No music or words, so it does not compete with what you are learning. Off by default.</small></span><select id="optFocus"><option value="off">Off</option><option value="rain">Soft rain</option><option value="brown">Deep calm (brown noise)</option></select></label>
         <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
@@ -260,7 +261,7 @@
     <div class="qtop">
       <div class="head-row">
         <span class="label" id="qCount"></span>
-        <button class="btn ghost" type="button" id="quitBtn">Stop for now</button>
+        <span class="qtop-acts"><span id="qCalc"></span><button class="btn ghost" type="button" id="quitBtn">Stop for now</button></span>
       </div>
       <div class="bar"><i id="qBar" style="width:0%"></i></div>
     </div>

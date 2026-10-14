@@ -101,7 +101,7 @@ function openRoom(rid) {
   }, e => console.warn('players', e)));
   clearInterval(LT.tick); LT.tick = setInterval(onTick, 1000);
 }
-function leaveRoom() { ltFocus(false); LT.unsubs.forEach(u => { try { u(); } catch (e) {} }); LT.unsubs = []; clearInterval(LT.tick); LT.tick = null; clearTimeout(LT.adv); LT.rid = null; }
+function leaveRoom() { if (typeof calcReset === 'function') calcReset(); ltFocus(false); LT.unsubs.forEach(u => { try { u(); } catch (e) {} }); LT.unsubs = []; clearInterval(LT.tick); LT.tick = null; clearTimeout(LT.adv); LT.rid = null; }
 function onTick() {
   if (!visible('room') || !LT.room) return;
   const r = LT.room;
@@ -155,7 +155,7 @@ function renderLive() {
   const q = r.qs[i], opts = myOptions(r, i), num = (me.answered || 0) + 1;
   LT.picked = null; LT.sel = null; LT.shownAt = Date.now();
   $('roomView').innerHTML = `<div class="lt-live">
-    <div class="lt-top"><span class="lt-count">${num} / ${r.n}</span><span class="lt-clock" id="ltClock">${mmss(r.endAt - Date.now())}</span></div>
+    <div class="lt-top"><span class="lt-count">${num} / ${r.n}</span><span class="lt-top-r">${calcBtnHTML()}<span class="lt-clock" id="ltClock">${mmss(r.endAt - Date.now())}</span></span></div>
     <div class="lt-race" id="ltRace"></div>
     <article class="card lt-q" id="ltQ">
       <p class="lt-meta">${esc(q.topic || r.subjectName)}</p>
@@ -213,6 +213,7 @@ function countForRevision(q, ok) {
 }
 function finishMine() {
   const r = LT.room, me = LT.players[meUid()]; if (!me || me.finishedAt) return;
+  if (typeof calcReset === 'function') calcReset();          // your test is over: the calculator closes
   const next = { ...me, finishedAt: Date.now(), timeMs: Math.min(Date.now(), r.endAt) - r.startAt };
   LT.players[meUid()] = next;
   Store.fs.doc(`rooms/${LT.rid}/players/${meUid()}`).set(next).catch(() => {});
