@@ -39,6 +39,7 @@ function show(id) {
   if (id === 'home' && typeof Spark !== 'undefined') Spark.auto = 0;     // Today again: the scene may change by itself again
   if (typeof calcOnScreen === 'function') calcOnScreen(id);
   if (typeof tipsOnScreen === 'function') tipsOnScreen(id);
+  if (typeof navOnScreen === 'function') navOnScreen(id);
   // the Android download: website only, and not for people who already use the Android app
   if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
     a.hidden = inApp() || (id === 'settings' && !webAppOnAndroid() && !!(App.profile && App.profile.usedAndroid));
@@ -1604,7 +1605,7 @@ const MODES = {
 // any button with data-mode opens that screen (tab bar, home buttons, progress → calendar)
 MODES.home = () => show('home');
 document.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b && MODES[b.dataset.mode]) MODES[b.dataset.mode](); });
-document.addEventListener('click', e => { if (e.target.closest('[data-back]')) goHome(); });
+// the on-screen Back buttons: see nav.js (they go where the phone's back button goes)
 $('brand').addEventListener('click', () => { if (App.user) goHome(); });
 $('prepBtn').addEventListener('click', showPreps);
 document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (visible('home')) renderHome(); Reminders.refreshSoon(); });

@@ -2468,3 +2468,9 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .dyk-l { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
 .dyk-go { font-size: .86rem; font-weight: 700; color: var(--accent); padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); margin-top: 2px; }
 @media (min-width: 1024px) { #home > .spark .sp-dyk { flex-direction: column; align-items: flex-start; padding: 22px 0; } }
+
+/* where you are: a small label above the title one level down */
+.nav-up { display: block; margin: 0 0 -6px 2px; font-size: .74rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+.back-ask h3 { margin: 0; font-size: 1.15rem; }
+.back-ask p { margin: 0; }
+.back-ask .btns { justify-content: flex-end; }
