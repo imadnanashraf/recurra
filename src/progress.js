@@ -70,8 +70,9 @@ const Progress = {
     if (!this.timer) this.timer = setTimeout(() => { this.timer = null; this.flush(); }, 1000);
   },
 
-  record(q, result, retry, conf) {
-    this.map[q.id] = applyResult(this.map[q.id], result, q.code, Date.now(), examMsFrom(App.prep && App.prep.examDate), retry, conf);
+  // practice = outside Today's review (topics, Question bank, Extra practice): early right answers don't move a question on
+  record(q, result, retry, conf, practice) {
+    this.map[q.id] = (practice ? applyPractice : applyResult)(this.map[q.id], result, q.code, Date.now(), examMsFrom(App.prep && App.prep.examDate), retry, conf);
     if (!retry) {
       const d = this.today(), mine = d.by[DEVICE] || (d.by[DEVICE] = { n: 0, c: 0 });
       mine.n++; if (result === 'correct') mine.c++;

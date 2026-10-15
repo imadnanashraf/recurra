@@ -2474,3 +2474,5 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .back-ask h3 { margin: 0; font-size: 1.15rem; }
 .back-ask p { margin: 0; }
 .back-ask .btns { justify-content: flex-end; }
+
+.plan-note { margin: 8px 0 0; font-size: .8rem; line-height: 1.4; opacity: .92; }

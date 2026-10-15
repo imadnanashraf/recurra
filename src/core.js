@@ -25,6 +25,11 @@ const SCHEDULE = {
   finishNewDaysBeforeExam: 7,     // see every question at least once a week before the exam
   retriesInSession: 2,            // a missed question is asked again up to 2 more times in the session
   blockSize: 20,                  // a short break is offered after every 20 questions
+  backlogStop: 60,                // more than this many due: no new questions until you catch up
+  backlogSlow: 30,                // more than this: only the minimum of new ones
+  runUpDays: 21,                  // in the last 3 weeks gaps get shorter, so revision spreads out…
+  finalWeekDays: 7,               // …and in the last week: revision only, no new questions
+  defaultSecsPerQ: 30,            // pace used for "Daily time" until yours is known
 };
 
 const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -53,13 +58,36 @@ function applyResult(state, result, code, now, examMs, retry, conf) {
     s.s = 0; s.lv = 0;
   }
   if (s.w >= SCHEDULE.hardAfterWrongs) s.lv = Math.min(s.lv, SCHEDULE.hardMaxLevel);
-  let due = addDays(now, conf === 'guess' && result === 'correct' ? 1 : SCHEDULE.gapDays[s.lv]);
+  let gap = conf === 'guess' && result === 'correct' ? 1 : SCHEDULE.gapDays[s.lv];
+  if (examMs) {
+    const daysLeft = Math.round((dayStart(examMs) - dayStart(now)) / 864e5);
+    // the last 3 weeks: never wait more than about a third of the days left, so reviews spread out
+    // instead of all landing on the day before the exam
+    if (daysLeft <= SCHEDULE.runUpDays) gap = Math.min(gap, Math.max(1, Math.floor(daysLeft / 3)));
+  }
+  let due = addDays(now, gap);
   if (examMs) {                                   // never schedule past the day before the exam
     const lastDay = addDays(examMs, -1);
     if (due > lastDay) due = Math.max(addDays(now, 1), lastDay);
   }
   s.due = due;
   return s;
+}
+// Practising early (a topic, the Question bank, Extra practice) before half the wait has passed:
+// a right answer is counted but does not move the question on, since it was not a real test of memory
+// after a gap. A wrong answer counts as usual: it shows the question needs work.
+function applyPractice(state, result, code, now, examMs, retry, conf) {
+  if (state && state.t && state.due && result === 'correct' && conf !== 'guess') {
+    const half = state.t + (state.due - state.t) / 2;
+    if (now < half) return { ...state, a: (state.a || 0) + 1, c: (state.c || 0) + 1, s: (state.s || 0) + 1, t: now, k: code };
+  }
+  return applyResult(state, result, code, now, examMs, retry, conf);
+}
+// "2 of every 3 from the newest, 1 from the oldest": recent material first, but nothing waits for ever
+function mixNewOld(list, k) {
+  const a = list.slice(), out = [];
+  while (out.length < k && a.length) out.push(out.length % 3 === 2 ? a.pop() : a.shift());
+  return out;
 }
 
 // Session order: weakest first is not kind to mood, so the list is shuffled,
@@ -74,7 +102,8 @@ function orderSession(list, getState) {
 
 // Builds today's review by itself: every question that is due, plus a fair share of new ones.
 // weights (optional) = { CODE: marks }: new questions are shared out by marks; reviews are never affected
-function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
+// opts (optional): { minutes, secsPerQ } = a daily time limit and your pace, to size the day
+function todayPlan(questions, getState, now, examMs, subjectOrder, weights, opts = {}) {
   const start = dayStart(now), tomorrow = addDays(now, 1), dayAfter = addDays(now, 2);
   const due = [], unseen = [];
   let doneToday = 0, newToday = 0, dueTomorrow = 0;
@@ -92,11 +121,24 @@ function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
   const daysLeft = examMs ? Math.round((examMs - start) / 864e5) : 60;
   const spread = Math.max(1, daysLeft - SCHEDULE.finishNewDaysBeforeExam);
   const perDay = Math.min(SCHEDULE.newMax, Math.max(SCHEDULE.newMin, Math.ceil(unseen.length / spread)));
-  const newBudget = Math.max(0, perDay - newToday);
+  let newBudget = Math.max(0, perDay - newToday);
+  // brakes: the final week is for revision; a pile of revision is cleared before new questions come in
+  const finalWeek = !!examMs && daysLeft <= SCHEDULE.finalWeekDays;
+  const catchingUp = due.length > SCHEDULE.backlogStop ? 'stop' : due.length > SCHEDULE.backlogSlow ? 'slow' : '';
+  if (finalWeek || catchingUp === 'stop') newBudget = 0;
+  else if (catchingUp === 'slow') newBudget = Math.min(newBudget, Math.max(0, SCHEDULE.newMin - newToday));
+  // daily time: revision first, new ones with the time left
+  let dueCap = SCHEDULE.dueCapPerDay, fitted = false;
+  if (opts.minutes) {
+    const fit = Math.max(5, Math.floor(opts.minutes * 60 / (opts.secsPerQ || SCHEDULE.defaultSecsPerQ)) - doneToday);
+    if (fit < dueCap) { dueCap = Math.max(0, fit); if (due.length > dueCap) fitted = true; }     // "sized to your time" only when it really left something out
+    const room = Math.max(0, fit - Math.min(due.length, dueCap));
+    if (room < Math.min(newBudget, unseen.length)) { newBudget = room; fitted = true; }
+  }
   // newest material first (what you studied most recently), then syllabus order
   const rank = c => { const i = subjectOrder.indexOf(c); return i < 0 ? 99 : i; };
   unseen.sort((x, y) => (y.added || '').localeCompare(x.added || '') || rank(x.code) - rank(y.code) || x.order - y.order);
-  let fresh = unseen.slice(0, newBudget);
+  let fresh = mixNewOld(unseen, newBudget);
   if (weights && newBudget > 0) {                // highest marks first, but every subject keeps getting some
     const by = {}, picked = {};
     unseen.forEach(q => { (by[q.code] = by[q.code] || []).push(q); });
@@ -109,14 +151,16 @@ function todayPlan(questions, getState, now, examMs, subjectOrder, weights) {
         if (sc > top) { top = sc; best = c; }
       }
       if (!best) break;
-      fresh.push(by[best].shift()); picked[best] = (picked[best] || 0) + 1;
+      const n = picked[best] || 0;
+      fresh.push(n % 3 === 2 ? by[best].pop() : by[best].shift()); picked[best] = n + 1;   // the same newest/oldest mix in each subject
     }
   }
   return {
-    due: due.slice(0, SCHEDULE.dueCapPerDay),
+    due: due.slice(0, dueCap),
     fresh,
     unseenLeft: unseen.length, doneToday, newToday, dueTomorrow,
     newPerDay: Math.min(perDay, unseen.length),
+    dueAll: due.length, finalWeek, catchingUp, fitted, daysLeft,
   };
 }
 

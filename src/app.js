@@ -76,7 +76,7 @@ async function copyText(text, okMsg) {
 }
 const examMs = () => examMsFrom(App.prep && App.prep.examDate);
 const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code),
-  null);
+  null, { minutes: Number(prefs().dailyMin) || 0, secsPerQ: Progress.meta.spq || 0 });
 
 /* ---------- prep loading ---------- */
 function rebuild() {
@@ -294,6 +294,7 @@ function renderHome() {
     card = `<div class="today"><div class="top"><span class="big">${n}</span>
       <div class="what"><strong>${d.n ? 'Left today' : 'Today’s review'}</strong><span>${timeText(n)}</span></div></div>
       <div class="split"><span>${p.due.length} to revise</span><span>${p.fresh.length} new</span>${d.n ? `<span>${d.n} done today · ${pct}% right</span>` : ''}</div>
+      ${planNote(p)}
       <div class="row2"><button class="go" type="button" id="goBtn">${icon('play')}${d.n ? 'Continue' : 'Start'}</button>
       <button class="pausebtn" type="button" id="pauseBtn">${icon('pause')}Pause today</button></div></div>`;
   } else {
@@ -354,9 +355,27 @@ function syncDay() {
   Progress.setNext({ day: dayKey(addDays(Date.now(), 1)), count, mins: count ? minutesFor(count) : 0 });
   return p;
 }
+// Extra practice (after today's review): about 5 weak ones (not the ones you just did), 3 new, 2 coming up soon
+// why today looks the way it does (only when something changed the usual plan)
+function planNote(p) {
+  const mins = Number(prefs().dailyMin) || 0;
+  const t = p.finalWeek ? `Final week: revision only. For new questions use Practice → New questions.`
+    : p.catchingUp === 'stop' ? `Catching up: no new questions until your ${p.dueAll} revisions are done.`
+    : p.catchingUp === 'slow' ? `Catching up on revision: fewer new questions today.`
+    : p.fitted ? `Sized to your ${mins} minutes a day${p.dueAll > p.due.length ? `; ${p.dueAll - p.due.length} more revisions wait for tomorrow` : ''}.` : '';
+  return t ? `<p class="plan-note">${esc(t)}</p>` : '';
+}
 function startExtra() {
-  const list = App.questions.filter(q => getState(q.id)).sort((x, y) => getState(x.id).due - getState(y.id).due).slice(0, 10);
-  startSession('Extra practice', shuffle(list));
+  const now = Date.now(), recent = s => s && s.t && now - s.t < 3600e3;
+  const seen = App.questions.filter(q => { const s = getState(q.id); return s && s.t && !recent(s); });
+  const weakScore = q => { const s = getState(q.id); return (s.w || 0) * 3 + (s.g || 0) * 2 + (5 - s.lv) - (s.s || 0); };
+  const weak = seen.filter(q => { const s = getState(q.id); return s.lv <= 2 || s.w || s.g; }).sort((a, b) => weakScore(b) - weakScore(a));
+  const fresh = shuffle(App.questions.filter(q => { const s = getState(q.id); return !s || !s.t; }));
+  const soon = seen.slice().sort((a, b) => getState(a.id).due - getState(b.id).due);
+  const pick = new Set(), take = (list, n) => { for (const q of list) { if (n <= 0) break; if (!pick.has(q)) { pick.add(q); n--; } } };
+  take(weak, 5); take(fresh, 3); take(soon, 10 - pick.size); take(weak, 10 - pick.size); take(fresh, 10 - pick.size);
+  if (!pick.size) { toast('Nothing more to practise right now. Add questions, or come back tomorrow.'); return; }
+  startSession('Extra practice', shuffle([...pick]));
 }
 
 /* ---------- streak and calendar ---------- */
@@ -464,7 +483,7 @@ $('pickerList').addEventListener('click', e => {
 function startSession(title, list, ordered) {
   if (!list.length) { toast('Nothing to practise here yet.'); return; }
   const o = ordered ? orderSession(list, getState) : { list, closer: false };
-  App.session = { title, i: 0, queue: o.list.map(q => ({ q, retry: false })), closer: o.closer, retries: {}, first: {}, before: {}, firstCount: 0, lastBreak: 0, blockFrom: 0 };
+  App.session = { title, today: title === 'Today’s review', i: 0, queue: o.list.map(q => ({ q, retry: false })), closer: o.closer, retries: {}, first: {}, before: {}, firstCount: 0, lastBreak: 0, blockFrom: 0 };
   show('quiz'); renderQuestion();
 }
 function levelBars(lv) {
@@ -546,7 +565,7 @@ function finish(k, conf) {
     z.first[q.id] = { q, result: it.result, chosen, conf };
     z.firstCount++;
   }
-  Progress.record(q, it.result, it.retry, conf);
+  Progress.record(q, it.result, it.retry, conf, !z.today);
   if (typeof toolsShrink === 'function') toolsShrink();
   Native.answer(it.result === 'correct');
   // a soft sound for right or wrong (quieter than live tests); a small sparkle every 5 right in a row
@@ -1527,7 +1546,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false;
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false; $('optDaily').value = String(pf.dailyMin || 0);
   $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
@@ -1546,6 +1565,7 @@ $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
 $('optCalc').addEventListener('change', () => savePrefs({ calc: $('optCalc').checked }));
 $('optTips').addEventListener('change', () => savePrefs({ tips: $('optTips').checked }));
+$('optDaily').addEventListener('change', () => { savePrefs({ dailyMin: Number($('optDaily').value) || 0 }); Reminders.refreshSoon(0); });
 $('themeChips').addEventListener('click', e => {
   const b = e.target.closest('[data-theme-set]'); if (!b) return;
   try { localStorage.setItem(THEME_KEY, b.dataset.themeSet); } catch (err) {}

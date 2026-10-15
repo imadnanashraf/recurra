@@ -212,7 +212,7 @@ async function pickAnswer(k) {
 function countForRevision(q, ok) {
   if (!App.prep) return;
   const key = norm(q.question), mine = App.bank[q.id] && App.questions.find(x => x.id === q.id) || App.questions.find(x => norm(x.question) === key);
-  if (mine) try { Progress.record(mine, ok ? 'correct' : 'wrong', false); } catch (e) {}
+  if (mine) try { Progress.record(mine, ok ? 'correct' : 'wrong', false, '', true); } catch (e) {}
 }
 function finishMine() {
   const r = LT.room, me = LT.players[meUid()]; if (!me || me.finishedAt) return;
