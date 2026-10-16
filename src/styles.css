@@ -2476,3 +2476,6 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .back-ask .btns { justify-content: flex-end; }
 
 .plan-note { margin: 8px 0 0; font-size: .8rem; line-height: 1.4; opacity: .92; }
+
+.imp-done .imp-try { margin-top: 8px; justify-self: start; }
+.imp-done > div { display: grid; }

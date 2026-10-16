@@ -280,7 +280,9 @@ function renderHome() {
   } else $('countdown').innerHTML = `<span class="what">${esc(p0.name)}</span><span class="meta">No exam date set</span>`;
 
   if (!App.loaded) { $('todayCard').innerHTML = `<div class="skeleton" aria-label="Loading"><i class="big"></i><i></i><i style="width:70%"></i><i class="btnph"></i></div>`; return; }
-  const p = syncDay(), n = p.due.length + p.fresh.length, d = Progress.today(), pct = dayPct(d);
+  const p = syncDay(), d = Progress.today(), n = d.done ? 0 : p.due.length + p.fresh.length, pct = dayPct(d);
+  // questions you added today and haven't tried yet (after finishing, they wait for tomorrow unless you want them now)
+  const addedNew = d.done ? App.questions.filter(q => q.added === todayKey() && !(getState(q.id) || {}).t) : [];
   let card;
   if (!App.questions.length) {
     card = `<div class="today"><div class="empty-state">${ART.empty}<strong>No questions yet</strong>
@@ -301,13 +303,15 @@ function renderHome() {
     const nx = Progress.meta.next;
     card = `<div class="today done"><div class="top">${ART.done}<span class="big">${pct === null ? '' : pct + '%'}</span>
       <div class="what"><strong>Done for today</strong><span>${plural(d.n || 0, 'question')} answered${pct === null ? '' : `, ${pct}% right first time`}.${nx && nx.count ? ` Tomorrow: about ${plural(nx.count, 'question')}, ${nx.mins} min.` : ''}</span></div></div>
-      <button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div>`;
+      ${addedNew.length ? `<p class="plan-note">${plural(addedNew.length, 'new question')} added today. They start tomorrow, or practise them now (optional).</p>` : ''}
+      <div class="row2">${addedNew.length ? `<button class="go" type="button" id="addedBtn">${icon('play')}Practise new (${Math.min(20, addedNew.length)})</button>` : ''}<button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div></div>`;
   }
   $('todayCard').innerHTML = card;
   countUp($('todayCard').querySelector('.big'));
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('goBtn', () => startSession('Today’s review', [...p.due, ...p.fresh], true));
   on('extraBtn', startExtra);
+  on('addedBtn', () => practiseAdded(addedNew.map(q => q.id), 'Added today'));
   on('addBtn', () => openImport('active', 'mcq'));
   on('pauseBtn', () => { Progress.setToday({ paused: true }); renderHome(); Reminders.refreshSoon(0); toast('Paused for today. It starts again tomorrow.'); Activity.log('day_paused', { paused: true, prep: App.prep.name }); });
   on('resumeBtn', () => { Progress.setToday({ paused: false }); renderHome(); Reminders.refreshSoon(0); Activity.log('day_paused', { paused: false, prep: App.prep.name }); });
@@ -347,7 +351,7 @@ function timeText(n) {
   return `About ${dur}${Progress.meta.spq ? '' : ' (first estimate)'}. You can stop any time and continue later.`;
 }
 function syncDay() {
-  const p = plan(), n = p.due.length + p.fresh.length, d = Progress.today();
+  const p = plan(), d = Progress.today(), n = d.done ? 0 : p.due.length + p.fresh.length;   // a finished day stays finished
   const fields = { left: n, mins: n ? minutesFor(n) : 0 };
   if (!n && d.n) fields.done = true;
   Progress.setToday(fields);
@@ -356,6 +360,13 @@ function syncDay() {
   return p;
 }
 // Extra practice (after today's review): about 5 weak ones (not the ones you just did), 3 new, 2 coming up soon
+// a short quiz of questions you just added (practice: a first try; they still come back tomorrow)
+function practiseAdded(ids, title) {
+  const set = new Set(ids), list = App.questions.filter(q => set.has(q.id) && !(getState(q.id) || {}).t);
+  const pool = (list.length ? list : App.questions.filter(q => set.has(q.id))).slice(-20);
+  if (!pool.length) return toast('Nothing to practise here yet.');
+  startSession(title, shuffle(pool));
+}
 // why today looks the way it does (only when something changed the usual plan)
 function planNote(p) {
   const mins = Number(prefs().dailyMin) || 0;
@@ -1503,6 +1514,8 @@ async function applyImport(btn) {
     Sound.play('done');
     if (await shareAdded(c)) return;
     const lists = c.kind === 'both' ? c.parts : [c];
+    const before = new Set(Object.keys(App.bank));
+    const justAdded = lists.filter(p => p.kind === 'mcq').flatMap(p => p.questions.map(q => q.id)).filter(id => !before.has(id) || !(getState(id) || {}).t);
     const nq = lists.reduce((n, p) => n + (p.kind === 'mcq' ? p.questions.length : 0), 0), nn = lists.reduce((n, p) => n + (p.kind === 'notes' ? p.notes.length : 0), 0);
     const summary = c.kind === 'syllabus' ? 'a syllabus update' : [nq && plural(nq, 'question'), nn && plural(nn, 'note')].filter(Boolean).join(' and ');
     Activity.log('content_added', { prep: App.prep.name, kind: c.kind, summary });
@@ -1514,8 +1527,9 @@ async function applyImport(btn) {
     renderImport();
     msg('impMsg', '');
     const done = $('impDone'); done.hidden = false;
-    done.innerHTML = `<span class="imp-done-ic" aria-hidden="true">✓</span><div><b>${c.kind === 'syllabus' ? 'Syllabus updated' : `Added ${esc(summary)}`}</b><small>${sub && c.kind !== 'syllabus' ? `to ${esc(sub.name)}. ` : ''}${nq ? 'New questions join your next review. ' : ''}Add more, or tap Back.</small></div><button class="btn ghost iconbtn" type="button" aria-label="Close" data-donex>✕</button>`;
+    done.innerHTML = `<span class="imp-done-ic" aria-hidden="true">✓</span><div><b>${c.kind === 'syllabus' ? 'Syllabus updated' : `Added ${esc(summary)}`}</b><small>${sub && c.kind !== 'syllabus' ? `to ${esc(sub.name)}. ` : ''}${nq ? 'New questions join your next review. ' : ''}Add more, or tap Back.</small>${justAdded.length ? `<button class="btn small primary imp-try" type="button" data-trynow>Practise these now (${Math.min(20, justAdded.length)})</button>` : ''}</div><button class="btn ghost iconbtn" type="button" aria-label="Close" data-donex>✕</button>`;
     done.querySelector('[data-donex]').onclick = () => { done.hidden = true; };
+    const tn = done.querySelector('[data-trynow]'); if (tn) tn.onclick = () => practiseAdded(justAdded, 'Just added');
     toast(c.kind === 'syllabus' ? 'Syllabus updated.' : `Added ${summary}.`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {

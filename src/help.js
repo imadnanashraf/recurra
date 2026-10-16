@@ -18,6 +18,7 @@ const HELP = [
       <p><b>How many new questions:</b> enough to see every question once a week before your exam (at least 10, at most 30 a day). Mostly your latest material, with some older unseen ones mixed in so nothing waits for ever.</p>
       <p><b>Behind on revision?</b> New questions slow down (more than 30 due) or stop (more than 60 due) until you catch up, so the pile never grows.</p>
       <p><b>Near the exam:</b> in the last 3 weeks the waits get shorter so revision spreads out; in the <b>final week</b> it is revision only.</p>
+      <p><b>Added questions after finishing?</b> Your day stays finished; they start tomorrow. To try them straight away, tap <b>Practise new</b> on the Today card, or <b>Practise these now</b> right after adding. A first try still brings them back tomorrow.</p>
       <p><b>Daily time</b> (Settings): pick how long Today should take. Revision comes first; new questions fill the time left.</p>
       <p><b>Extra practice</b> (after you finish): 10 questions, mostly weak ones you didn't just answer, a few new ones and a couple coming up soon. Practising early doesn't push a question further away: a right answer before half its wait has passed is counted but keeps its next review date. This is the same in topic practice and the Question bank.</p>` },
     { q: 'Practice a subject or a topic', a: `<p><b>Practice</b> tab → pick a subject → pick “Whole subject” or one topic. The questions you know least come first.</p>` },
