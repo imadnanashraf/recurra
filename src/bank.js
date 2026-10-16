@@ -127,7 +127,6 @@ function renderBankReader(book) {
       <ol class="bq-opts">${q.options.map(o => `<li class="${o === q.answer ? 'right' : ''}"><span>${mark(rich(o), re)}</span>${o === q.answer ? `<b>Answer</b>` : ''}</li>`).join('')}</ol>
       ${extra.length ? `<dl>${extra.map(([k, v, c]) => `<div class="${c}"><dt>${k}</dt><dd>${mark(rich(v), re)}</dd></div>`).join('')}</dl>` : ''}
       <div class="bq-record m-${m.cls}">${levelBars(m.lv)}<span><b>${esc(m.text)}</b> · ${esc(record)}</span></div>
-      ${Progress.why(q.id) ? `<p class="muted small bq-why">Last time you missed it: <b>${esc((WHY.find(w => w[0] === Progress.why(q.id)) || ['', ''])[1].toLowerCase())}</b></p>` : ''}
       <div class="btns"><button class="btn" type="button" data-bqpractice="${esc(q.code)}|one">Practise this topic</button><button class="btn qflag" type="button" data-bqflag="${esc(q.id)}" aria-pressed="${Progress.flagged(q.id)}">${FLAG_IC}<span>${Progress.flagged(q.id) ? 'Flagged' : 'Flag'}</span></button>${typeof speakBtnHTML === 'function' ? speakBtnHTML('bank', true) : ''}</div>
     </article>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-bq="${esc(prev.q.id)}"><small>Previous</small><span class="rl-t">${esc(prev.num)} ${esc(prev.q.question)}</span></button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-bq="${esc(next.q.id)}"><small>Next</small><span class="rl-t">${esc(next.num)} ${esc(next.q.question)}</span></button>` : ''}</div>`;

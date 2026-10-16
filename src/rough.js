@@ -319,10 +319,17 @@ function roughAt(e) {
 
 /* ---------- moving and zooming with one finger: the hand, the zoom pill, Fit ---------- */
 // hand: drag to move the page. Double-tap: closer (or back). Double-tap and slide: down = closer, up = further.
-function roughHandDown(e) {
+// taps with the hand: double-tap = zoom in a step, triple-tap = zoom out a step (laptop: Alt + double-click = out).
+// Double-tap and slide: down = closer, up = further. temp = a press-and-hold move from the pen (no zoom taps).
+const R_STEPS = [0.5, 0.75, 1, 1.5, 2, 3];
+const roughStepIn = s => R_STEPS.find(x => x > s + 0.01) || 3;
+const roughStepOut = s => [...R_STEPS].reverse().find(x => x < s - 0.01) || 0.5;
+function roughHandDown(e, temp) {
   const now = Date.now(), r = $('roughCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, lt = Rough.lastTap;
-  const dbl = !!lt && now - lt.t < 330 && Math.hypot(lt.x - x, lt.y - y) < 32;
-  Rough.hand = { ptr: e.pointerId, x0: e.clientX, y0: e.clientY, v0: { ...Rough.view }, dbl, ax: x, ay: y, moved: false };
+  const near = !temp && !!lt && now - lt.t < 330 && Math.hypot(lt.x - x, lt.y - y) < 36;
+  const taps = near ? lt.n + 1 : 1;
+  if (near) clearTimeout(lt.timer);
+  Rough.hand = { ptr: e.pointerId, x0: e.clientX, y0: e.clientY, v0: { ...Rough.view }, dbl: taps === 2, taps, ax: x, ay: y, moved: false, temp: !!temp, alt: e.altKey };
   Rough.lastTap = null;
 }
 function roughHandMove(e) {
@@ -339,11 +346,16 @@ function roughHandMove(e) {
 }
 function roughHandUp(e) {
   const h = Rough.hand; if (!h || h.ptr !== e.pointerId) return;
-  Rough.hand = null; $('roughPaper').classList.remove('grabbing');
-  if (!h.moved) {
-    if (h.dbl) { const v = Rough.view; roughViewAnim(roughViewAt(v.s > 1.15 ? 1 : 2, h.ax, h.ay)); if (typeof Native !== 'undefined' && Native.tap) Native.tap(); }
-    else Rough.lastTap = { t: Date.now(), x: h.ax, y: h.ay };
-  }
+  Rough.hand = null; $('roughPaper').classList.remove('grabbing', 'holding');
+  if (h.temp) { roughPaintBar(); return; }                   // press-and-hold done: back to your pen
+  if (h.moved) return;
+  const zoom = out => { const v = Rough.view; roughViewAnim(roughViewAt(out ? roughStepOut(v.s) : roughStepIn(v.s), h.ax, h.ay)); if (typeof Native !== 'undefined' && Native.tap) Native.tap(); };
+  if (h.taps >= 3) return zoom(true);
+  if (h.taps === 2 && h.alt) return zoom(true);
+  const tap = { t: Date.now(), x: h.ax, y: h.ay, n: h.taps };
+  // a double-tap waits a moment in case a third tap follows (then it zooms out instead)
+  if (h.taps === 2) tap.timer = setTimeout(() => { if (Rough.lastTap === tap) { Rough.lastTap = null; zoom(false); } }, 260);
+  Rough.lastTap = tap;
 }
 function roughViewFrame() { if (!Rough.raf) Rough.raf = requestAnimationFrame(() => { Rough.raf = 0; roughDraw(); }); }
 // the view you get by zooming to scale s around a point of the page area
@@ -422,17 +434,20 @@ function roughDown(e) {
     if (Rough.cur && Rough.cur.kind === 'draw' && Rough.cur.ptr !== e.pointerId && (Rough.cur.s.pts.length < 14 || Date.now() - Rough.cur.t0 < 220) && Rough.cur.type === 'touch') {
       Rough.strokes.pop(); clearInterval(Rough.cur.hold);           // the first finger of a two-finger move was not a line
     }
-    Rough.hand = null;
+    Rough.hand = null; if (Rough.cur) clearTimeout(Rough.cur.panTimer);
+    $('roughPaper').classList.remove('holding', 'grabbing');
     if (!Rough.cur || Rough.cur.type === 'touch') { Rough.cur = null; roughPanStart(); }
+    if (touches.length === 2 && !Rough.g2) { const r = $('roughCanvas').getBoundingClientRect(); Rough.g2 = { t0: Date.now(), mid: Rough.pan ? { ...Rough.pan.mid } : { x: e.clientX, y: e.clientY }, d: Rough.pan ? Rough.pan.d : 0, moved: false, r }; }
+    else if (touches.length > 2 && Rough.g2) Rough.g2.moved = true;
     roughDraw(); return;
   }
   if (Rough.cur || Rough.zoom || Rough.hand) return;
   if (Rough.tool === 'hand' || Rough.space || e.button === 1) return roughHandDown(e);
   const p = roughAt(e);
-  if (Rough.tool === 'eraser') { Rough.cur = { kind: 'erase', ptr: e.pointerId, removed: [], at: p }; roughErase(p); roughDraw(); return; }
+  if (Rough.tool === 'eraser') { Rough.cur = { kind: 'erase', ptr: e.pointerId, removed: [], at: p }; roughErase(p); roughDraw(); roughHoldPan(e); return; }
   if (/^shape:/.test(Rough.tool)) {
     const s = { pts: [p, p], shape: Rough.tool.slice(6), color: Rough.color, thick: Rough.thick };
-    Rough.cur = { kind: 'shape', ptr: e.pointerId, s, a: p }; roughDrawLive(); return;
+    Rough.cur = { kind: 'shape', ptr: e.pointerId, s, a: p }; roughDrawLive(); roughHoldPan(e); return;
   }
   const s = { pts: [p], color: Rough.color, thick: Rough.thick, pressure: e.pointerType === 'pen', hl: Rough.tool === 'hl' };
   Rough.strokes.push(s);
@@ -440,6 +455,23 @@ function roughDown(e) {
   if (!s.hl) roughHoldWatch();
   $('roughEmpty').hidden = true;
   roughDrawLive();
+  roughHoldPan(e);
+}
+// press and hold still (a third of a second): the page moves with your finger until you lift it, then your pen is back
+function roughHoldPan(e) {
+  const c = Rough.cur; if (!c) return;
+  c.sx = e.clientX; c.sy = e.clientY;
+  c.panTimer = setTimeout(() => {
+    if (Rough.cur !== c || c.movedOnce || (c.kind === 'erase' && c.removed.length)) return;
+    clearInterval(c.hold);
+    if (c.kind === 'draw') { const i = Rough.strokes.indexOf(c.s); if (i >= 0) Rough.strokes.splice(i, 1); }   // the dot made while holding goes
+    Rough.cur = null; Rough.pred = null;
+    roughHandDown({ pointerId: c.ptr, clientX: c.sx, clientY: c.sy }, true);
+    $('roughPaper').classList.add('holding');
+    if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+    if (typeof featUse === 'function') featUse('holdpan');
+    roughDrawLive();
+  }, 340);
 }
 function roughMove(e) {
   const pt = Rough.ptrs.get(e.pointerId); if (!pt) return;
@@ -447,6 +479,7 @@ function roughMove(e) {
   if (Rough.pan) return roughPanMove();
   if (Rough.hand) return roughHandMove(e);
   const c = Rough.cur; if (!c || c.ptr !== e.pointerId) return;
+  if (!c.movedOnce && c.sx !== undefined && Math.hypot(e.clientX - c.sx, e.clientY - c.sy) > 5) { c.movedOnce = true; clearTimeout(c.panTimer); }
   if (c.kind === 'shape') { c.s.pts = roughShapeFrom(c.s.shape, c.a, roughAt(e)); roughFrame(); return; }
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
   for (const ev of evs.length ? evs : [e]) {
@@ -470,9 +503,14 @@ function roughAddPoint(c, p) {
 function roughUp(e) {
   Rough.ptrs.delete(e.pointerId);
   if (Rough.hand) return roughHandUp(e);
-  if (Rough.pan) { if ([...Rough.ptrs.values()].filter(p => p.type === 'touch').length < (Rough.penSeen ? 1 : 2)) Rough.pan = null; else roughPanStart(); return; }
+  const g2 = Rough.g2, left = [...Rough.ptrs.values()].filter(p => p.type === 'touch').length;
+  if (g2 && !left) {                                      // a quick two-finger tap (no moving): zoom out a step
+    Rough.g2 = null;
+    if (!g2.moved && Date.now() - g2.t0 < 320) { roughViewAnim(roughViewAt(roughStepOut(Rough.view.s), g2.mid.x - g2.r.left, g2.mid.y - g2.r.top)); if (typeof Native !== 'undefined' && Native.tap) Native.tap(); }
+  }
+  if (Rough.pan) { if (left < (Rough.penSeen ? 1 : 2)) Rough.pan = null; else roughPanStart(); return; }
   const c = Rough.cur; if (!c || c.ptr !== e.pointerId) return;
-  clearInterval(c.hold);
+  clearInterval(c.hold); clearTimeout(c.panTimer);
   Rough.cur = null; Rough.pred = null;
   if (c.kind === 'erase') { if (c.removed.length) roughPush({ t: 'erase', items: c.removed }); roughDraw(); }
   else if (c.kind === 'shape') {
@@ -522,6 +560,8 @@ function roughPanMove() {
   if (pts.length > 1 && P.d > 10) s = Math.min(3, Math.max(0.5, P.v.s * Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) / P.d));
   const ax = P.mid.x - r.left, ay = P.mid.y - r.top;                    // keep the page point under your fingers
   v.s = s; v.x = mid.x - r.left - (ax - P.v.x) * (s / P.v.s); v.y = mid.y - r.top - (ay - P.v.y) * (s / P.v.s);
+  const g = Rough.g2;
+  if (g && !g.moved && (Math.hypot(mid.x - g.mid.x, mid.y - g.mid.y) > 10 || (pts.length > 1 && g.d > 10 && Math.abs(Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) / g.d - 1) > 0.08))) g.moved = true;
   if (!Rough.raf) Rough.raf = requestAnimationFrame(() => { Rough.raf = 0; roughDraw(); });
 }
 function roughErase(p) {

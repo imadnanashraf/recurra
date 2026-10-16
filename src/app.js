@@ -597,26 +597,6 @@ $('qOpts').addEventListener('pointerdown', e => {
 $('qOpts').addEventListener('pointermove', e => { if (Strike.at && Math.hypot(e.clientX - Strike.at.x, e.clientY - Strike.at.y) > 10) { clearTimeout(Strike.timer); Strike.at = null; } });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => $('qOpts').addEventListener(n, () => { clearTimeout(Strike.timer); Strike.at = null; }));
 
-// "Why did you miss it?" after a wrong answer: one tap, and Progress shows your pattern
-const WHY = [['misread', 'Misread the question'], ['forgot', 'Forgot it'], ['mixed', 'Mixed it up'], ['calc', 'Calculation slip'], ['guess', 'Guessed']];
-const WHY_TIP = {
-  misread: 'Slow down on the question: underline words like NOT, EXCEPT and the unit asked for (tap a word to highlight it).',
-  forgot: 'These need more reviews: keep up Today’s review, and read the note or explanation once more.',
-  mixed: 'Learn the pairs side by side: what is different, and a trick to tell them apart.',
-  calc: 'Write each step in rough work and check the units; the calculator can check the sum.',
-  guess: 'Guessing is fine in practice; these come back sooner so they become real knowledge.',
-};
-function whyHTML(q, conf) {
-  const cur = Progress.why(q.id) || (conf === 'guess' ? 'guess' : '');
-  return `<div class="why-row"><span class="label">Why did you miss it?</span><div class="why-chips" role="group" aria-label="Why did you miss it">${WHY.map(([k, l]) => `<button type="button" class="chip" data-why="${k}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div></div>`;
-}
-$('qFeedback').addEventListener('click', e => {
-  const b = e.target.closest('[data-why]'); if (!b) return;
-  const z = App.session, it = z && z.queue[z.i]; if (!it) return;
-  const on = b.getAttribute('aria-pressed') !== 'true';
-  b.parentElement.querySelectorAll('[data-why]').forEach(x => x.setAttribute('aria-pressed', String(x === b && on)));
-  Progress.setWhy(it.q.id, on ? b.dataset.why : ''); featUse('why'); Native.tap();
-});
 function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
@@ -705,9 +685,8 @@ function finish(k, conf) {
     q.hint && ['Memory hint', rich(q.hint)],
     q.trap && ['Exam trap', rich(q.trap), 'trap'],
   ].filter(Boolean);
-  if (it.result === 'wrong' && conf === 'guess' && !Progress.why(q.id)) Progress.setWhy(q.id, 'guess');
   $('qFeedback').innerHTML = `<div class="feedback ${cls}"><div class="verdict">${verdict}<small>${note}</small></div><dl>
-    ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl>${it.result === 'wrong' ? whyHTML(q, conf) : ''}</div>`;
+    ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl></div>`;
   $('skipBtn').hidden = true; $('nextBtn').hidden = false;
   $('nextBtn').innerHTML = z.i === z.queue.length - 1 ? `${icon('check')}Finish` : `Next${icon('next')}`;
   setKeyHint();
@@ -836,19 +815,6 @@ function renderResult() {
   show('result');
 }
 
-// your mistakes by reason (last reason given for each question, past 60 days)
-function renderWhy() {
-  const box = $('pWhy'); if (!box) return;
-  const since = Date.now() - 60 * 864e5, ids = new Set(App.questions.map(q => q.id)), n = {};
-  Object.entries(Progress.meta.why || {}).forEach(([id, w]) => { if (w && w.r && (w.t || 0) > since && ids.has(id)) n[w.r] = (n[w.r] || 0) + 1; });
-  const total = Object.values(n).reduce((a, b) => a + b, 0);
-  box.hidden = !total; if (!total) { box.innerHTML = ''; return; }
-  const rows = WHY.map(([k, l]) => [k, l, n[k] || 0]).sort((a, b) => b[2] - a[2]), top = rows[0];
-  box.innerHTML = `<h3>Why you miss questions</h3><p class="muted small">From the reasons you picked after a wrong answer (${plural(total, 'question')}, last 60 days).</p>
-    <div class="why-bars">${rows.map(([k, l, c]) => `<div class="why-bar${k === top[0] ? ' top' : ''}"><span>${l}</span><i style="--w:${Math.round(100 * c / top[2])}%"></i><b>${c}</b></div>`).join('')}</div>
-    <p class="why-tip"><b>Most often: ${esc(top[1].toLowerCase())}.</b> ${esc(WHY_TIP[top[0]])}</p>`;
-}
-
 /* ---------- progress table ---------- */
 function renderProgress() {
   const all = summary(App.questions), p = plan();
@@ -858,7 +824,6 @@ function renderProgress() {
     <div class="stat"><b>${all.acc === null ? '–' : all.acc + '%'}</b><small>Accuracy</small></div>
     <div class="stat"><b>${p.dueTomorrow}</b><small>Due tomorrow</small></div>`;
   renderProgressCharts();
-  renderWhy();
   // one card per subject (works as the table view of the memory chart)
   $('pSubjects').innerHTML = App.subjects.map(s => {
     const o = summary(App.questions.filter(q => q.code === s.code)), pct = o.total ? Math.round(100 * o.strong / o.total) : 0;

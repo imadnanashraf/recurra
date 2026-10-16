@@ -197,7 +197,7 @@ async function speakNaturalAudio(text) {
   const p = (async () => {
     const kept = await speakDb('get', key);
     if (kept) return URL.createObjectURL(kept);
-    const body = { contents: [{ role: 'user', parts: [{ text: `Read this aloud in a clear, warm and natural voice, like a good teacher explaining to a student, at a steady pace:\n\n${text}` }] }],
+    const body = { contents: [{ role: 'user', parts: [{ text }] }],
       generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: TTS_VOICE } } } } };
     const r = await fetch(`${GEM}/models/${encodeURIComponent(model)}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': aiKey(), 'content-type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) { if (r.status === 404) { Speak.ttsModel = ''; aiStore.set(aiSlot('rc-ttsmodel'), ''); } throw Object.assign(new Error('tts'), { status: r.status }); }
@@ -225,11 +225,12 @@ function speakWav(pcm, rate) {
   h.setUint32(24, rate, true); h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length, true);
   return new Blob([h.buffer, pcm], { type: 'audio/wav' });
 }
-// audio already made stays on this device (the newest 120 parts)
+// audio already made stays on this device (the newest 120 parts). The first store held audio that read out an instruction: it is removed.
+try { indexedDB.deleteDatabase('recurra-voice'); } catch (e) {}
 function speakDb(op, key, val) {
   return new Promise(ok => {
     try {
-      const req = indexedDB.open('recurra-voice', 1);
+      const req = indexedDB.open('recurra-voice2', 1);
       req.onupgradeneeded = () => req.result.createObjectStore('a');
       req.onerror = () => ok(null);
       req.onsuccess = () => {

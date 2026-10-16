@@ -82,8 +82,7 @@ const WHATS_NEW = {
   items: [
     { key: 'speak', title: 'Read aloud', text: 'Tap Listen on a question or note. With your own Google AI key it uses a natural, human-sounding voice.', art: 'speak' },
     { key: 'helpers', title: 'Highlight, strike out, flag', text: 'Tap a word to highlight it, long-press an option to rule it out, and flag questions to look at later.', art: 'helpers' },
-    { key: 'why', title: 'Why you miss questions', text: 'After a wrong answer, tap a reason. Progress shows your pattern and what helps.', art: 'newtag' },
-    { key: 'hand', title: 'Move and zoom with one finger', text: 'Rough work has a hand, double-tap zoom, a zoom pill, Redo, and the calculator can write on the page.', art: 'tools' },
+    { key: 'hand', title: 'Move and zoom with one finger', text: 'In rough work, press and hold to move the page; double-tap zooms in, triple-tap zooms out. Plus Redo, and the calculator can write on the page.', art: 'tools' },
   ],
 };
 const WN_ART = {
@@ -131,7 +130,7 @@ function tryFeature(key) {
   else if (key === 'swipe') { if (App.notes.length) MODES.notes(); else MODES.bank(); }
   else if (key === 'markread') MODES.notes();
   else if (key === 'speak') { if (App.notes.length) { MODES.notes(); setTimeout(() => { const n = NotesUI.list && NotesUI.list[0]; if (n) openNote(n.id); }, 150); } else MODES.bank(); }
-  else if (key === 'helpers' || key === 'why') { const pool = shuffle(App.questions.slice()).slice(0, 3); if (pool.length) startSession('Try the quiz helpers', pool); }
+  else if (key === 'helpers') { const pool = shuffle(App.questions.slice()).slice(0, 3); if (pool.length) startSession('Try the quiz helpers', pool); }
   else if (key === 'hand') { tryFeature('tools'); setTimeout(() => { if (Calc.open && Rough.built) { Rough.tool = 'hand'; roughPaintBar(); } }, 650); }
 }
 document.addEventListener('click', e => {

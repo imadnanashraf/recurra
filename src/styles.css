@@ -2592,24 +2592,12 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .opt.struck:not(:disabled) { color: var(--muted); background: color-mix(in srgb, var(--line) 35%, var(--surface)); border-style: dashed; }
 .opt.struck:not(:disabled) > span:last-child { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: color-mix(in srgb, var(--danger) 70%, var(--ink)); }
 .opt.struck:not(:disabled) .key { background: color-mix(in srgb, var(--line) 70%, transparent); color: var(--muted); }
-.why-row { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); display: grid; gap: 8px; }
-.why-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.why-chips .chip { min-height: 34px; padding: 5px 12px; font-size: .84rem; }
-.why-card h3 { margin: 0 0 2px; }
-.why-bars { display: grid; gap: 8px; margin: 12px 0 10px; }
-.why-bar { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 2rem; gap: 10px; align-items: center; font-size: .88rem; }
-.why-bar i { display: block; height: 10px; border-radius: 99px; background: color-mix(in srgb, var(--line) 60%, transparent); position: relative; overflow: hidden; }
-.why-bar i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 99px; background: color-mix(in srgb, var(--accent) 55%, transparent); }
-.why-bar.top i::after { background: var(--accent); }
-.why-bar b { font-family: var(--f-num); text-align: right; }
-.why-tip { margin: 0; font-size: .9rem; line-height: 1.5; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); }
 .chip-pair { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 .bank-flag { display: inline-flex; align-items: center; gap: 6px; }
 .bank-flag[aria-pressed="true"] svg { fill: currentColor; }
 .bank-flag[hidden] { display: none; }
 .bq-flag { display: inline-flex; vertical-align: -3px; margin-right: 5px; color: var(--danger); }
 .bq-flag svg { width: 15px; height: 15px; fill: color-mix(in srgb, var(--danger) 30%, transparent); }
-.bq-why { margin: 0; }
 
 /* ---------- read aloud ---------- */
 .qspeak svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -2641,3 +2629,4 @@ body:has(#speakBar:not([hidden])) .toast { margin-bottom: 64px; }
   .reader-bar .qspeak, .readall-bar .qspeak { padding: 6px 9px; }
   .reader-bar { gap: 6px; }
 }
+.rough-paper.holding { cursor: grabbing; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
