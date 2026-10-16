@@ -2317,6 +2317,10 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .calc-res.err { font-family: var(--f-body, inherit); font-size: 1rem; font-weight: 700; color: var(--danger); white-space: normal; }
 .calc-res.shake { animation: ltShake .35s; }
 .calc-sub { font-size: .76rem; color: var(--muted); min-height: 1.1em; }
+.calc-screen { position: relative; }
+.calc-topage { position: absolute; left: 8px; bottom: 5px; display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 99px; padding: 3px 9px 3px 7px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; animation: riseIn .18s both; }
+.calc-topage[hidden] { display: none; }
+.calc-topage svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .calc-hist { display: grid; gap: 4px; background: var(--sunken); border-radius: 14px; padding: 8px; max-height: 180px; overflow: auto; }
 .calc-hist[hidden] { display: none; }
 .calc-hlabel { margin: 0 4px 2px; font-size: .74rem; color: var(--muted); }
@@ -2420,6 +2424,17 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 .rough-paper.wipe { opacity: 0; transform: translateY(6px); }
 .rough-paper canvas { position: absolute; inset: 0; display: block; }
 .rough-paper .rough-live { pointer-events: none; }
+.rough-paper.handing { cursor: grab; }
+.rough-paper.handing.grabbing, .rough-paper.grabbing { cursor: grabbing; }
+.rough-zpill { position: absolute; z-index: 2; right: 8px; bottom: 8px; display: flex; align-items: center; padding: 2px; border-radius: 99px; background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 2px 10px rgba(10,20,40,.12), 0 0 0 1px var(--line); opacity: .78; transition: opacity .15s; }
+.rough-zpill:hover, .rough-zpill.moved { opacity: 1; }
+.rough-zpill[hidden] { display: none; }
+.rough-zpill button { border: 0; background: none; color: var(--ink); font: inherit; font-weight: 800; font-size: .95rem; min-width: 32px; height: 30px; border-radius: 99px; cursor: pointer; padding: 0 6px; }
+.rough-zpill button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.rough-zpill button:disabled { opacity: .35; cursor: default; }
+.rough-zpill .rz-pct { font-family: var(--f-num); font-size: .74rem; min-width: 44px; color: var(--muted); }
+.rough-zpill .rz-fit { font-size: .74rem; color: var(--accent); border-left: 1px solid var(--line); border-radius: 0 99px 99px 0; padding: 0 10px 0 8px; }
+.rough-paper.typing .rough-zpill, .rough-paper.zooming .rough-zpill { display: none; }
 .rb-hl .hl-bar { stroke: var(--sun, #f5a300); stroke-width: 3; }
 .rb-hl[aria-pressed="true"] { background: color-mix(in srgb, var(--sun, #f5a300) 18%, transparent); color: color-mix(in srgb, var(--sun, #f5a300) 60%, var(--ink)); }
 /* shapes and layouts menu */
@@ -2550,3 +2565,79 @@ li.flash-new > button, li.flash-new > .toc-e { animation: flashNew 1.6s ease; bo
 
 .imp-done .imp-try { margin-top: 8px; justify-self: start; }
 .imp-done > div { display: grid; }
+
+/* results: your rough work for a question you missed */
+.rv-work { margin-top: 4px; }
+.rv-work summary { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; font-size: .84rem; font-weight: 800; color: var(--accent); padding: 4px 0; }
+.rv-work summary::-webkit-details-marker { display: none; }
+.rv-work summary .ic { width: 15px; height: 15px; transition: transform .18s; }
+.rv-work[open] summary .ic { transform: rotate(90deg); }
+.rv-work img { display: block; max-width: 100%; max-height: 320px; margin-top: 6px; border-radius: 12px; box-shadow: 0 0 0 1px var(--line); background: #fff; }
+.rv-work pre { margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--sunken); font-family: var(--f-mono); font-size: .85rem; white-space: pre-wrap; }
+
+/* ---------- quiz helpers: flag, highlight words, strike out, why ---------- */
+.qtools { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; }
+.qtool { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 800; padding: 6px 10px; min-height: 34px; border-radius: 99px; cursor: pointer; }
+.qtool:hover { background: color-mix(in srgb, var(--line) 45%, transparent); color: var(--ink); }
+.qtool svg, .qflag svg, .bank-flag svg, .bq-flag svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.qflag[aria-pressed="true"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.qflag[aria-pressed="true"] svg { fill: color-mix(in srgb, var(--danger) 30%, transparent); }
+.btn.qflag { display: inline-flex; align-items: center; gap: 6px; }
+.qflag.pop svg { animation: flagPop .35s ease; }
+@keyframes flagPop { 40% { transform: rotate(-14deg) scale(1.25); } }
+.qtext { cursor: text; }
+.qtext mark.qhl { background: color-mix(in srgb, var(--sun, #f5a300) 38%, transparent); color: inherit; border-radius: 4px; padding: 0 2px; margin: 0 -2px; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--sun, #f5a300) 80%, transparent); cursor: pointer; animation: hlIn .2s ease; }
+@keyframes hlIn { from { background: transparent; } }
+.opt { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.opt.struck:not(:disabled) { color: var(--muted); background: color-mix(in srgb, var(--line) 35%, var(--surface)); border-style: dashed; }
+.opt.struck:not(:disabled) > span:last-child { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: color-mix(in srgb, var(--danger) 70%, var(--ink)); }
+.opt.struck:not(:disabled) .key { background: color-mix(in srgb, var(--line) 70%, transparent); color: var(--muted); }
+.why-row { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); display: grid; gap: 8px; }
+.why-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.why-chips .chip { min-height: 34px; padding: 5px 12px; font-size: .84rem; }
+.why-card h3 { margin: 0 0 2px; }
+.why-bars { display: grid; gap: 8px; margin: 12px 0 10px; }
+.why-bar { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 2rem; gap: 10px; align-items: center; font-size: .88rem; }
+.why-bar i { display: block; height: 10px; border-radius: 99px; background: color-mix(in srgb, var(--line) 60%, transparent); position: relative; overflow: hidden; }
+.why-bar i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 99px; background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.why-bar.top i::after { background: var(--accent); }
+.why-bar b { font-family: var(--f-num); text-align: right; }
+.why-tip { margin: 0; font-size: .9rem; line-height: 1.5; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); }
+.chip-pair { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.bank-flag { display: inline-flex; align-items: center; gap: 6px; }
+.bank-flag[aria-pressed="true"] svg { fill: currentColor; }
+.bank-flag[hidden] { display: none; }
+.bq-flag { display: inline-flex; vertical-align: -3px; margin-right: 5px; color: var(--danger); }
+.bq-flag svg { width: 15px; height: 15px; fill: color-mix(in srgb, var(--danger) 30%, transparent); }
+.bq-why { margin: 0; }
+
+/* ---------- read aloud ---------- */
+.qspeak svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.btn.qspeak { display: inline-flex; align-items: center; gap: 6px; }
+.qspeak[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.qspeak[aria-pressed="true"] svg path + path { animation: speakWave 1.1s ease-in-out infinite; }
+@keyframes speakWave { 50% { opacity: .25; } }
+.reader-bar .qspeak, .readall-bar .qspeak { margin-left: 2px; }
+.speaking { position: relative; background-color: color-mix(in srgb, var(--accent) 9%, transparent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 10px; transition: background-color .2s, box-shadow .2s; }
+.speak-bar { position: fixed; z-index: 30; left: 12px; right: 12px; margin: 0 auto; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 440px; display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 6px; border-radius: 99px; background: var(--ink); color: var(--bg); box-shadow: 0 10px 30px rgba(10,20,40,.28); animation: riseIn .22s both; }
+.speak-bar[hidden] { display: none; }
+body.has-tabs .speak-bar { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 760px) { body.has-tabs .speak-bar { bottom: 20px; } }
+body.calc-open .speak-bar { bottom: calc(var(--calc-h, 0px) + 14px); }
+.speak-bar button { flex: none; border: 0; background: none; color: inherit; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; font: inherit; font-weight: 800; font-size: .8rem; }
+.speak-bar button:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.speak-bar svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.speak-bar .sb-play { background: var(--accent); color: #fff; }
+.speak-bar .sb-play svg { fill: currentColor; }
+.speak-bar .sb-rate { width: auto; padding: 0 10px; border-radius: 99px; font-family: var(--f-num); }
+.sb-t { flex: 1 1 auto; min-width: 0; display: grid; line-height: 1.2; padding: 0 6px; }
+.sb-t b { font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-t small { font-size: .72rem; opacity: .7; }
+body:has(#speakBar:not([hidden])) .toast { margin-bottom: 64px; }
+.reader-bar .muted, .readall-bar .muted { white-space: nowrap; }
+.readall-bar { flex-wrap: wrap; row-gap: 4px; }
+@media (max-width: 400px) {
+  .reader-bar .qspeak span, .readall-bar .qspeak span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .reader-bar .qspeak, .readall-bar .qspeak { padding: 6px 9px; }
+  .reader-bar { gap: 6px; }
+}

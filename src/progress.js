@@ -18,7 +18,7 @@ const Progress = {
   key: null,
   map: {},              // question id -> state
   days: {},             // day key -> { by: {device: {n, c}}, n, c, done, paused, pt, left, mins, lt }
-  meta: { spq: 0, next: null, ns: {} },   // ns: notes you have read { id: time }
+  meta: { spq: 0, next: null, ns: {}, fl: {}, why: {} },   // ns: notes you have read { id: time }; fl: flags { id: {on, t} }; why: last reason you missed it { id: {r, t} }
   resetAt: 0,
   cloud: null, unsub: null,
   dirty: new Set(), timer: null, chains: {},
@@ -31,7 +31,7 @@ const Progress = {
     this.detach();
     clearTimeout(this.timer); this.timer = null;
     this.key = key; this.dirty = new Set();
-    this.map = {}; this.days = {}; this.meta = { spq: 0, next: null, ns: {} }; this.resetAt = 0;
+    this.map = {}; this.days = {}; this.meta = { spq: 0, next: null, ns: {}, fl: {}, why: {} }; this.resetAt = 0;
     this.loadLocal();
     if ((resetAt || 0) > this.resetAt) this.wipeTo(resetAt);
   },
@@ -48,8 +48,8 @@ const Progress = {
     try {
       const raw = JSON.parse(localStorage.getItem(this.key) || '{}') || {};
       this.map = raw.q || {}; this.days = raw.days || {};
-      this.meta = Object.assign({ spq: 0, next: null, ns: {} }, raw.meta || {});
-      if (!this.meta.ns || typeof this.meta.ns !== 'object') this.meta.ns = {};
+      this.meta = Object.assign({ spq: 0, next: null, ns: {}, fl: {}, why: {} }, raw.meta || {});
+      for (const k of ['ns', 'fl', 'why']) if (!this.meta[k] || typeof this.meta[k] !== 'object') this.meta[k] = {};
       this.resetAt = raw.r || 0;
     } catch (e) { /* keep empty */ }
   },
@@ -58,8 +58,8 @@ const Progress = {
     try { localStorage.setItem(this.key, JSON.stringify({ q: this.map, days: this.days, meta: this.meta, r: this.resetAt })); } catch (e) { /* storage blocked: keep in memory */ }
   },
   wipeTo(r) {
-    const spq = this.meta.spq, ns = this.meta.ns || {};         // notes you have read stay read after a reset
-    this.map = {}; this.days = {}; this.meta = { spq, next: null, ns };
+    const spq = this.meta.spq, ns = this.meta.ns || {}, fl = this.meta.fl || {};   // read notes and your flags stay after a reset
+    this.map = {}; this.days = {}; this.meta = { spq, next: null, ns, fl, why: {} };
     this.resetAt = r; this.dirty.clear();
     this.saveLocal();
   },
@@ -109,6 +109,19 @@ const Progress = {
     (this.meta.ns = this.meta.ns || {})[id] = Date.now();
     this.later('_days');
   },
+  // ----- flags 🚩 and "why I got it wrong" (newest change per question wins across devices) -----
+  flagged(id) { const f = this.meta.fl && this.meta.fl[id]; return !!(f && f.on); },
+  setFlag(id, on) {
+    if (!this.key) return;
+    (this.meta.fl = this.meta.fl || {})[id] = { on: !!on, t: Date.now() };
+    this.later('_days');
+  },
+  why(id) { const w = this.meta.why && this.meta.why[id]; return w ? w.r : ''; },
+  setWhy(id, r) {
+    if (!this.key) return;
+    (this.meta.why = this.meta.why || {})[id] = { r: r || '', t: Date.now() };
+    this.later('_days');
+  },
   pace(seconds) {
     const s = Math.min(180, Math.max(5, seconds));
     this.meta.spq = this.meta.spq ? Math.round(this.meta.spq * 0.85 + s * 0.15) : Math.round(s);
@@ -131,11 +144,11 @@ const Progress = {
   applyRemote(docs) {
     let changed = false;
     for (const d of docs) if ((d.data.r || 0) > this.resetAt) { this.wipeTo(d.data.r); changed = true; }   // reset on another device
-    let remoteDays = {}, remoteNext = null, remoteSpq = 0, remoteNs = {};
+    let remoteDays = {}, remoteNext = null, remoteSpq = 0, remoteNs = {}, remoteFl = {}, remoteWhy = {};
     const remote = {};
     for (const { id, data } of docs) {
       if ((data.r || 0) < this.resetAt) continue;              // from before a reset: ignore
-      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; remoteNs = data.ns || {}; }
+      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; remoteNs = data.ns || {}; remoteFl = data.fl || {}; remoteWhy = data.why || {}; }
       else Object.assign(remote, data.q || {});
     }
     for (const [id, st] of Object.entries(remote)) {
@@ -155,6 +168,11 @@ const Progress = {
     const ns = this.meta.ns = this.meta.ns || {};             // read notes: the union of all your devices
     for (const [k, t] of Object.entries(remoteNs)) if (!ns[k]) { ns[k] = t; changed = true; }
     if (Object.keys(ns).some(k => !remoteNs[k])) this.dirty.add('_days');
+    for (const [field, remoteMap] of [['fl', remoteFl], ['why', remoteWhy]]) {   // newest wins
+      const mine = this.meta[field] = this.meta[field] || {};
+      for (const [k, v] of Object.entries(remoteMap)) if (v && (!mine[k] || (v.t || 0) > (mine[k].t || 0))) { mine[k] = v; changed = true; }
+      if (Object.entries(mine).some(([k, v]) => !remoteMap[k] || (v.t || 0) > (remoteMap[k].t || 0))) this.dirty.add('_days');
+    }
     if (!this.meta.spq && remoteSpq) this.meta.spq = remoteSpq;
     if (!this.meta.next && remoteNext) this.meta.next = remoteNext;
     this.saveLocal();
@@ -169,7 +187,7 @@ const Progress = {
       if (!code) continue;
       this.chains[code] = (this.chains[code] || Promise.resolve()).then(() => {
         if (this.resetAt !== r || this.discarded === cloud) return;   // reset or prep deleted meanwhile: don't upload old data
-        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, ns: this.meta.ns || {}, r, updated: Date.now() });
+        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, ns: this.meta.ns || {}, fl: this.meta.fl || {}, why: this.meta.why || {}, r, updated: Date.now() });
         const q = {};
         for (const [id, st] of Object.entries(this.map)) if (st.k === code) q[id] = st;
         return cloud.save(code, { q, r, updated: Date.now() });

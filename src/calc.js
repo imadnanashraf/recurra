@@ -46,6 +46,7 @@ function calcBuild() {
         <div class="calc-expr" id="calcExpr"></div>
         <button type="button" class="calc-res" id="calcRes" title="Tap to copy"></button>
         <div class="calc-sub" id="calcSub"></div>
+        <button type="button" class="calc-topage" id="calcToPage" hidden title="Write this sum and answer on your rough page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/></svg>To rough</button>
       </div>
       <div class="calc-hist" id="calcHist" hidden></div>
       <div class="calc-sci" id="calcSci">${CALC_SCI.map(row => `<div class="calc-row">${row.map(([k, l, t]) => k === 'deg'
@@ -69,6 +70,7 @@ function calcClick(e) {
   if ('calcmin' in b.dataset) return calcMinimize(!Calc.min);
   if ('calchist' in b.dataset) { Calc.showHist = !Calc.showHist; return calcPaint(); }
   if (b.id === 'calcRes') return calcCopy();
+  if (b.id === 'calcToPage') return calcToPage();
   if (b.dataset.hv !== undefined) { calcInsertValue(Number(b.dataset.hv)); return; }
   if (b.closest('.calc-mini-bar')) return calcMinimize(false);
   const k = b.dataset.ck; if (!k) return;
@@ -112,6 +114,14 @@ function calcCopy() {
   const txt = String(v);
   (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(`Copied ${txt}`), () => {});
 }
+// "To rough": the last sum and its answer become a typed line on the rough page
+function calcToPage() {
+  if (!Calc.done || typeof roughAddLine !== 'function') return;
+  roughAddLine(`${Calc.lastExpr} = ${CalcMath.fmt(Calc.ans)}`);
+  if (typeof featUse === 'function') featUse('topage');
+  if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+  toast('Added to your rough work');
+}
 function calcPaint(shake) {
   const el = $('calc'); if (!el) return;
   const live = Calc.T.length ? CalcMath.tryEval(Calc.T, { deg: Calc.deg, ans: Calc.ans }) : null;
@@ -129,6 +139,7 @@ function calcPaint(shake) {
   if (cls !== 'err') res.dataset.keep = main;
   res.style.fontSize = main.length > 16 ? '1.25rem' : main.length > 11 ? '1.55rem' : '';
   sub.textContent = eng ? `≈ ${eng}` : Calc.done ? 'Tap the answer to copy it' : '';
+  $('calcToPage').hidden = !Calc.done || !!Calc.err;
   if (shake) { res.classList.remove('shake'); void res.offsetWidth; res.classList.add('shake'); }
   el.querySelector('.ck-deg').textContent = Calc.deg ? 'DEG' : 'RAD';
   el.querySelector('.ck-deg').setAttribute('aria-pressed', String(Calc.deg));
@@ -225,7 +236,7 @@ function calcReset() { calcClose(); Object.assign(Calc, { T: [], ans: 0, done: f
 function calcOnScreen(id) { if (!['quiz', 'break', 'room'].includes(id)) calcReset(); }
 document.addEventListener('click', e => { const b = e.target.closest('[data-calcopen]'); if (!b) return; if (Calc.open && !Calc.min) calcMinimize(true); else calcOpen(); });
 // next question: a fresh rough page
-function toolsNewQuestion() { if (typeof roughNewPage === 'function') roughNewPage(); if (Calc.full) toolsFull(false); }
+function toolsNewQuestion(qid) { if (typeof roughNewPage === 'function') roughNewPage(qid); if (Calc.full) toolsFull(false); }
 
 // laptop: drag the panel by its top
 function calcDragSetup(el) {
@@ -260,7 +271,12 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); return calcClose(); }
-  if (Calc.tab !== 'calc') { if ((e.key === 'z' || e.key === 'Z') && typeof roughUndo === 'function') { e.preventDefault(); e.stopImmediatePropagation(); roughUndo(); } return; }
+  if (Calc.tab !== 'calc') {
+    // rough work: Z undo, Y redo, + − zoom, 0 back to 100%
+    const act = { z: roughUndo, y: roughRedo, '+': () => roughZoomBtn('in'), '=': () => roughZoomBtn('in'), '-': () => roughZoomBtn('out'), '0': () => roughZoomBtn('reset') }[e.key.toLowerCase()];
+    if (act && typeof Rough !== 'undefined' && Rough.built && !Rough.typing) { e.preventDefault(); e.stopImmediatePropagation(); act(); }
+    return;
+  }
   const k = /^[0-9]$/.test(e.key) ? e.key : CALC_KEYS[e.key];
   if (!k) return;
   e.preventDefault(); e.stopImmediatePropagation();

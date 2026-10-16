@@ -28,7 +28,7 @@ const html = [
   src('body.html').replaceAll('{{LOGO}}', src('logo.svg').trim()).replaceAll('{{APKQR}}', apkQr()).replaceAll('{{VERSION}}', pkg.version),
   '<script>\n/* PART 1 — PURE LOGIC: imports, shuffling, spaced-repetition schedule, days, streaks, reminder wording */\n',
   src('mdparse.js'), src('core.js'), src('import.js'), src('remindlogic.js'), src('art.js'), src('charts.js'),
-  '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('sound.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('bank.js'), src('admin.js'), src('social.js'), src('livetest.js'), src('call.js'), src('push.js'), src('ai.js'), src('help.js'), src('sky.js'), src('intro.js'), src('update.js'), src('select.js'), src('calcmath.js'), src('calc.js'), src('rough.js'), src('tips.js'), src('nav.js'),
+  '</script>\n<script>\n', src('progress.js'), '</script>\n<script>\n', src('reminders.js'), '</script>\n<script>\n', src('sound.js'), '</script>\n<script>\n', src('activity.js'), src('app.js'), src('syllabus.js'), src('bank.js'), src('admin.js'), src('social.js'), src('livetest.js'), src('call.js'), src('push.js'), src('ai.js'), src('help.js'), src('sky.js'), src('intro.js'), src('update.js'), src('select.js'), src('calcmath.js'), src('calc.js'), src('rough.js'), src('speak.js'), src('tips.js'), src('nav.js'),
   '</script>\n</body>\n</html>\n',
 ].join('');
 // every build gets an id; the website compares it with version.json to know a newer version is out

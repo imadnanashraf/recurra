@@ -198,6 +198,14 @@
         <label class="selrow" for="optFocus"><span>Focus sound while practising<small>A soft background sound during questions and live tests. No music or words, so it does not compete with what you are learning. Off by default.</small></span><select id="optFocus"><option value="off">Off</option><option value="rain">Soft rain</option><option value="brown">Deep calm (brown noise)</option></select></label>
         <label class="toggle" id="optHapticRow"><input type="checkbox" id="optHaptic"><span>Gentle vibration<small>A light tap when you answer, so it feels like a real card.</small></span></label>
       </div>
+      <div class="card form" id="optSpeakBox">
+        <h3>Read aloud</h3>
+        <p class="muted small">Tap <b>Listen</b> on a question or a note to hear it. Handy for revising while walking or travelling.</p>
+        <label class="toggle" id="optNaturalRow" hidden><input type="checkbox" id="optNatural"><span>✨ Natural voice<small>Google’s AI voice, which sounds like a real person, using your own Google AI key. Audio already made is kept on this device. If today’s free limit runs out, it reads with the phone’s voice.</small></span></label>
+        <label class="selrow" for="optVoice"><span>Voice<small>The phone’s or browser’s voice, used when the natural voice is off or not available.</small></span><select id="optVoice"></select></label>
+        <label class="selrow" for="optSpeakRate"><span>Speed</span><select id="optSpeakRate"><option value="0.75">0.75× slow</option><option value="0.9">0.9×</option><option value="1">1× normal</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option><option value="1.5">1.5× fast</option></select></label>
+        <button class="btn small" type="button" id="optVoiceTry">Try the voice</button>
+      </div>
       <div class="card form">
         <h3>Appearance</h3>
         <div class="chips" id="themeChips" role="group" aria-label="Theme">
@@ -335,6 +343,7 @@
       <div class="card chart-card" id="chAcc"></div>
     </div>
     <div class="card chart-card" id="chMem"></div>
+    <div class="card why-card" id="pWhy" hidden></div>
     <h3 class="sec-title">By subject</h3>
     <div class="subj-grid" id="pSubjects"></div>
     <p class="muted small">Strong = remembered at level 4 or 5 (gaps of 2 weeks or more). Due = waiting in today's review.</p>
@@ -442,7 +451,7 @@
       <select id="bankDate" aria-label="Filter by date added"></select>
       <input id="bankDay" type="date" aria-label="Pick a date" hidden>
       <select id="bankSort" aria-label="Sort"></select>
-      <div class="lt-row"><button class="chip lt-new" type="button" id="bankNew" aria-pressed="false">New only</button><button class="btn sel-toggle" type="button" data-seltoggle>Select</button></div>
+      <div class="lt-row"><span class="chip-pair"><button class="chip lt-new" type="button" id="bankNew" aria-pressed="false">New only</button><button class="chip bank-flag" type="button" id="bankFlag" aria-pressed="false" hidden>Flagged</button></span><button class="btn sel-toggle" type="button" data-seltoggle>Select</button></div>
     </div>
     <div id="bankIndex"></div>
     <div id="bankReader" hidden></div>

@@ -18,7 +18,7 @@
 const Rough = {
   strokes: [], undo: [], view: { x: 0, y: 0, s: 1 }, tool: 'pen', thick: false, color: 'ink', paper: 'plain', typing: false,
   ptrs: new Map(), cur: null, pan: null, penSeen: false, built: false, chipTimer: null, neat: null, neatBusy: false,
-  zoom: null, menu: false, raf: 0,
+  zoom: null, menu: false, raf: 0, redo: [], hand: null, space: false, lastTap: null, work: {}, qid: null,
 };
 const R_COLORS = ['ink', 'blue', 'red'];
 const R_PAPERS = ['plain', 'grid', 'dots', 'lines'];
@@ -32,6 +32,8 @@ const rIc = {
   eraser: '<svg viewBox="0 0 24 24"><path d="M8.5 20H20M5.6 14.4l7.8-7.8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 19H8.2l-2.6-2.6a1.4 1.4 0 0 1 0-2z"/><path d="M9.5 10.5l5 5"/></svg>',
   shapes: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="8" height="8" rx="1.5"/><circle cx="17" cy="7.5" r="4"/><path d="M4 20.5L9.5 14M9.5 14H6M9.5 14v3.5"/><path d="M14 20.5l3-5.5 3 5.5z"/></svg>',
   undo: '<svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg>',
+  redo: '<svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg>',
+  hand: '<svg viewBox="0 0 24 24"><path d="M8 12.5V5.8a1.6 1.6 0 0 1 3.2 0V11M11.2 10.5V4.6a1.6 1.6 0 0 1 3.2 0v6M14.4 10.8V6.2a1.6 1.6 0 0 1 3.2 0v7.3c0 4.1-2.7 7-6.6 7-2.4 0-3.9-1-5.3-2.9L3.9 14a1.6 1.6 0 0 1 2.6-1.8L8 14"/></svg>',
   clear: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg>',
   paper: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg>',
   zoom: '<svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L20 20M7.5 11.5l1.6-4 1.6 4M8 10.3h2.3"/></svg>',
@@ -64,9 +66,11 @@ function roughBuild(box) {
       <button type="button" class="rb rb-hl" data-rt="hl" aria-label="Highlighter" title="Highlighter">${rIc.hl}</button>
       <button type="button" class="rb rb-color" data-rt="color" aria-label="Colour" title="Colour"><i></i></button>
       <button type="button" class="rb" data-rt="eraser" aria-label="Eraser" title="Eraser">${rIc.eraser}</button>
+      <button type="button" class="rb" data-rt="hand" aria-label="Move the page" title="Hand: move the page with one finger (laptop: hold Space)">${rIc.hand}</button>
       <button type="button" class="rb" data-rt="shapes" aria-label="Shapes and layouts" title="Shapes, arrows and layouts" aria-expanded="false">${rIc.shapes}</button>
       <span class="rb-sep" aria-hidden="true"></span>
       <button type="button" class="rb" data-rt="undo" aria-label="Undo" title="Undo (Z)">${rIc.undo}</button>
+      <button type="button" class="rb" data-rt="redo" aria-label="Redo" title="Redo (Y)">${rIc.redo}</button>
       <button type="button" class="rb" data-rt="clear" aria-label="Clear the page" title="Clear the page">${rIc.clear}</button>
       <span class="rb-sep" aria-hidden="true"></span>
       <button type="button" class="rb" data-rt="paper" aria-label="Paper" title="Paper: plain, grid, dots, lines">${rIc.paper}</button>
@@ -90,6 +94,7 @@ function roughBuild(box) {
       </div>
       <div class="rough-empty" id="roughEmpty"><b>Rough work</b><small>Draw here. Hold still at the end of a line or shape to straighten it.</small><small class="re-touch">Two fingers move the page. Small writing? Try zoom writing.</small></div>
       <button type="button" class="rough-chip" id="roughChip" hidden>Keep mine</button>
+      <div class="rough-zpill" id="roughZPill" role="group" aria-label="Zoom"><button type="button" data-zv="out" aria-label="Zoom out">−</button><button type="button" data-zv="reset" class="rz-pct" aria-label="Back to 100%" title="Back to 100%">100%</button><button type="button" data-zv="in" aria-label="Zoom in">+</button><button type="button" data-zv="fit" class="rz-fit" title="Show all your working">Fit</button></div>
       <div class="rough-neat" id="roughNeat" hidden></div>
       <div class="rough-zoom" id="roughZoom" hidden>
         <canvas id="roughZoomCv" aria-label="Zoom writing box"></canvas>
@@ -104,6 +109,8 @@ function roughBuild(box) {
   $('roughSyms').addEventListener('pointerdown', e => e.preventDefault());              // keep the keyboard open
   $('roughSyms').addEventListener('click', e => { const b = e.target.closest('[data-sym]'); if (b) roughInsertText(b.dataset.sym); });
   paper.addEventListener('pointerdown', roughDown);
+  paper.addEventListener('pointerenter', () => { Rough.over = true; });
+  paper.addEventListener('pointerleave', () => { Rough.over = false; });
   paper.addEventListener('pointermove', roughMove);
   ['pointerup', 'pointercancel'].forEach(n => paper.addEventListener(n, roughUp));
   paper.addEventListener('wheel', e => {
@@ -114,6 +121,7 @@ function roughBuild(box) {
     else { v.x -= e.deltaX; v.y -= e.deltaY; roughDraw(); }
   }, { passive: false });
   $('roughChip').addEventListener('click', roughKeepMine);
+  $('roughZPill').addEventListener('click', e => { const b = e.target.closest('[data-zv]'); if (b) roughZoomBtn(b.dataset.zv); });
   const ta = $('roughText');
   ta.addEventListener('input', roughMarks);
   ta.addEventListener('scroll', roughMarks);
@@ -130,12 +138,13 @@ function roughPaintBar() {
   const drawing = !Rough.typing;
   box.querySelectorAll('[data-rt]').forEach(b => {
     const t = b.dataset.rt;
-    if (t === 'pen' || t === 'eraser' || t === 'hl') b.setAttribute('aria-pressed', String(Rough.tool === t && drawing));
+    if (t === 'pen' || t === 'eraser' || t === 'hl' || t === 'hand') b.setAttribute('aria-pressed', String(Rough.tool === t && drawing));
     if (t === 'shapes') { b.setAttribute('aria-pressed', String(/^shape:/.test(Rough.tool) && drawing)); b.setAttribute('aria-expanded', String(Rough.menu)); }
     if (t === 'paper') { b.setAttribute('aria-pressed', String(Rough.paper !== 'plain')); b.title = R_PAPER_NAME[Rough.paper] + ' (tap to change)'; }
     if (t === 'zoom') b.setAttribute('aria-pressed', String(!!Rough.zoom));
     if (t === 'type') b.setAttribute('aria-pressed', String(Rough.typing));
     if (t === 'undo') b.disabled = !Rough.undo.length;
+    if (t === 'redo') b.disabled = !Rough.redo.length;
     if (t === 'clear') b.disabled = !Rough.strokes.length && !$('roughText').value;
     if (t === 'neat') { b.hidden = !roughNeatOK(); b.disabled = !Rough.strokes.length || Rough.neatBusy; b.classList.toggle('busy', Rough.neatBusy); }
   });
@@ -147,6 +156,9 @@ function roughPaintBar() {
   paper.classList.toggle('typing', Rough.typing);
   paper.classList.toggle('erasing', Rough.tool === 'eraser' && drawing);
   paper.classList.toggle('zooming', !!Rough.zoom);
+  paper.classList.toggle('handing', (Rough.tool === 'hand' || Rough.space) && drawing);
+  paper.classList.toggle('grabbing', !!(Rough.hand && Rough.hand.moved));
+  roughPctPaint();
   $('roughSyms').hidden = !Rough.typing;
   const empty = !Rough.strokes.length && !$('roughText').value && !Rough.typing && !Rough.zoom;
   $('roughEmpty').hidden = !empty;
@@ -163,6 +175,8 @@ function roughBarClick(e) {
   if (t === 'pen') { if (Rough.tool === 'pen' && !Rough.typing) Rough.thick = !Rough.thick; Rough.tool = 'pen'; roughSetTyping(false); }
   else if (t === 'hl') { Rough.tool = 'hl'; roughSetTyping(false); }
   else if (t === 'eraser') { Rough.tool = 'eraser'; roughSetTyping(false); }
+  else if (t === 'hand') { Rough.tool = 'hand'; roughSetTyping(false); if (typeof featUse === 'function') featUse('hand'); }
+  else if (t === 'redo') roughRedo();
   else if (t === 'color') { Rough.color = R_COLORS[(R_COLORS.indexOf(Rough.color) + 1) % R_COLORS.length]; if (Rough.tool !== 'hl' && !/^shape:/.test(Rough.tool)) Rough.tool = 'pen'; }
   else if (t === 'shapes') { roughMenuShow(!Rough.menu); }
   else if (t === 'undo') roughUndo();
@@ -247,7 +261,7 @@ function roughDraw() {
   const cv = $('roughCanvas'); if (!cv || !cv.width) return;
   const ctx = roughCtx(cv, true);
   for (const s of Rough.strokes) if (!Rough.cur || Rough.cur.s !== s) roughStroke(ctx, s);
-  roughGridPos();
+  roughGridPos(); roughPctPaint();
   roughDrawLive();
 }
 // the stroke being drawn (and the eraser ring, the zoom-writing frame, a shape being dragged)
@@ -303,11 +317,99 @@ function roughAt(e) {
   return [(e.clientX - r.left - v.x) / v.s, (e.clientY - r.top - v.y) / v.s, e.pressure || 0.5];
 }
 
+/* ---------- moving and zooming with one finger: the hand, the zoom pill, Fit ---------- */
+// hand: drag to move the page. Double-tap: closer (or back). Double-tap and slide: down = closer, up = further.
+function roughHandDown(e) {
+  const now = Date.now(), r = $('roughCanvas').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, lt = Rough.lastTap;
+  const dbl = !!lt && now - lt.t < 330 && Math.hypot(lt.x - x, lt.y - y) < 32;
+  Rough.hand = { ptr: e.pointerId, x0: e.clientX, y0: e.clientY, v0: { ...Rough.view }, dbl, ax: x, ay: y, moved: false };
+  Rough.lastTap = null;
+}
+function roughHandMove(e) {
+  const h = Rough.hand; if (!h || h.ptr !== e.pointerId) return;
+  const dx = e.clientX - h.x0, dy = e.clientY - h.y0;
+  if (!h.moved && Math.hypot(dx, dy) < 6) return;
+  if (!h.moved) { h.moved = true; $('roughPaper').classList.add('grabbing'); }
+  const v = Rough.view;
+  if (h.dbl) {
+    const s = Math.min(3, Math.max(0.5, h.v0.s * Math.exp(dy / 150)));
+    v.s = s; v.x = h.ax - (h.ax - h.v0.x) * (s / h.v0.s); v.y = h.ay - (h.ay - h.v0.y) * (s / h.v0.s);
+  } else { v.x = h.v0.x + dx; v.y = h.v0.y + dy; }
+  roughViewFrame();
+}
+function roughHandUp(e) {
+  const h = Rough.hand; if (!h || h.ptr !== e.pointerId) return;
+  Rough.hand = null; $('roughPaper').classList.remove('grabbing');
+  if (!h.moved) {
+    if (h.dbl) { const v = Rough.view; roughViewAnim(roughViewAt(v.s > 1.15 ? 1 : 2, h.ax, h.ay)); if (typeof Native !== 'undefined' && Native.tap) Native.tap(); }
+    else Rough.lastTap = { t: Date.now(), x: h.ax, y: h.ay };
+  }
+}
+function roughViewFrame() { if (!Rough.raf) Rough.raf = requestAnimationFrame(() => { Rough.raf = 0; roughDraw(); }); }
+// the view you get by zooming to scale s around a point of the page area
+function roughViewAt(s, cx, cy) {
+  const v = Rough.view; s = Math.min(3, Math.max(0.5, s));
+  return { s, x: cx - (cx - v.x) * (s / v.s), y: cy - (cy - v.y) * (s / v.s) };
+}
+// glide to a view (a quarter of a second; at once if you prefer less motion)
+function roughViewAnim(to) {
+  cancelAnimationFrame(Rough.anim);
+  const from = { ...Rough.view }, t0 = performance.now(), D = 220;
+  if (typeof mq === 'function' && mq('(prefers-reduced-motion: reduce)')) { Object.assign(Rough.view, to); roughDraw(); return; }
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+    Rough.view.s = from.s + (to.s - from.s) * e; Rough.view.x = from.x + (to.x - from.x) * e; Rough.view.y = from.y + (to.y - from.y) * e;
+    roughDraw();
+    if (k < 1) Rough.anim = requestAnimationFrame(step);
+  };
+  Rough.anim = requestAnimationFrame(step);
+}
+function roughZoomBtn(k) {
+  const paper = $('roughPaper').getBoundingClientRect(), v = Rough.view, cx = paper.width / 2, cy = paper.height / 2;
+  if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+  if (k === 'in') roughViewAnim(roughViewAt(v.s * 1.4, cx, cy));
+  else if (k === 'out') roughViewAnim(roughViewAt(v.s / 1.4, cx, cy));
+  else if (k === 'reset') roughViewAnim({ x: 0, y: 0, s: 1 });
+  else if (k === 'fit') roughViewAnim(roughFitView());
+}
+// Fit: all your working in view (never bigger than 1.5×)
+function roughFitView() {
+  const paper = $('roughPaper').getBoundingClientRect(), all = Rough.strokes.flatMap(s => (s.shape ? roughShapePts(s) : s.pts).filter(Boolean));
+  if (!all.length) return { x: 0, y: 0, s: 1 };
+  const pad = 18, minX = Math.min(...all.map(p => p[0])) - pad, maxX = Math.max(...all.map(p => p[0])) + pad, minY = Math.min(...all.map(p => p[1])) - pad, maxY = Math.max(...all.map(p => p[1])) + pad;
+  const s = Math.max(0.5, Math.min(1.5, paper.width / (maxX - minX), paper.height / (maxY - minY)));
+  return { s, x: paper.width / 2 - (minX + maxX) / 2 * s, y: paper.height / 2 - (minY + maxY) / 2 * s };
+}
+function roughPctPaint() {
+  const pill = $('roughZPill'); if (!pill) return;
+  const s = Rough.view.s, moved = Math.abs(s - 1) > 0.01 || Math.abs(Rough.view.x) > 1 || Math.abs(Rough.view.y) > 1;
+  pill.querySelector('.rz-pct').textContent = Math.round(s * 100) + '%';
+  pill.querySelector('[data-zv="in"]').disabled = s >= 2.99; pill.querySelector('[data-zv="out"]').disabled = s <= 0.51;
+  pill.hidden = Rough.typing || !!Rough.zoom || (!Rough.strokes.length && !moved);
+  pill.classList.toggle('moved', moved);
+}
+// writing near the bottom of the page: it eases up a little, so you never run out of room mid-line
+function roughRoom(s) {
+  if (Rough.zoom || !s.pts.length) return;
+  const paper = $('roughPaper').getBoundingClientRect(), v = Rough.view;
+  const bottom = Math.max(...s.pts.map(p => p[1])) * v.s + v.y;
+  if (bottom > paper.height - 44) roughViewAnim({ ...v, y: v.y - paper.height * 0.3 });
+}
+// laptop: hold Space to move the page with the mouse (only while the pointer is over the page)
+addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.repeat && Rough.space) { if (Rough.space && e.code === 'Space') e.preventDefault(); return; }
+  if (!Rough.built || !Rough.over || Rough.typing || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || !Calc.open || Calc.min || Calc.tab !== 'rough') return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  Rough.space = true; roughPaintBar();
+}, true);
+addEventListener('keyup', e => { if (e.code === 'Space' && Rough.space) { Rough.space = false; roughPaintBar(); } }, true);
+addEventListener('blur', () => { if (Rough.space) { Rough.space = false; roughPaintBar(); } });
+
 /* ---------- finger, stylus and mouse ---------- */
 const R_EDGE = 14;                    // px at the left and right screen edge where a touch is ignored (curved screens)
 function roughDown(e) {
-  if (Rough.typing || e.target.closest('.rough-chip, .rough-neat, .rough-zoom')) return;
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (Rough.typing || e.target.closest('.rough-chip, .rough-neat, .rough-zoom, .rough-zpill')) return;
+  if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;            // left button draws, the wheel button moves
   if (e.pointerType === 'touch' && (e.clientX < R_EDGE || e.clientX > innerWidth - R_EDGE) && !Rough.ptrs.size) return;   // the curved edge
   e.preventDefault();
   $('roughPaper').setPointerCapture(e.pointerId);
@@ -320,10 +422,12 @@ function roughDown(e) {
     if (Rough.cur && Rough.cur.kind === 'draw' && Rough.cur.ptr !== e.pointerId && (Rough.cur.s.pts.length < 14 || Date.now() - Rough.cur.t0 < 220) && Rough.cur.type === 'touch') {
       Rough.strokes.pop(); clearInterval(Rough.cur.hold);           // the first finger of a two-finger move was not a line
     }
+    Rough.hand = null;
     if (!Rough.cur || Rough.cur.type === 'touch') { Rough.cur = null; roughPanStart(); }
     roughDraw(); return;
   }
-  if (Rough.cur || Rough.zoom) return;
+  if (Rough.cur || Rough.zoom || Rough.hand) return;
+  if (Rough.tool === 'hand' || Rough.space || e.button === 1) return roughHandDown(e);
   const p = roughAt(e);
   if (Rough.tool === 'eraser') { Rough.cur = { kind: 'erase', ptr: e.pointerId, removed: [], at: p }; roughErase(p); roughDraw(); return; }
   if (/^shape:/.test(Rough.tool)) {
@@ -341,6 +445,7 @@ function roughMove(e) {
   const pt = Rough.ptrs.get(e.pointerId); if (!pt) return;
   pt.x = e.clientX; pt.y = e.clientY;
   if (Rough.pan) return roughPanMove();
+  if (Rough.hand) return roughHandMove(e);
   const c = Rough.cur; if (!c || c.ptr !== e.pointerId) return;
   if (c.kind === 'shape') { c.s.pts = roughShapeFrom(c.s.shape, c.a, roughAt(e)); roughFrame(); return; }
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
@@ -364,19 +469,21 @@ function roughAddPoint(c, p) {
 }
 function roughUp(e) {
   Rough.ptrs.delete(e.pointerId);
+  if (Rough.hand) return roughHandUp(e);
   if (Rough.pan) { if ([...Rough.ptrs.values()].filter(p => p.type === 'touch').length < (Rough.penSeen ? 1 : 2)) Rough.pan = null; else roughPanStart(); return; }
   const c = Rough.cur; if (!c || c.ptr !== e.pointerId) return;
   clearInterval(c.hold);
   Rough.cur = null; Rough.pred = null;
-  if (c.kind === 'erase') { if (c.removed.length) Rough.undo.push({ t: 'erase', items: c.removed }); roughDraw(); }
+  if (c.kind === 'erase') { if (c.removed.length) roughPush({ t: 'erase', items: c.removed }); roughDraw(); }
   else if (c.kind === 'shape') {
     const xs = c.s.pts.map(p => p[0]), ys = c.s.pts.map(p => p[1]);
-    if (Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * Rough.view.s > 8) { Rough.strokes.push(c.s); Rough.undo.push({ t: 'add', s: c.s }); }   // a tap is not a shape
+    if (Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * Rough.view.s > 8) { Rough.strokes.push(c.s); roughPush({ t: 'add', s: c.s }); }   // a tap is not a shape
     roughCommit(c.s);
   } else {
     const last = roughAt(e); if (!c.snapped && Math.hypot(last[0] - c.s.pts[c.s.pts.length - 1][0], last[1] - c.s.pts[c.s.pts.length - 1][1]) > 0.5) c.s.pts.push(last);
-    Rough.undo.push({ t: 'add', s: c.s });
+    roughPush({ t: 'add', s: c.s });
     roughCommit(c.s);
+    roughRoom(c.s);
     if (c.snapped && typeof tipMark === 'function') tipMark('snap');                // you found it yourself: no tip needed
     else if (!c.s.hl && typeof tipsRoughStroke === 'function') tipsRoughStroke(c.s);
   }
@@ -431,20 +538,34 @@ function segDist(p, a, b) {
   const t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
   return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
 }
+function roughPush(a) { Rough.undo.push(a); Rough.redo = []; }
 function roughUndo() {
   const a = Rough.undo.pop(); if (!a) return;
+  const ta = $('roughText');
   if (a.t === 'add') { const i = Rough.strokes.indexOf(a.s); if (i >= 0) Rough.strokes.splice(i, 1); }
   else if (a.t === 'addMany') Rough.strokes = Rough.strokes.filter(s => !a.list.includes(s));
   else if (a.t === 'erase') [...a.items].reverse().forEach(({ s, i }) => Rough.strokes.splice(Math.min(i, Rough.strokes.length), 0, s));
-  else if (a.t === 'clear') { Rough.strokes = a.strokes; $('roughText').value = a.text; }
-  else if (a.t === 'snap') { a.s.pts = a.orig; delete a.s.shape; }
-  else if (a.t === 'neat') { Rough.strokes = a.strokes; $('roughText').value = a.text; }
+  else if (a.t === 'clear' || a.t === 'neat' || a.t === 'text') { a.after = { strokes: Rough.strokes, text: ta.value }; Rough.strokes = a.strokes; ta.value = a.text; }
+  else if (a.t === 'snap') { a.shaped = { pts: a.s.pts, shape: a.s.shape }; a.s.pts = a.orig; delete a.s.shape; }
+  Rough.redo.push(a);
   $('roughChip').hidden = true;
+  roughPaintBar(); roughDraw(); roughMarks();
+}
+// redo: the step you just undid, again
+function roughRedo() {
+  const a = Rough.redo.pop(); if (!a) return;
+  const ta = $('roughText');
+  if (a.t === 'add') { if (!Rough.strokes.includes(a.s)) Rough.strokes.push(a.s); }
+  else if (a.t === 'addMany') Rough.strokes.push(...a.list.filter(s => !Rough.strokes.includes(s)));
+  else if (a.t === 'erase') Rough.strokes = Rough.strokes.filter(s => !a.items.some(x => x.s === s));
+  else if ((a.t === 'clear' || a.t === 'neat' || a.t === 'text') && a.after) { Rough.strokes = a.after.strokes; ta.value = a.after.text; }
+  else if (a.t === 'snap' && a.shaped) { a.s.pts = a.shaped.pts; a.s.shape = a.shaped.shape; }
+  Rough.undo.push(a);
   roughPaintBar(); roughDraw(); roughMarks();
 }
 function roughClear() {
   if (!Rough.strokes.length && !$('roughText').value) return;
-  Rough.undo.push({ t: 'clear', strokes: Rough.strokes, text: $('roughText').value });
+  roughPush({ t: 'clear', strokes: Rough.strokes, text: $('roughText').value });
   Rough.strokes = []; $('roughText').value = '';
   $('roughChip').hidden = true; $('roughNeat').hidden = true;
   roughPaintBar(); roughDraw(); roughMarks();
@@ -468,7 +589,7 @@ function roughTemplate(kind) {
   } else if (kind === 'venn2') { const r = Math.min(W / 3.2, H / 2.2); S(circle(cx - r * 0.55, cy, r)); S(circle(cx + r * 0.55, cy, r)); }
   else if (kind === 'venn3') { const r = Math.min(W / 3.4, H / 3.2); S(circle(cx - r * 0.55, cy - r * 0.4, r)); S(circle(cx + r * 0.55, cy - r * 0.4, r)); S(circle(cx, cy + r * 0.5, r)); }
   if (!list.length) return;
-  Rough.strokes.push(...list); Rough.undo.push({ t: 'addMany', list });
+  Rough.strokes.push(...list); roughPush({ t: 'addMany', list });
   if (typeof Native !== 'undefined' && Native.tap) Native.tap();
   roughPaintBar(); roughDraw();
 }
@@ -525,7 +646,7 @@ function roughZMove(e) {
 }
 function roughZUp(e) {
   const c = Rough.cur; if (!c || !c.zoom || c.ptr !== e.pointerId) return;
-  Rough.cur = null; Rough.undo.push({ t: 'add', s: c.s });
+  Rough.cur = null; roughPush({ t: 'add', s: c.s });
   roughCommit(c.s); roughZDraw(); roughPaintBar();
   // writing reached the right part of the box: move along (after a short pause, so you can keep writing)
   const z = Rough.zoom, maxX = Math.max(...c.s.pts.map(p => p[0]));
@@ -582,7 +703,7 @@ function roughHoldWatch() {
     c.snapped = true;
     const orig = c.s.pts;
     c.s.pts = shape.pts.map(p => [p[0], p[1], 0.5]); c.s.shape = shape.type;
-    Rough.undo.push({ t: 'snap', s: c.s, orig });
+    roughPush({ t: 'snap', s: c.s, orig });
     if (typeof Native !== 'undefined' && Native.tap) Native.tap();
     roughDrawLive(); roughChip(c.s, orig);
   }, 90);
@@ -700,7 +821,7 @@ async function roughNeat() {
     const b = ev.target.closest('[data-rn]'); if (!b) return;
     if (b.dataset.rn === 'use' && Rough.neat) {
       const ta = $('roughText');
-      Rough.undo.push({ t: 'neat', strokes: Rough.strokes, text: ta.value });
+      roughPush({ t: 'neat', strokes: Rough.strokes, text: ta.value });
       ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + Rough.neat;
       Rough.strokes = Rough.strokes.filter(s => s.tpl); Rough.view = { x: 0, y: 0, s: 1 };
       roughDraw(); roughMarks();
@@ -728,11 +849,49 @@ function roughStrokePrint(ctx, s) {
 }
 
 /* ---------- each question: a fresh page ---------- */
-function roughNewPage() {
+/* ---------- "Your working": each question's page is kept until the quiz ends, to look at in the results ---------- */
+function roughKeepWork() {
+  const id = Rough.qid; if (!id || !Rough.built || Rough.work[id]) return;     // the first attempt is the one that counts
+  const text = $('roughText').value.trim(), ink = Rough.strokes;
+  if (!ink.length && !text) return;
+  Rough.work[id] = { img: ink.length ? roughPicture(ink) : '', text };
+}
+// a small picture of the strokes, on white, in print colours (so it reads in light and dark)
+function roughPicture(list) {
+  const PR = { ink: '#1b2430', blue: '#2563c9', red: '#d23c3c', hl: '#f6c90e', tpl: '#8a94a3' };
+  const all = list.flatMap(s => (s.shape ? roughShapePts(s) : s.pts).filter(Boolean)), pad = 16;
+  const minX = Math.min(...all.map(p => p[0])) - pad, maxX = Math.max(...all.map(p => p[0])) + pad, minY = Math.min(...all.map(p => p[1])) - pad, maxY = Math.max(...all.map(p => p[1])) + pad;
+  const k = Math.min(2, 760 / Math.max(maxX - minX, maxY - minY, 1));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round((maxX - minX) * k)); c.height = Math.max(1, Math.round((maxY - minY) * k));
+  const ctx = c.getContext('2d'); if (!ctx) return '';
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.setTransform(k, 0, 0, k, -minX * k, -minY * k); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const s of list) {
+    const P = s.shape ? roughShapePts(s) : s.pts;
+    ctx.strokeStyle = PR[s.hl ? 'hl' : s.tpl ? 'tpl' : s.color] || PR.ink; ctx.globalAlpha = s.hl ? 0.45 : 1; ctx.lineWidth = roughWidth(s);
+    ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]);
+    for (let i = 1; i < P.length; i++) { if (!P[i]) { i++; if (P[i]) ctx.moveTo(P[i][0], P[i][1]); continue; } ctx.lineTo(P[i][0], P[i][1]); }
+    if (P.length === 1) ctx.lineTo(P[0][0] + 0.1, P[0][1]);
+    ctx.stroke();
+  }
+  try { return c.toDataURL('image/png'); } catch (e) { return ''; }
+}
+// the calculator's answer onto the page, as a typed line (it gets the ✓ check too)
+function roughAddLine(line) {
+  if (typeof calcBuild === 'function') calcBuild();
   if (!Rough.built) return;
+  const ta = $('roughText');
+  roughPush({ t: 'text', strokes: Rough.strokes, text: ta.value });
+  ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + line;
+  roughMarks(); roughPaintBar();
+}
+
+function roughNewPage(qid) {
+  if (!Rough.built) { Rough.qid = qid || null; return; }
+  roughKeepWork(); Rough.qid = qid || null;
   const paper = $('roughPaper'), had = Rough.strokes.length || $('roughText').value;
   const wipe = () => {
-    Rough.strokes = []; Rough.undo = []; Rough.cur = null; Rough.view = { x: 0, y: 0, s: 1 };
+    Rough.strokes = []; Rough.undo = []; Rough.redo = []; Rough.cur = null; Rough.view = { x: 0, y: 0, s: 1 };
     $('roughText').value = ''; $('roughChip').hidden = true; $('roughNeat').hidden = true; Rough.neat = null;
     if (Rough.typing) roughSetTyping(false);
     if (Rough.zoom) { const z = Rough.zoom; z.x = z.margin = 12; z.y = 12; }
@@ -742,4 +901,4 @@ function roughNewPage() {
   };
   if (had && Calc.open && !Calc.min && Calc.tab === 'rough') { paper.classList.add('wipe'); setTimeout(wipe, 260); } else wipe();
 }
-function roughReset() { if (Rough.zoom) roughZoomMode(false); roughNewPage(); Rough.tool = 'pen'; Rough.thick = false; Rough.color = 'ink'; Rough.paper = 'plain'; if (Rough.built) { roughPaintBar(); roughGuard(); } }
+function roughReset() { if (Rough.zoom) roughZoomMode(false); roughNewPage(); Rough.space = false; Rough.tool = 'pen'; Rough.thick = false; Rough.color = 'ink'; Rough.paper = 'plain'; if (Rough.built) { roughPaintBar(); roughGuard(); } }

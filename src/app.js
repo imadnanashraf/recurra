@@ -41,6 +41,7 @@ function show(id) {
   if (typeof calcOnScreen === 'function') calcOnScreen(id);
   if (typeof tipsOnScreen === 'function') tipsOnScreen(id);
   if (typeof navOnScreen === 'function') navOnScreen(id);
+  if (typeof speakOnScreen === 'function') speakOnScreen(id);
   // the Android download: website only, and not for people who already use the Android app
   if (id === 'settings' || id === 'login') document.querySelectorAll(`#${id} [data-getapp]`).forEach(a => {
     a.hidden = inApp() || (id === 'settings' && !webAppOnAndroid() && !!(App.profile && App.profile.usedAndroid));
@@ -495,6 +496,7 @@ $('pickerList').addEventListener('click', e => {
 function startSession(title, list, ordered) {
   if (!list.length) { toast('Nothing to practise here yet.'); return; }
   const o = ordered ? orderSession(list, getState) : { list, closer: false };
+  if (typeof Rough !== 'undefined') { Rough.work = {}; Rough.qid = null; }
   App.session = { title, today: title === 'Today’s review', i: 0, queue: o.list.map(q => ({ q, retry: false })), closer: o.closer, retries: {}, first: {}, before: {}, firstCount: 0, lastBreak: 0, blockFrom: 0 };
   show('quiz'); renderQuestion();
 }
@@ -514,10 +516,11 @@ function renderQuestion() {
   $('qMeta').innerHTML = [
     it.retry ? `<span class="badge warn">Second look</span>` : !s ? `<span class="badge">New</span>` : '',
     s && `<span class="label" style="display:inline-flex;gap:6px;align-items:center">Memory ${levelBars(s.lv)}</span>`,
-  ].filter(Boolean).join('');
+  ].filter(Boolean).join('') + qToolsHTML(q);
   $('qText').innerHTML = rich(q.question);
   $('qCalc').innerHTML = calcBtnHTML();
-  if (typeof toolsNewQuestion === 'function') toolsNewQuestion();      // a fresh rough page for every question
+  if (typeof speakReset === 'function') speakReset();
+  if (typeof toolsNewQuestion === 'function') toolsNewQuestion(q.id);  // a fresh rough page for every question (the last one is kept for the results)
   if (typeof tipsQuiz === 'function') tipsQuiz();
   replay($('qText'), 'in'); replay($('qRecall'), 'in');
   $('qOpts').innerHTML = it.opts.map((o, k) => `
@@ -530,6 +533,90 @@ function renderQuestion() {
   setKeyHint();
   if (it.phase === 'recall') $('showOpts').focus({ preventScroll: true });
 }
+// the small buttons beside the question: flag 🚩 and read aloud 🔊
+const FLAG_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>';
+function qToolsHTML(q) {
+  const on = Progress.flagged(q.id);
+  return `<span class="qtools"><button type="button" class="qtool qflag" data-qflag aria-pressed="${on}" title="${on ? 'Flagged: tap to remove' : 'Flag to look at again later'}">${FLAG_IC}<span>${on ? 'Flagged' : 'Flag'}</span></button>${typeof speakBtnHTML === 'function' ? speakBtnHTML('quiz') : ''}</span>`;
+}
+function qFlagToggle(btn) {
+  const z = App.session, it = z && z.queue[z.i]; if (!it) return;
+  const on = !Progress.flagged(it.q.id);
+  Progress.setFlag(it.q.id, on); featUse('flag');
+  btn.setAttribute('aria-pressed', String(on)); btn.title = on ? 'Flagged: tap to remove' : 'Flag to look at again later';
+  btn.querySelector('span').textContent = on ? 'Flagged' : 'Flag';
+  if (on) { btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); }
+  Native.tap();
+  toast(on ? 'Flagged. Find it in Question bank → Flagged.' : 'Flag removed');
+}
+$('qMeta').addEventListener('click', e => { const f = e.target.closest('[data-qflag]'); if (f) qFlagToggle(f); });
+
+// tap a word in the question to highlight it (NOT, EXCEPT, maximum …); tap it again to remove. Gone on the next question.
+function qWordAt(x, y) {
+  let node, off;
+  if (document.caretPositionFromPoint) { const c = document.caretPositionFromPoint(x, y); if (!c) return null; node = c.offsetNode; off = c.offset; }
+  else if (document.caretRangeFromPoint) { const r = document.caretRangeFromPoint(x, y); if (!r) return null; node = r.startContainer; off = r.startOffset; }
+  if (!node || node.nodeType !== 3) return null;
+  const t = node.data, isW = ch => /[\p{L}\p{N}'’µ°%._-]/u.test(ch);
+  let a = off, b = off;
+  while (a > 0 && isW(t[a - 1])) a--;
+  while (b < t.length && isW(t[b])) b++;
+  while (b > a && /[._-]/.test(t[b - 1])) b--;              // not the full stop after a word
+  if (b <= a) return null;
+  const r = document.createRange(); r.setStart(node, a); r.setEnd(node, b);
+  const rect = r.getBoundingClientRect();
+  if (x < rect.left - 4 || x > rect.right + 4 || y < rect.top - 4 || y > rect.bottom + 4) return null;   // the tap was in a gap
+  return r;
+}
+$('qText').addEventListener('click', e => {
+  if (String(getSelection && getSelection()).trim()) return;             // you are selecting text
+  const m = e.target.closest('mark.qhl');
+  if (m) { m.replaceWith(...m.childNodes); $('qText').normalize(); return; }
+  const r = qWordAt(e.clientX, e.clientY); if (!r || !$('qText').contains(r.startContainer)) return;
+  const mk = document.createElement('mark'); mk.className = 'qhl';
+  try { r.surroundContents(mk); } catch (err) { return; }
+  featUse('qhl'); Native.tap();
+});
+
+// strike out an option you have ruled out: long-press it (laptop: right-click). Long-press again to bring it back.
+// You can still choose a struck option; it is only a mark for you, and it resets on the next question.
+const Strike = { timer: 0, at: null, done: 0 };
+function strikeToggle(b) {
+  const z = App.session, it = z && z.queue[z.i]; if (!b || b.disabled || !it || it.result) return;
+  const on = !b.classList.contains('struck');
+  b.classList.toggle('struck', on); b.setAttribute('aria-label', (on ? 'Ruled out: ' : '') + b.textContent.trim());
+  Strike.done = Date.now(); featUse('strike');
+  if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+}
+$('qOpts').addEventListener('contextmenu', e => { const b = e.target.closest('.opt'); if (!b) return; e.preventDefault(); if (Date.now() - Strike.done > 600) strikeToggle(b); });
+$('qOpts').addEventListener('pointerdown', e => {
+  const b = e.target.closest('.opt'); if (!b || e.pointerType === 'mouse') return;
+  Strike.at = { x: e.clientX, y: e.clientY, b };
+  clearTimeout(Strike.timer); Strike.timer = setTimeout(() => { if (Strike.at && Date.now() - Strike.done > 600) { strikeToggle(Strike.at.b); Strike.at = null; } }, 480);
+});
+$('qOpts').addEventListener('pointermove', e => { if (Strike.at && Math.hypot(e.clientX - Strike.at.x, e.clientY - Strike.at.y) > 10) { clearTimeout(Strike.timer); Strike.at = null; } });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(n => $('qOpts').addEventListener(n, () => { clearTimeout(Strike.timer); Strike.at = null; }));
+
+// "Why did you miss it?" after a wrong answer: one tap, and Progress shows your pattern
+const WHY = [['misread', 'Misread the question'], ['forgot', 'Forgot it'], ['mixed', 'Mixed it up'], ['calc', 'Calculation slip'], ['guess', 'Guessed']];
+const WHY_TIP = {
+  misread: 'Slow down on the question: underline words like NOT, EXCEPT and the unit asked for (tap a word to highlight it).',
+  forgot: 'These need more reviews: keep up Today’s review, and read the note or explanation once more.',
+  mixed: 'Learn the pairs side by side: what is different, and a trick to tell them apart.',
+  calc: 'Write each step in rough work and check the units; the calculator can check the sum.',
+  guess: 'Guessing is fine in practice; these come back sooner so they become real knowledge.',
+};
+function whyHTML(q, conf) {
+  const cur = Progress.why(q.id) || (conf === 'guess' ? 'guess' : '');
+  return `<div class="why-row"><span class="label">Why did you miss it?</span><div class="why-chips" role="group" aria-label="Why did you miss it">${WHY.map(([k, l]) => `<button type="button" class="chip" data-why="${k}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div></div>`;
+}
+$('qFeedback').addEventListener('click', e => {
+  const b = e.target.closest('[data-why]'); if (!b) return;
+  const z = App.session, it = z && z.queue[z.i]; if (!it) return;
+  const on = b.getAttribute('aria-pressed') !== 'true';
+  b.parentElement.querySelectorAll('[data-why]').forEach(x => x.setAttribute('aria-pressed', String(x === b && on)));
+  Progress.setWhy(it.q.id, on ? b.dataset.why : ''); featUse('why'); Native.tap();
+});
 function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 function setKeyHint() {
   const it = App.session.queue[App.session.i];
@@ -618,8 +705,9 @@ function finish(k, conf) {
     q.hint && ['Memory hint', rich(q.hint)],
     q.trap && ['Exam trap', rich(q.trap), 'trap'],
   ].filter(Boolean);
+  if (it.result === 'wrong' && conf === 'guess' && !Progress.why(q.id)) Progress.setWhy(q.id, 'guess');
   $('qFeedback').innerHTML = `<div class="feedback ${cls}"><div class="verdict">${verdict}<small>${note}</small></div><dl>
-    ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl></div>`;
+    ${rows.map(([t, d, c]) => `<div class="${c || ''}"><dt>${t}</dt><dd>${d}</dd></div>`).join('')}</dl>${it.result === 'wrong' ? whyHTML(q, conf) : ''}</div>`;
   $('skipBtn').hidden = true; $('nextBtn').hidden = false;
   $('nextBtn').innerHTML = z.i === z.queue.length - 1 ? `${icon('check')}Finish` : `Next${icon('next')}`;
   setKeyHint();
@@ -634,7 +722,7 @@ function next() {
   z.i++; renderQuestion(); window.scrollTo(0, 0);
 }
 $('showOpts').addEventListener('click', showOptions);
-$('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b && !b.disabled) pick(Number(b.dataset.k)); });
+$('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (Date.now() - Strike.done < 700) return; if (b && !b.disabled) pick(Number(b.dataset.k)); });   // not the tap that ended a long-press
 $('qConf').addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) confirmPick(b.dataset.conf); });
 $('qCheck').addEventListener('click', () => confirmPick(''));
 $('skipBtn').addEventListener('click', () => pick(null));
@@ -707,6 +795,8 @@ $('bStop').addEventListener('click', () => { leaveBreak(); endSession(); });
 
 /* ---------- end of a session: show what improved first ---------- */
 function renderResult() {
+  if (typeof roughKeepWork === 'function') roughKeepWork();            // the last question's rough page
+  const work = typeof Rough !== 'undefined' ? Rough.work : {};
   const z = App.session, firsts = Object.values(z.first), ids = Object.keys(z.first);
   const c = firsts.filter(f => f.result === 'correct').length;
   const missed = firsts.filter(f => f.result !== 'correct');
@@ -739,10 +829,24 @@ function renderResult() {
         <span>${rich(f.q.question)}</span>
         <span class="ans">Answer: <b>${rich(f.q.answer)}</b></span>
         ${f.q.hint ? `<span class="muted small">Hint: ${rich(f.q.hint)}</span>` : ''}
+        ${work[f.q.id] ? `<details class="rv-work"><summary>${icon('next')}Your working</summary>${work[f.q.id].img ? `<img src="${work[f.q.id].img}" alt="Your rough work for this question">` : ''}${work[f.q.id].text ? `<pre>${esc(work[f.q.id].text)}</pre>` : ''}</details>` : ''}
       </div>`).join('') : '';
   Reminders.refreshSoon();
   Native.done();
   show('result');
+}
+
+// your mistakes by reason (last reason given for each question, past 60 days)
+function renderWhy() {
+  const box = $('pWhy'); if (!box) return;
+  const since = Date.now() - 60 * 864e5, ids = new Set(App.questions.map(q => q.id)), n = {};
+  Object.entries(Progress.meta.why || {}).forEach(([id, w]) => { if (w && w.r && (w.t || 0) > since && ids.has(id)) n[w.r] = (n[w.r] || 0) + 1; });
+  const total = Object.values(n).reduce((a, b) => a + b, 0);
+  box.hidden = !total; if (!total) { box.innerHTML = ''; return; }
+  const rows = WHY.map(([k, l]) => [k, l, n[k] || 0]).sort((a, b) => b[2] - a[2]), top = rows[0];
+  box.innerHTML = `<h3>Why you miss questions</h3><p class="muted small">From the reasons you picked after a wrong answer (${plural(total, 'question')}, last 60 days).</p>
+    <div class="why-bars">${rows.map(([k, l, c]) => `<div class="why-bar${k === top[0] ? ' top' : ''}"><span>${l}</span><i style="--w:${Math.round(100 * c / top[2])}%"></i><b>${c}</b></div>`).join('')}</div>
+    <p class="why-tip"><b>Most often: ${esc(top[1].toLowerCase())}.</b> ${esc(WHY_TIP[top[0]])}</p>`;
 }
 
 /* ---------- progress table ---------- */
@@ -754,6 +858,7 @@ function renderProgress() {
     <div class="stat"><b>${all.acc === null ? '–' : all.acc + '%'}</b><small>Accuracy</small></div>
     <div class="stat"><b>${p.dueTomorrow}</b><small>Due tomorrow</small></div>`;
   renderProgressCharts();
+  renderWhy();
   // one card per subject (works as the table view of the memory chart)
   $('pSubjects').innerHTML = App.subjects.map(s => {
     const o = summary(App.questions.filter(q => q.code === s.code)), pct = o.total ? Math.round(100 * o.strong / o.total) : 0;
@@ -805,7 +910,7 @@ const labelOf = k => NOTE_LABELS[k] || k.replace(/([a-z])([A-Z])/g, '$1 $2').rep
 /* ---------- lists of questions and notes: order, date filter, "New" ----------
    Default every time you open the screen: everything, in the order it was added (oldest first),
    by date and time. Filters and sort are not remembered. */
-const listDefaults = () => ({ sort: 'date', date: 'all', day: '', newOnly: false });
+const listDefaults = () => ({ sort: 'date', date: 'all', day: '', newOnly: false, flagOnly: false });
 const DATE_OPTS = [['all', 'All dates'], ['today', 'Today'], ['yesterday', 'Yesterday'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['pick', 'Pick a date…']];
 const daysAgoKey = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d.getTime()); };
 function dateOK(added, f) {
@@ -937,10 +1042,11 @@ function renderNotes() {
   U.list = hits ? hits.map(h => h.n) : list;             // what the reader steps through with ‹ ›
   if (reader) return renderReader();
   delete SlideLast.note;
+  if (typeof speakReset === 'function') speakReset();
   if (U.all) {
     // one column you read top to bottom; on a wide screen a contents list stays beside it
     const nn = U.list.filter(noteNew).length;
-    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(U.list.length, 'note')}</span>${nn ? `<button class="btn ghost small mark-read" type="button" data-nmarkall>${icon('check')}Mark ${nn === U.list.length ? 'all' : nn} read</button>` : ''}</div>
+    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(U.list.length, 'note')}</span>${typeof speakBtnHTML === 'function' ? speakBtnHTML('readall') : ''}${nn ? `<button class="btn ghost small mark-read" type="button" data-nmarkall>${icon('check')}Mark ${nn === U.list.length ? 'all' : nn} read</button>` : ''}</div>
       <div class="ra-wrap"><div class="ra-main">${U.list.map(n => noteHTML(n)).join('')}</div>
       <nav class="ra-toc" aria-label="Contents"><p class="label">Contents</p><ol>${U.list.map(n => `<li><button type="button" data-rajump="${esc(n.id)}"${noteNew(n) ? ' class="is-new"' : ''}><span class="toc-n">${esc(n.num)}</span><span class="ra-t">${esc(n.title)}</span></button></li>`).join('')}</ol></nav></div>`;
     watchReadAll();
@@ -998,12 +1104,14 @@ function watchReadAll() {
   box.querySelectorAll('article.note').forEach(a => readAllHere.observe(a));
 }
 function renderReader() {
+  if (typeof speakReset === 'function') speakReset();
   const list = NotesUI.list && NotesUI.list.some(n => n.id === NotesUI.open) ? NotesUI.list : notesBook().dated;
   const i = list.findIndex(n => n.id === NotesUI.open), n = list[i];
   const prev = list[i - 1], next = list[i + 1], re = qRe(NotesUI.q.trim());
   $('notesReader').innerHTML = `<div class="reader-bar">
       <button class="btn ghost" type="button" data-nback>${icon('back')}${NotesUI.q.trim() ? 'Results' : 'Index'}</button>
       <span class="muted small">${i + 1} of ${list.length}</span>
+      ${typeof speakBtnHTML === 'function' ? speakBtnHTML('note') : ''}
       <span class="reader-nav"><button class="btn" type="button" data-note="${prev ? esc(prev.id) : ''}" ${prev ? '' : 'disabled'} aria-label="Previous note">${icon('back')}</button><button class="btn" type="button" data-note="${next ? esc(next.id) : ''}" ${next ? '' : 'disabled'} aria-label="Next note">${icon('next')}</button></span>
     </div>
     <div class="reader-note">${noteHTML(n, re)}</div>
@@ -1647,6 +1755,7 @@ function renderSettings() {
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
   $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false; $('optDaily').value = String(pf.dailyMin || 0);
   $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
+  if (typeof speakSettingsPaint === 'function') speakSettingsPaint();
   $('remOn').checked = !!rm.on;
   $('remWhere').textContent = Reminders.where();
   $('remBox').hidden = !rm.on; $('remTest').hidden = !rm.on;
@@ -1660,6 +1769,10 @@ async function savePrefs(fields) {
 }
 $('optFocus').addEventListener('change', () => { savePrefs({ focusSound: $('optFocus').value }); if ($('optFocus').value !== 'off') { Focus.stop(); Focus.start(); setTimeout(() => { if (!Focus.wanted) Focus.stop(); }, 3000); } else Focus.stop(); });
 $('optSound').addEventListener('change', () => { savePrefs({ sounds: $('optSound').checked }); if ($('optSound').checked) Sound.play('join'); });
+$('optVoice').addEventListener('change', () => { savePrefs({ speakVoice: $('optVoice').value }); speakTry(); });
+$('optSpeakRate').addEventListener('change', () => { savePrefs({ speakRate: Number($('optSpeakRate').value) }); speakTry(); });
+$('optNatural').addEventListener('change', () => { Speak.naturalOff = false; savePrefs({ speakNatural: $('optNatural').checked }); });
+$('optVoiceTry').addEventListener('click', () => speakTry(true));
 $('optRecall').addEventListener('change', () => savePrefs({ recall: $('optRecall').checked }));
 $('optConf').addEventListener('change', () => savePrefs({ confidence: $('optConf').checked }));
 $('optCalc').addEventListener('change', () => savePrefs({ calc: $('optCalc').checked }));
