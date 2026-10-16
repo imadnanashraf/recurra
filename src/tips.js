@@ -77,15 +77,17 @@ function tipsCalc() { setTimeout(() => { const k = document.querySelector('#calc
 
 // 2. what's new (one card per update that brings something worth knowing)
 const WHATS_NEW = {
-  id: '2026-10-tools', from: Date.parse('2026-10-14T12:00:00+05:30'),
+  id: '2026-10-rough2', from: Date.parse('2026-10-16T12:00:00+05:30'),
   items: [
-    { key: 'tools', title: 'Rough work and a calculator in quizzes', text: 'Draw or type your working; shapes straighten, sums are checked. The calculator has dB and k/M/µ keys.', art: 'tools' },
-    { key: 'word', title: 'Upload a Word file or take a photo', text: 'Turn .docx notes or a quick photo into MCQs and notes.', art: 'upload' },
-    { key: 'both', title: 'MCQs + notes from one file', text: 'Choose “MCQs + notes” and get both in one go.', art: 'both' },
-    { key: 'newtag', title: 'New tags and date filters', text: 'See what is new at a glance, filter by date, and quiz just the new ones.', art: 'newtag' },
+    { key: 'rough2', title: 'More rough work tools', text: 'Highlighter, arrows and shapes, ready layouts (axes, number line, tables, Venn) and grid, dotted or lined paper.', art: 'tools' },
+    { key: 'zoomw', title: 'Zoom writing for phones', text: 'Write big in a box at the bottom; it lands small and neat on the page. Writing on phones is also smoother.', art: 'zoom' },
+    { key: 'swipe', title: 'Swipe to the next one', text: 'Swipe left or right through notes and the Question bank, and to the next quiz question once answered.', art: 'swipe' },
+    { key: 'markread', title: 'Mark all read, and a better Read all', text: 'Clear the New tags in one tap (with Undo). Read all is one column with contents on a laptop.', art: 'newtag' },
   ],
 };
 const WN_ART = {
+  zoom: `<svg viewBox="0 0 64 44"><rect x="4" y="4" width="56" height="16" rx="4" class="wn-paper"/><path d="M10 13h8" class="wn-ink"/><rect x="4" y="24" width="56" height="16" rx="4" class="wn-soft"/><path d="M12 35c3-8 6-8 8 0s5 6 9-3" class="wn-ink"/></svg>`,
+  swipe: `<svg viewBox="0 0 64 44"><rect x="14" y="6" width="36" height="32" rx="6" class="wn-paper"/><path d="M20 16h24M20 22h18M20 28h20" class="wn-key"/><path d="M58 22H44M48 18l-4 4 4 4" class="wn-ink"/></svg>`,
   tools: `<svg viewBox="0 0 64 44"><rect x="4" y="4" width="36" height="36" rx="6" class="wn-paper"/><path d="M10 30 L34 14" class="wn-ink"/><circle cx="24" cy="24" r="0" class="wn-dot"/><rect x="44" y="12" width="16" height="28" rx="4" class="wn-soft"/><path d="M47 18h10M47 24h3M52 24h3M47 30h3M52 30h3M47 36h3M52 36h3" class="wn-key"/></svg>`,
   upload: `<svg viewBox="0 0 64 44"><rect x="8" y="4" width="26" height="34" rx="4" class="wn-paper"/><path d="M13 12h16M13 18h16M13 24h10" class="wn-key"/><text x="13" y="34" class="wn-w">W</text><rect x="38" y="12" width="22" height="18" rx="4" class="wn-soft"/><circle cx="49" cy="21" r="5" class="wn-ink"/></svg>`,
   both: `<svg viewBox="0 0 64 44"><rect x="6" y="8" width="24" height="28" rx="5" class="wn-soft"/><path d="M11 16h14M11 22h10M11 28h12" class="wn-key"/><text x="38" y="28" class="wn-plus">+</text><rect x="44" y="8" width="16" height="28" rx="4" class="wn-paper"/><path d="M48 16h8M48 22h8M48 28h5" class="wn-key"/></svg>`,
@@ -121,7 +123,10 @@ function tryFeature(key) {
   else if (key === 'newq') MODES.topic();
   else if (key === 'readall') { MODES.notes(); }
   else if (key === 'live') MODES.tests();
-  else if (key === 'neat') tryFeature('tools');
+  else if (key === 'neat' || key === 'rough2') tryFeature('tools');
+  else if (key === 'zoomw') { tryFeature('tools'); setTimeout(() => { if (Calc.open && typeof roughZoomMode === 'function' && !Rough.zoom) roughZoomMode(true); }, 650); }
+  else if (key === 'swipe') { if (App.notes.length) MODES.notes(); else MODES.bank(); }
+  else if (key === 'markread') MODES.notes();
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-wntry]'); if (t) { whatsNewDone(); return tryFeature(t.dataset.wntry); }
@@ -137,6 +142,7 @@ const DYK = [
   { key: 'newonly', text: 'In the Question bank, “New only” shows questions you have never answered.', when: () => App.questions.length > 10 },
   { key: 'readall', text: 'In Notes, “Read all” lets you read every note like a book.', when: () => App.notes.length > 2 },
   { key: 'neat', text: 'Write in rough work and tap ✨ Neat to turn it into typed text.', when: () => typeof roughNeatOK === 'function' && roughNeatOK() },
+  { key: 'zoomw', text: 'Small writing on a phone? In rough work, the magnifier button gives zoom writing: write big, it lands small.', when: () => mq('(pointer: coarse)') },
   { key: 'live', text: 'Challenge friends to a live test from the Tests tab.', when: () => !!(App.profile && App.profile.username) },
 ];
 function dykPick() {

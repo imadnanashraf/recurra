@@ -165,6 +165,7 @@ function toolsPaintTabs() {
   el.querySelector('[data-toolexp]').hidden = Calc.tab !== 'rough' || !calcPhone() || Calc.min;
   el.classList.toggle('full', Calc.full && Calc.tab === 'rough' && calcPhone() && !Calc.min);
   el.setAttribute('aria-label', Calc.tab === 'rough' ? 'Rough work' : 'Calculator');
+  if (typeof roughGuard === 'function') requestAnimationFrame(roughGuard);
 }
 function toolsTab(t) {
   Calc.tab = t; if (t !== 'rough') Calc.full = false;
@@ -215,6 +216,7 @@ function calcClose() {
   const el = $('calc'); if (!el) return;
   Calc.open = false; el.hidden = true; Calc.showHist = false; Calc.full = false; $('toolQ').hidden = true;
   calcFit();
+  if (typeof roughGuard === 'function') roughGuard();
   if (visible('quiz') && App.session) setKeyHint();
   document.querySelectorAll('[data-calcopen]').forEach(b => b.setAttribute('aria-pressed', 'false'));
 }

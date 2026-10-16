@@ -89,4 +89,70 @@ let google = false;
   if (!m.includes('android.hardware.camera')) m = m.replace(/<application/, `<uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application`);
   writeFileSync(mf, m);
 }
+// 8. rough work: switch off Android's edge "back" swipe over the writing page (GestureGuard, a tiny plugin of our own)
+{
+  const find = d => { for (const f of readdirSync(d, { withFileTypes: true })) { const p = join(d, f.name); if (f.isDirectory()) { const r = find(p); if (r) return r; } else if (f.name === 'MainActivity.java') return p; } return null; };
+  const ma = find(join(app, 'src', 'main', 'java'));
+  if (ma) {
+    const pkgName = (readFileSync(ma, 'utf8').match(/^package\s+([\w.]+);/m) || [])[1] || 'app.recurra';
+    writeFileSync(join(dirname(ma), 'GestureGuardPlugin.java'), `package ${pkgName};
+
+import android.graphics.Rect;
+import android.os.Build;
+import android.webkit.WebView;
+import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.ArrayList;
+import java.util.List;
+
+// Tells Android: inside these boxes a swipe from the screen edge is drawing, not "back".
+@CapacitorPlugin(name = "GestureGuard")
+public class GestureGuardPlugin extends Plugin {
+    @PluginMethod
+    public void set(PluginCall call) {
+        final List<Rect> list = new ArrayList<>();
+        try {
+            JSArray rects = call.getArray("rects");
+            float d = getContext().getResources().getDisplayMetrics().density;
+            if (rects != null) for (int i = 0; i < rects.length(); i++) {
+                JSObject r = JSObject.fromJSONObject(rects.getJSONObject(i));
+                int x = Math.round((float) r.getDouble("x") * d), y = Math.round((float) r.getDouble("y") * d);
+                int w = Math.round((float) r.getDouble("w") * d), h = Math.round((float) r.getDouble("h") * d);
+                list.add(new Rect(x, y, x + w, y + h));
+            }
+        } catch (Exception e) { call.reject("bad rects"); return; }
+        getActivity().runOnUiThread(() -> {
+            WebView wv = getBridge().getWebView();
+            if (wv != null && Build.VERSION.SDK_INT >= 29) wv.setSystemGestureExclusionRects(list);
+            call.resolve();
+        });
+    }
+}
+`);
+    let m = readFileSync(ma, 'utf8');
+    if (!m.includes('GestureGuardPlugin')) {
+      if (!m.includes('import android.os.Bundle;')) m = m.replace(/(package [\w.]+;\s*)/, '$1\nimport android.os.Bundle;\n');
+      if (/extends BridgeActivity\s*\{\s*\}/.test(m)) m = m.replace(/extends BridgeActivity\s*\{\s*\}/, `extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(GestureGuardPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+}`);
+      else if (/super\.onCreate\(/.test(m)) m = m.replace(/(\s*)super\.onCreate\(/, '$1registerPlugin(GestureGuardPlugin.class);$1super.onCreate(');
+      else m = m.replace(/extends BridgeActivity\s*\{/, `extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(GestureGuardPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+`);
+      writeFileSync(ma, m);
+    }
+  } else console.warn('MainActivity.java not found: edge-swipe guard skipped');
+}
 console.log(`Android patched: version ${pkg.version}-n${nativeLevel}-b${versionCode}, signing ${process.env.KEYSTORE_FILE ? 'release key' : 'NOT SET (debug only)'}, closed-app notifications ${push ? 'ON' : 'off'}, Google sign-in ${google ? 'ON' : 'off'}`);

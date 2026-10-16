@@ -80,6 +80,7 @@ function renderBank() {
   }
   U.list = hits ? hits.map(h => h.e) : list;            // what the reader steps through with ‹ ›
   if (reader) return renderBankReader(book);
+  delete SlideLast.bq;
   const none = U.sort === 'weak' && !U.newOnly && U.date === 'all'
     ? `<div class="empty-state small">${ART.empty}<strong>Nothing weak right now</strong><p>Questions you get wrong will gather here, worst first.</p></div>`
     : `<div class="empty-state small">${ART.empty}<strong>No questions here</strong><p>Nothing matches these filters. Try All dates, or turn off New only.</p></div>`;
@@ -125,7 +126,9 @@ function renderBankReader(book) {
       <div class="btns"><button class="btn" type="button" data-bqpractice="${esc(q.code)}|one">Practise this topic</button></div>
     </article>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-bq="${esc(prev.q.id)}"><small>Previous</small><span class="rl-t">${esc(prev.num)} ${esc(prev.q.question)}</span></button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-bq="${esc(next.q.id)}"><small>Next</small><span class="rl-t">${esc(next.num)} ${esc(next.q.question)}</span></button>` : ''}</div>`;
+  readerSlide('bq', i, $('bankReader').querySelector('.bq-card'));
 }
+onSwipe($('bank'), dir => readerStep($('bankReader'), dir), () => !$('bankReader').hidden);
 function openBankQ(id) { BankUI.open = id; renderBank(); window.scrollTo(0, 0); }
 function bankPractice(arg) {
   const book = bankBook(), lv = q => { const s = getState(q.id); return s ? s.lv : -1; };

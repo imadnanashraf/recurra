@@ -18,6 +18,7 @@ const visible = id => !$(id).hidden;
 
 const APP_VERSION = '{{VERSION}}';
 // already in an app? (the Android app, the website saved to the home screen, or another app's built-in browser): no download link then
+const mq = q => { try { return !!(window.matchMedia && matchMedia(q).matches); } catch (e) { return false; } };
 function isStandalone() { try { return matchMedia('(display-mode: standalone)').matches || !!navigator.standalone; } catch (e) { return false; } }
 // the website saved to an Android home screen: it should point to the real app (updates, calls, notifications)
 const webAppOnAndroid = () => !NATIVE && ON_ANDROID && isStandalone();
@@ -208,7 +209,7 @@ function sparkBar() {
   b.classList.toggle('off', !on);
   b.firstChild.style.transform = `scaleX(${on ? Math.min(1, Spark.el / Spark.dur) : 0})`;
 }
-const sparkReduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const sparkReduced = () => !!(window.matchMedia && mq('(prefers-reduced-motion: reduce)'));
 const sparkAuto = () => !sparkReduced() && Spark.auto < SPARK_MAX;
 // change it: dir 1 = next (new), -1 = back to the one before
 function sparkChange(dir, byHand) {
@@ -638,6 +639,11 @@ $('qConf').addEventListener('click', e => { const b = e.target.closest('[data-co
 $('qCheck').addEventListener('click', () => confirmPick(''));
 $('skipBtn').addEventListener('click', () => pick(null));
 $('nextBtn').addEventListener('click', next);
+// phones: once the answer is shown, swipe left for the next question (never before: a stray swipe must not skip one)
+onSwipe($('quiz'), dir => {
+  const z = App.session, it = z && z.queue[z.i];
+  if (dir === 'next' && it && it.result && !$('nextBtn').hidden) { if (typeof Native !== 'undefined' && Native.tap) Native.tap(); next(); }
+}, e => !e.target.closest('#calc, .tool-q'));
 $('quitBtn').addEventListener('click', endSession);
 function endSession() {
   const z = App.session, it = z.queue[z.i];
@@ -845,11 +851,28 @@ function jumpToNew(box) {
 }
 
 // a note is "new" until you open it (or read it in "Read all"); notes added before this existed are not new
-const noteNew = n => !!n.at && !Progress.noteRead(n.id);
+const noteNew = n => !!n.at && !Progress.noteRead(n.id) && !NotesUI.pend.has(n.id);
+// "Mark all read": the notes shown (with your filters) lose the New tag at once; it is saved after the Undo moment,
+// so Undo really brings them back (other devices only ever add to the read list)
+function notesMarkAllRead() {
+  notesPendCommit();
+  const ids = (NotesUI.list || []).filter(noteNew).map(n => n.id); if (!ids.length) return;
+  ids.forEach(id => NotesUI.pend.add(id));
+  NotesUI.pendTimer = setTimeout(notesPendCommit, 7200);
+  renderNotes();
+  selUndoOffer(`${plural(ids.length, 'note')} marked as read`, () => { clearTimeout(NotesUI.pendTimer); ids.forEach(id => NotesUI.pend.delete(id)); if (visible('notes')) renderNotes(); });
+}
+function notesPendCommit() {
+  clearTimeout(NotesUI.pendTimer);
+  if (!NotesUI.pend.size) return;
+  const ids = [...NotesUI.pend]; NotesUI.pend.clear();
+  ids.forEach(id => Progress.markNoteRead(id));
+}
+addEventListener('visibilitychange', () => { if (document.hidden) notesPendCommit(); });
 function readNote(id) { const n = App.notes.find(x => x.id === id); if (n && n.at && !Progress.noteRead(id)) Progress.markNoteRead(id); }
 
 // Notes are numbered like a book: chapter = subject (in syllabus order), then topic A–Z, then title A–Z → 1.1, 1.2, 2.1 …
-const NotesUI = { q: '', open: null, all: false, list: null, ...listDefaults() };
+const NotesUI = { q: '', open: null, all: false, list: null, pend: new Set(), pendTimer: 0, ...listDefaults() };
 const NOTE_SORTS = [['date', 'Oldest first'], ['newest', 'Newest first'], ['topic', 'By topic'], ['az', 'A–Z']];
 const subjName = c => (App.subjects.find(s => s.code === c) || { name: c }).name;
 const shortDate = k => { if (!k) return ''; const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
@@ -913,8 +936,13 @@ function renderNotes() {
   }
   U.list = hits ? hits.map(h => h.n) : list;             // what the reader steps through with ‹ ›
   if (reader) return renderReader();
+  delete SlideLast.note;
   if (U.all) {
-    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(U.list.length, 'note')}</span></div>` + U.list.map(n => noteHTML(n)).join('');
+    // one column you read top to bottom; on a wide screen a contents list stays beside it
+    const nn = U.list.filter(noteNew).length;
+    $('notesList').innerHTML = `<div class="readall-bar"><button class="btn ghost" type="button" data-nback>${icon('back')}Index</button><span class="muted small">${plural(U.list.length, 'note')}</span>${nn ? `<button class="btn ghost small mark-read" type="button" data-nmarkall>${icon('check')}Mark ${nn === U.list.length ? 'all' : nn} read</button>` : ''}</div>
+      <div class="ra-wrap"><div class="ra-main">${U.list.map(n => noteHTML(n)).join('')}</div>
+      <nav class="ra-toc" aria-label="Contents"><p class="label">Contents</p><ol>${U.list.map(n => `<li><button type="button" data-rajump="${esc(n.id)}"${noteNew(n) ? ' class="is-new"' : ''}><span class="toc-n">${esc(n.num)}</span><span class="ra-t">${esc(n.title)}</span></button></li>`).join('')}</ol></nav></div>`;
     watchReadAll();
     return;
   }
@@ -939,20 +967,35 @@ function renderNotes() {
       <ol>${notes.map(n => tocEntry(n, n.topic ? esc(n.topic) : '')).join('')}</ol></section>`).join('')}</div>`;
   }
   const nNew = list.filter(noteNew).length, label = { date: 'By date added', newest: 'Newest first', topic: 'Contents', az: 'Index' }[U.sort];
-  $('notesIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${label}</span><span class="toc-acts">${U.sort === 'date' && !U.newOnly && list.length && !noteNew(list[0]) ? jumpNewBtn(nNew, 'data-njump') : ''}${list.length ? `<button class="btn ghost" type="button" data-readall>Read all ${icon('next')}</button>` : ''}</span></div>`) + html;
+  $('notesIndex').innerHTML = (q ? '' : `<div class="toc-head"><span class="label">${label}</span><span class="toc-acts">${U.sort === 'date' && !U.newOnly && list.length && !noteNew(list[0]) ? jumpNewBtn(nNew, 'data-njump') : ''}${nNew ? `<button class="btn ghost mark-read" type="button" data-nmarkall title="Remove the New tag from the notes shown">${icon('check')}Mark ${nNew === list.length ? 'all' : nNew} read</button>` : ''}${list.length ? `<button class="btn ghost" type="button" data-readall>Read all ${icon('next')}</button>` : ''}</span></div>`) + html;
 }
 // "Read all": a note counts as read after it has been on screen for about 2 seconds
-let readAllObs = null;
+let readAllObs = null, readAllHere = null;
 function watchReadAll() {
   if (readAllObs) readAllObs.disconnect();
+  if (readAllHere) readAllHere.disconnect();
   if (!('IntersectionObserver' in window)) return;
-  const timers = new Map();
+  const timers = new Map(), box = $('notesList');
+  const tocBtn = id => box.querySelector(`.ra-toc [data-rajump="${CSS.escape(id)}"]`);
   readAllObs = new IntersectionObserver(es => es.forEach(e => {
     const id = e.target.dataset.nid;
-    if (e.isIntersecting) { if (!timers.has(id)) timers.set(id, setTimeout(() => { readNote(id); e.target.classList.remove('is-new'); const p = e.target.querySelector('.new-pill'); if (p) p.remove(); }, 2000)); }
+    if (e.isIntersecting) { if (!timers.has(id)) timers.set(id, setTimeout(() => { readNote(id); e.target.classList.remove('is-new'); const p = e.target.querySelector('.new-pill'); if (p) p.remove(); const t = tocBtn(id); if (t) t.classList.remove('is-new'); }, 2000)); }
     else { clearTimeout(timers.get(id)); timers.delete(id); }
   }), { threshold: 0.5 });
-  $('notesList').querySelectorAll('article.note.is-new').forEach(a => readAllObs.observe(a));
+  box.querySelectorAll('article.note.is-new').forEach(a => readAllObs.observe(a));
+  // the contents list: the note you are reading is lit, and the list scrolls to keep it in view
+  const toc = box.querySelector('.ra-toc'); if (!toc || getComputedStyle(toc).display === 'none') return;
+  const seen = new Set();
+  readAllHere = new IntersectionObserver(es => {
+    es.forEach(e => e.isIntersecting ? seen.add(e.target) : seen.delete(e.target));
+    const top = [...seen].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0]; if (!top || Date.now() < NotesUI.tocLock) return;
+    toc.querySelectorAll('.here').forEach(b => { b.classList.remove('here'); b.removeAttribute('aria-current'); });
+    const b = tocBtn(top.dataset.nid); if (!b) return;
+    b.classList.add('here'); b.setAttribute('aria-current', 'true');
+    const r = b.getBoundingClientRect(), tr = toc.getBoundingClientRect();
+    if (r.top < tr.top + 40 || r.bottom > tr.bottom - 20) toc.scrollTop += r.top - tr.top - tr.height / 3;
+  }, { rootMargin: `-${[...document.querySelectorAll('.topbar, .tabbar')].filter(x => getComputedStyle(x).position === 'sticky').reduce((h, x) => h + x.offsetHeight, 0) + 12}px 0px -55% 0px` });
+  box.querySelectorAll('article.note').forEach(a => readAllHere.observe(a));
 }
 function renderReader() {
   const list = NotesUI.list && NotesUI.list.some(n => n.id === NotesUI.open) ? NotesUI.list : notesBook().dated;
@@ -965,15 +1008,57 @@ function renderReader() {
     </div>
     <div class="reader-note">${noteHTML(n, re)}</div>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-note="${esc(prev.id)}"><small>Previous</small>${esc(prev.num)} ${esc(prev.title)}</button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-note="${esc(next.id)}"><small>Next</small>${esc(next.num)} ${esc(next.title)}</button>` : ''}</div>`;
+  readerSlide('note', i, $('notesReader').querySelector('.reader-note'));
   readNote(n.id);                                       // opened: no longer new (the tag stays on screen until you leave this note)
 }
 function openNote(id) { NotesUI.open = id; NotesUI.all = false; renderNotes(); window.scrollTo(0, 0); }
+
+/* ---------- swipe: left = next, right = previous (phones and tablets) ----------
+   Only a clear sideways swipe counts (long enough, mostly sideways, quick), never one that starts on the screen
+   edge (that is the phone's own back gesture), in a box that scrolls sideways, or while you select text. */
+function onSwipe(el, fn, ok) {
+  let s = null;
+  el.addEventListener('touchstart', e => {
+    s = null;
+    if (e.touches.length !== 1 || (ok && !ok(e))) return;
+    const t = e.touches[0];
+    if (t.clientX < 24 || t.clientX > innerWidth - 24) return;
+    for (let n = e.target; n && n !== el; n = n.parentElement) if (n.scrollWidth > n.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(n).overflowX)) return;
+    if (e.target.closest('input, textarea, select, [contenteditable], .no-swipe')) return;
+    s = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }, { passive: true });
+  el.addEventListener('touchmove', e => { if (s && e.touches.length > 1) s = null; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    const q = s; s = null; if (!q) return;
+    const t = e.changedTouches[0], dx = t.clientX - q.x, dy = t.clientY - q.y;
+    if (Date.now() - q.t > 700 || Math.abs(dx) < 64 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
+    if (String(getSelection && getSelection()).trim()) return;
+    fn(dx < 0 ? 'next' : 'prev');
+  }, { passive: true });
+  el.addEventListener('touchcancel', () => { s = null; });
+}
+// the card slides in from the side you are going to (also for ‹ › and the arrow keys)
+const SlideLast = {};
+function readerSlide(key, idx, el) {
+  const last = SlideLast[key]; SlideLast[key] = idx;
+  if (!el || last === undefined || Math.abs(idx - last) !== 1 || mq('(prefers-reduced-motion: reduce)')) return;
+  el.classList.add(idx > last ? 'slide-next' : 'slide-prev');
+}
+function readerStep(box, dir) {
+  const b = box.querySelectorAll('.reader-nav .btn')[dir === 'next' ? 1 : 0];
+  if (b && !b.disabled) { if (typeof Native !== 'undefined' && Native.tap) Native.tap(); b.click(); }
+  else { const c = box.querySelector('.note'); if (c) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }   // the first or last one: a small nudge
+}
+onSwipe($('notes'), dir => readerStep($('notesReader'), dir), () => !$('notesReader').hidden);
 $('notes').addEventListener('click', e => {
   const t = e.target.closest('[data-note]');
   if (t && t.dataset.note) return openNote(t.dataset.note);
   if (e.target.closest('[data-nback]')) { NotesUI.open = null; NotesUI.all = false; renderNotes(); return; }
   if (e.target.closest('[data-readall]')) { featUse('readall'); NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
   if (e.target.closest('[data-njump]')) return jumpToNew($('notesIndex'));
+  if (e.target.closest('[data-nmarkall]')) return notesMarkAllRead();
+  const j = e.target.closest('[data-rajump]');
+  if (j) { const a = document.getElementById('note-' + j.dataset.rajump); if (a) { NotesUI.tocLock = Date.now() + 1000; j.closest('ol').querySelectorAll('.here').forEach(b => { b.classList.remove('here'); b.removeAttribute('aria-current'); }); j.classList.add('here'); j.setAttribute('aria-current', 'true'); const top = a.getBoundingClientRect().top + scrollY - [...document.querySelectorAll('.topbar, .tabbar')].filter(x => getComputedStyle(x).position === 'sticky').reduce((h, x) => h + x.offsetHeight, 0) - 16; scrollTo({ top, behavior: mq('(prefers-reduced-motion: reduce)') ? 'auto' : 'smooth' }); } }
 });
 wireListTools('notes', NotesUI, renderNotes);
 $('notesSearch').addEventListener('input', () => { NotesUI.q = $('notesSearch').value; NotesUI.open = null; NotesUI.all = false; renderNotes(); });
