@@ -32,8 +32,8 @@ function navParent(id) {
     case 'settings': return from('settings');
     case 'help': return from('help');
     case 'picker': return App.pick && App.pick.mode === 'topic' ? { label: 'Practice', go: () => openSubjectPicker() } : today;
-    case 'bank': return BankUI.open ? { label: 'List', go: () => { BankUI.open = null; renderBank(); } } : { label: 'Practice', go: () => openSubjectPicker() };
-    case 'notes': return NotesUI.open || NotesUI.all ? { label: 'Index', go: () => { NotesUI.open = null; NotesUI.all = false; renderNotes(); } } : today;
+    case 'bank': return BankUI.open ? { label: 'List', go: () => bankBack() } : { label: 'Practice', go: () => openSubjectPicker() };
+    case 'notes': return NotesUI.open || NotesUI.all ? { label: 'Index', go: () => notesBack() } : today;
     case 'calendar': return { label: 'Progress', go: () => MODES.progress() };
     case 'thread': return { label: 'Friends', go: () => $('threadBack').click() };
     case 'adminUser': return { label: 'Admin', go: () => $('auBack').click() };

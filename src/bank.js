@@ -133,7 +133,14 @@ function renderBankReader(book) {
   readerSlide('bq', i, $('bankReader').querySelector('.bq-card'));
 }
 onSwipe($('bank'), dir => readerStep($('bankReader'), dir), () => !$('bankReader').hidden);
-function openBankQ(id) { BankUI.open = id; renderBank(); window.scrollTo(0, 0); }
+function openBankQ(id) {
+  if (!BankUI.open) BankUI.listY = scrollY;
+  BankUI.open = id; renderBank(); readerFocus($('bankReader'));
+}
+function bankBack() {
+  const last = BankUI.open; BankUI.open = null; renderBank();
+  listReturn($('bankIndex'), last && `[data-bq="${cssEsc(last)}"]`, BankUI.listY);
+}
 function bankPractice(arg) {
   const book = bankBook(), lv = q => { const s = getState(q.id); return s ? s.lv : -1; };
   let title, pool;
@@ -158,7 +165,7 @@ function bankPractice(arg) {
 $('bank').addEventListener('click', e => {
   const t = e.target.closest('[data-bq]');
   if (t && t.dataset.bq) return openBankQ(t.dataset.bq);
-  if (e.target.closest('[data-bqback]')) { BankUI.open = null; renderBank(); return; }
+  if (e.target.closest('[data-bqback]')) return bankBack();
   const p = e.target.closest('[data-bqpractice]'); if (p) return bankPractice(p.dataset.bqpractice);
   if (e.target.closest('[data-bqjump]')) return jumpToNew($('bankIndex'));
   const f = e.target.closest('[data-bqflag]');

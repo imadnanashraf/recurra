@@ -1065,7 +1065,7 @@ function watchReadAll() {
     b.classList.add('here'); b.setAttribute('aria-current', 'true');
     const r = b.getBoundingClientRect(), tr = toc.getBoundingClientRect();
     if (r.top < tr.top + 40 || r.bottom > tr.bottom - 20) toc.scrollTop += r.top - tr.top - tr.height / 3;
-  }, { rootMargin: `-${[...document.querySelectorAll('.topbar, .tabbar')].filter(x => getComputedStyle(x).position === 'sticky').reduce((h, x) => h + x.offsetHeight, 0) + 12}px 0px -55% 0px` });
+  }, { rootMargin: `-${stickyTop() + (box.querySelector('.readall-bar') || { offsetHeight: 0 }).offsetHeight + 12}px 0px -55% 0px` });
   box.querySelectorAll('article.note').forEach(a => readAllHere.observe(a));
 }
 function renderReader() {
@@ -1084,7 +1084,29 @@ function renderReader() {
   readerSlide('note', i, $('notesReader').querySelector('.reader-note'));
   readNote(n.id);                                       // opened: no longer new (the tag stays on screen until you leave this note)
 }
-function openNote(id) { NotesUI.open = id; NotesUI.all = false; renderNotes(); window.scrollTo(0, 0); }
+// reading: the note lands just under the top bar (the search and filters stay above it, a scroll away)
+function openNote(id) {
+  if (!NotesUI.open && !NotesUI.all) NotesUI.listY = scrollY;       // from the list: remember where you were
+  NotesUI.open = id; NotesUI.all = false; renderNotes(); readerFocus($('notesReader'));
+}
+// back to the list: at the note you were reading, not the top
+function notesBack() {
+  const last = NotesUI.open; NotesUI.open = null; NotesUI.all = false; renderNotes();
+  listReturn($('notesIndex'), last && `[data-note="${cssEsc(last)}"]`, NotesUI.listY);
+}
+const cssEsc = v => window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/["\\]/g, '\\$&');
+// the height of the bars stuck to the top of the screen (the top bar, and the tab bar on wide screens)
+function stickyTop() { return [...document.querySelectorAll('.topbar, .tabbar')].filter(x => !x.hidden && getComputedStyle(x).position === 'sticky').reduce((h, x) => h + x.offsetHeight, 0); }
+function readerFocus(box) {
+  if (!box || box.hidden) return;
+  const st = stickyTop(); document.documentElement.style.setProperty('--stick-top', st + 'px');
+  scrollTo({ top: Math.max(0, box.getBoundingClientRect().top + scrollY - st - 4), behavior: 'auto' });
+}
+function listReturn(box, sel, y) {
+  const el = sel && box.querySelector(sel);
+  if (el) { const r = el.getBoundingClientRect(), li = el.closest('li') || el; scrollTo({ top: Math.max(0, r.top + scrollY - innerHeight / 2 + r.height / 2), behavior: 'auto' }); li.classList.remove('flash-new'); void li.offsetWidth; li.classList.add('flash-new'); }
+  else scrollTo({ top: y || 0, behavior: 'auto' });
+}
 
 /* ---------- swipe: left = next, right = previous (phones and tablets) ----------
    Only a clear sideways swipe counts (long enough, mostly sideways, quick), never one that starts on the screen
@@ -1126,12 +1148,12 @@ onSwipe($('notes'), dir => readerStep($('notesReader'), dir), () => !$('notesRea
 $('notes').addEventListener('click', e => {
   const t = e.target.closest('[data-note]');
   if (t && t.dataset.note) return openNote(t.dataset.note);
-  if (e.target.closest('[data-nback]')) { NotesUI.open = null; NotesUI.all = false; renderNotes(); return; }
-  if (e.target.closest('[data-readall]')) { featUse('readall'); NotesUI.all = true; NotesUI.open = null; renderNotes(); window.scrollTo(0, 0); return; }
+  if (e.target.closest('[data-nback]')) return notesBack();
+  if (e.target.closest('[data-readall]')) { featUse('readall'); NotesUI.listY = scrollY; NotesUI.all = true; NotesUI.open = null; renderNotes(); readerFocus($('notesList')); return; }
   if (e.target.closest('[data-njump]')) return jumpToNew($('notesIndex'));
   if (e.target.closest('[data-nmarkall]')) return notesMarkAllRead();
   const j = e.target.closest('[data-rajump]');
-  if (j) { const a = document.getElementById('note-' + j.dataset.rajump); if (a) { NotesUI.tocLock = Date.now() + 1000; j.closest('ol').querySelectorAll('.here').forEach(b => { b.classList.remove('here'); b.removeAttribute('aria-current'); }); j.classList.add('here'); j.setAttribute('aria-current', 'true'); const top = a.getBoundingClientRect().top + scrollY - [...document.querySelectorAll('.topbar, .tabbar')].filter(x => getComputedStyle(x).position === 'sticky').reduce((h, x) => h + x.offsetHeight, 0) - 16; scrollTo({ top, behavior: mq('(prefers-reduced-motion: reduce)') ? 'auto' : 'smooth' }); } }
+  if (j) { const a = document.getElementById('note-' + j.dataset.rajump); if (a) { NotesUI.tocLock = Date.now() + 1000; j.closest('ol').querySelectorAll('.here').forEach(b => { b.classList.remove('here'); b.removeAttribute('aria-current'); }); j.classList.add('here'); j.setAttribute('aria-current', 'true'); const top = a.getBoundingClientRect().top + scrollY - stickyTop() - ($('notesList').querySelector('.readall-bar') || { offsetHeight: 0 }).offsetHeight - 12; scrollTo({ top, behavior: mq('(prefers-reduced-motion: reduce)') ? 'auto' : 'smooth' }); } }
 });
 wireListTools('notes', NotesUI, renderNotes);
 $('notesSearch').addEventListener('input', () => { NotesUI.q = $('notesSearch').value; NotesUI.open = null; NotesUI.all = false; renderNotes(); });
