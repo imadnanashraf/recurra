@@ -459,7 +459,7 @@ function roughDown(e) {
 }
 // press and hold still (a third of a second): the page moves with your finger until you lift it, then your pen is back
 function roughHoldPan(e) {
-  const c = Rough.cur; if (!c) return;
+  const c = Rough.cur; if (!c || e.pointerType === 'mouse') return;   // not with a touchpad or mouse: a pause before drawing must still draw
   c.sx = e.clientX; c.sy = e.clientY;
   c.panTimer = setTimeout(() => {
     if (Rough.cur !== c || c.movedOnce || (c.kind === 'erase' && c.removed.length)) return;

@@ -705,12 +705,24 @@ $('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); 
 $('qConf').addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) confirmPick(b.dataset.conf); });
 $('qCheck').addEventListener('click', () => confirmPick(''));
 $('skipBtn').addEventListener('click', () => pick(null));
-$('nextBtn').addEventListener('click', next);
-// phones: once the answer is shown, swipe left for the next question (never before: a stray swipe must not skip one)
-onSwipe($('quiz'), dir => {
-  const z = App.session, it = z && z.queue[z.i];
-  if (dir === 'next' && it && it.result && !$('nextBtn').hidden) { if (typeof Native !== 'undefined' && Native.tap) Native.tap(); next(); }
-}, e => !e.target.closest('#calc, .tool-q'));
+$('nextBtn').addEventListener('click', () => quizNext());
+// the next question comes in as a card: swipe left once the answer is shown (before that the card only stretches,
+// so a stray swipe never skips a question). Next and Enter play the same move.
+const quizStays = () => { const z = App.session; return z && z.i < z.queue.length - 1 && !(z.firstCount && z.firstCount % SCHEDULE.blockSize === 0 && z.lastBreak !== z.firstCount); };
+const QuizCards = {
+  host: $('quiz'), on: e => !e.target.closest('#calc, .tool-q, #qOpts .opt:not(:disabled)'),
+  els: () => [...['qCrumb', 'qMeta', 'qText', 'qRecall', 'qOpts', 'qConf', 'qFeedback'].map($).filter(x => !x.hidden), document.querySelector('#quiz .qactions')],
+  can: dir => { const z = App.session, it = z && z.queue[z.i]; return dir === 'next' && !!(it && it.result) && !$('nextBtn').hidden; },
+  peek: dir => {
+    const z = App.session; if (dir !== 'next' || !z) return '';
+    if (!quizStays()) return `<div class="peek-end">${icon('check')}<b>${z.i >= z.queue.length - 1 ? 'See your results' : 'A short break'}</b></div>`;
+    const q = z.queue[z.i + 1].q;
+    return `<div class="crumb">${[q.subject, q.topic].filter(Boolean).map(esc).join(' › ')}</div><p class="qtext">${rich(q.question)}</p>${peekOpts(q.options)}`;
+  },
+  go: () => next(),
+};
+liveCards(QuizCards);
+function quizNext() { if (quizStays()) cardStep(QuizCards, 'next'); else next(); }
 $('quitBtn').addEventListener('click', endSession);
 function endSession() {
   const z = App.session, it = z.queue[z.i];
@@ -725,7 +737,7 @@ document.addEventListener('keydown', e => {
   if (!$('break').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return $('bGo').click(); }
   if ($('quiz').hidden) return;
   const it = App.session.queue[App.session.i];
-  if (it.result) { if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); next(); } return; }
+  if (it.result) { if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); if (!Cards.busy) quizNext(); } return; }
   if (it.phase === 'recall' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); return showOptions(); }
   if (it.phase === 'chosen') {
     const conf = prefs().confidence;
@@ -1006,7 +1018,6 @@ function renderNotes() {
   }
   U.list = hits ? hits.map(h => h.n) : list;             // what the reader steps through with ‹ ›
   if (reader) return renderReader();
-  delete SlideLast.note;
   if (typeof speakReset === 'function') speakReset();
   if (U.all) {
     // one column you read top to bottom; on a wide screen a contents list stays beside it
@@ -1081,7 +1092,6 @@ function renderReader() {
     </div>
     <div class="reader-note">${noteHTML(n, re)}</div>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-note="${esc(prev.id)}"><small>Previous</small>${esc(prev.num)} ${esc(prev.title)}</button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-note="${esc(next.id)}"><small>Next</small>${esc(next.num)} ${esc(next.title)}</button>` : ''}</div>`;
-  readerSlide('note', i, $('notesReader').querySelector('.reader-note'));
   readNote(n.id);                                       // opened: no longer new (the tag stays on screen until you leave this note)
 }
 // reading: the note lands just under the top bar (the search and filters stay above it, a scroll away)
@@ -1108,45 +1118,135 @@ function listReturn(box, sel, y) {
   else scrollTo({ top: y || 0, behavior: 'auto' });
 }
 
-/* ---------- swipe: left = next, right = previous (phones and tablets) ----------
-   Only a clear sideways swipe counts (long enough, mostly sideways, quick), never one that starts on the screen
-   edge (that is the phone's own back gesture), in a box that scrolls sideways, or while you select text. */
-function onSwipe(el, fn, ok) {
+/* ---------- living cards: swipe left = next, right = previous ----------
+   The card follows your finger; the next one peeks in, faint and small, and grows brighter the further you go.
+   Let go past a third of the screen (or flick): it glides in. Too early: both spring back. At the first or last
+   one the card only stretches a little. ‹ › and the arrow keys play the same move.
+   A swipe never starts on the screen edge (the phone's back gesture), in a box that scrolls sideways, or while
+   you select text. cfg: { host, on(e), els(), can(dir), peek(dir) → html, go(dir) } */
+const Cards = { busy: false };
+const cardsCalm = () => mq('(prefers-reduced-motion: reduce)');
+function liveCards(cfg) {
   let s = null;
-  el.addEventListener('touchstart', e => {
+  const H = cfg.host, sign = dir => dir === 'next' ? 1 : -1;      // where the new card comes from: next from the right
+  H.style.touchAction = 'pan-y pinch-zoom';
+  H.addEventListener('touchstart', e => {
     s = null;
-    if (e.touches.length !== 1 || (ok && !ok(e))) return;
+    if (Cards.busy || e.touches.length !== 1 || (cfg.on && !cfg.on(e))) return;
     const t = e.touches[0];
     if (t.clientX < 24 || t.clientX > innerWidth - 24) return;
-    for (let n = e.target; n && n !== el; n = n.parentElement) if (n.scrollWidth > n.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(n).overflowX)) return;
+    for (let n = e.target; n && n !== H; n = n.parentElement) if (n.scrollWidth > n.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(n).overflowX)) return;
     if (e.target.closest('input, textarea, select, [contenteditable], .no-swipe')) return;
-    s = { x: t.clientX, y: t.clientY, t: Date.now() };
+    s = { x: t.clientX, y: t.clientY, lx: t.clientX, lt: Date.now(), v: 0, dx: 0, lock: '' };
   }, { passive: true });
-  el.addEventListener('touchmove', e => { if (s && e.touches.length > 1) s = null; }, { passive: true });
-  el.addEventListener('touchend', e => {
-    const q = s; s = null; if (!q) return;
-    const t = e.changedTouches[0], dx = t.clientX - q.x, dy = t.clientY - q.y;
-    if (Date.now() - q.t > 700 || Math.abs(dx) < 64 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
-    if (String(getSelection && getSelection()).trim()) return;
-    fn(dx < 0 ? 'next' : 'prev');
+  H.addEventListener('touchmove', e => {
+    if (!s) return;
+    if (e.touches.length > 1) { if (s.lock) back(); s = null; return; }
+    const t = e.touches[0], dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > 1.5 * Math.abs(dy)) {
+        if (String(getSelection ? getSelection() : '').trim()) { s = null; return; }
+        s.lock = 'x'; s.els = cfg.els().filter(Boolean); s.can = { next: cfg.can('next'), prev: cfg.can('prev') }; s.peeks = {};
+        if (!s.els.length) { s = null; return; }
+        s.box = s.els[0].getBoundingClientRect(); s.W = Math.max(200, s.box.width);
+        s.els.forEach(el => { el.style.transition = 'none'; el.style.willChange = 'transform, opacity'; });
+      } else if (Math.abs(dy) > 12) { s = null; return; } else return;
+    }
+    const now = Date.now(); s.v = (t.clientX - s.lx) / Math.max(1, now - s.lt); s.lx = t.clientX; s.lt = now; s.dx = dx;
+    draw();
   }, { passive: true });
-  el.addEventListener('touchcancel', () => { s = null; });
+  H.addEventListener('touchend', () => {
+    const q = s; if (!q || q.lock !== 'x') { s = null; return; }
+    const dir = q.dx < 0 ? 'next' : 'prev';
+    const far = Math.abs(q.dx) > q.W * 0.3, flick = Math.abs(q.v) > 0.5 && Math.abs(q.dx) > 40 && Math.sign(q.v) === Math.sign(q.dx);
+    if (q.can[dir] && (far || flick)) commit(dir); else back();
+  }, { passive: true });
+  H.addEventListener('touchcancel', () => { if (s && s.lock) back(); s = null; });
+  function peekEl(dir) {
+    if (s.peeks[dir] !== undefined) return s.peeks[dir];
+    const html = cfg.peek(dir); if (!html) return (s.peeks[dir] = null);
+    const p = document.createElement('div'); p.className = 'card-peek ' + (cfg.peekClass || ''); p.innerHTML = html; p.setAttribute('aria-hidden', 'true');
+    Object.assign(p.style, { top: (s.box.top + scrollY) + 'px', left: (s.box.left + scrollX) + 'px', width: s.box.width + 'px' });
+    document.body.appendChild(p);
+    return (s.peeks[dir] = p);
+  }
+  function draw() {
+    const dir = s.dx < 0 ? 'next' : 'prev', other = dir === 'next' ? 'prev' : 'next';
+    if (s.peeks[other]) s.peeks[other].style.opacity = '0';
+    if (!s.can[dir]) {                                   // the first or last one: it only stretches a little
+      const r = Math.sign(s.dx) * Math.min(64, Math.abs(s.dx) * 0.22);
+      s.els.forEach(el => { el.style.transform = `translateX(${r}px)`; el.style.opacity = ''; });
+      return;
+    }
+    const p = Math.min(1, Math.abs(s.dx) / (s.W * 0.75));
+    s.els.forEach(el => { el.style.transform = `translateX(${s.dx}px) scale(${1 - 0.04 * p})`; el.style.opacity = String(1 - p * 0.45); });
+    const pk = peekEl(dir); if (!pk) return;
+    pk.style.transition = 'none';
+    pk.style.transform = `translateX(${sign(dir) * (s.W + 18) + s.dx}px) scale(${0.94 + 0.06 * p})`;   // rides in beside the card, never on top of it
+    pk.style.opacity = String(0.35 + 0.6 * p);
+  }
+  function tidy(els) { els.forEach(el => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; el.style.willChange = ''; }); }
+  function back() {
+    const q = s; if (!q || !q.els) return; s = null;
+    const T = cardsCalm() ? 0 : 240;
+    q.els.forEach(el => { el.style.transition = `transform ${T}ms cubic-bezier(.2,.9,.3,1.2), opacity ${T}ms`; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; });
+    Object.entries(q.peeks).forEach(([d, pk]) => { if (!pk) return; pk.style.transition = `transform ${T}ms ease, opacity ${T}ms`; pk.style.transform = `translateX(${sign(d) * (q.W + 18)}px) scale(.94)`; pk.style.opacity = '0'; });
+    setTimeout(() => { tidy(q.els); Object.values(q.peeks).forEach(pk => pk && pk.remove()); }, T + 30);
+    if (!q.can[q.dx < 0 ? 'next' : 'prev'] && Math.abs(q.dx) > 30 && typeof Native !== 'undefined' && Native.tap) Native.tap();
+  }
+  function commit(dir) {
+    const q = s; s = null; Cards.busy = true;
+    if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+    const T = cardsCalm() ? 0 : 200, pk = q.peeks[dir];
+    q.els.forEach(el => { el.style.transition = `transform ${T}ms ease-out, opacity ${T}ms`; el.style.transform = `translateX(${-sign(dir) * (q.W + 18)}px) scale(.96)`; el.style.opacity = '0'; });
+    if (pk) { pk.style.transition = `transform ${T}ms ease-out, opacity ${T}ms`; pk.style.transform = 'none'; pk.style.opacity = '1'; }
+    Object.entries(q.peeks).forEach(([d, x]) => { if (x && d !== dir) x.remove(); });
+    setTimeout(() => {
+      tidy(q.els);
+      cfg.go(dir);
+      const fresh = cfg.els().filter(Boolean);
+      if (pk && !cardsCalm()) {
+        // the real card takes over from the preview, which fades away
+        fresh.forEach(el => el.animate && el.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' }));
+        pk.style.transition = 'opacity 160ms'; pk.style.opacity = '0';
+        setTimeout(() => pk.remove(), 180);
+      } else if (pk) pk.remove();
+      Cards.busy = false;
+    }, T + 10);
+  }
+  return cfg;
 }
-// the card slides in from the side you are going to (also for ‹ › and the arrow keys)
-const SlideLast = {};
-function readerSlide(key, idx, el) {
-  const last = SlideLast[key]; SlideLast[key] = idx;
-  if (!el || last === undefined || Math.abs(idx - last) !== 1 || mq('(prefers-reduced-motion: reduce)')) return;
-  el.classList.add(idx > last ? 'slide-next' : 'slide-prev');
+// ‹ › and the arrow keys: the card slips out and the next one comes in from the side, faint, then bright
+function cardStep(cfg, dir) {
+  if (Cards.busy) return;
+  const els = cfg.els().filter(Boolean);
+  if (!cfg.can(dir)) { els.forEach(el => el.animate && el.animate([{ transform: 'none' }, { transform: `translateX(${dir === 'next' ? -10 : 10}px)` }, { transform: `translateX(${dir === 'next' ? 6 : -6}px)` }, { transform: 'none' }], { duration: 300 })); return; }
+  if (cardsCalm() || !els.length || !els[0].animate) return cfg.go(dir);
+  Cards.busy = true;
+  const k = dir === 'next' ? 1 : -1;
+  const outs = els.map(el => el.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-k * 44}px)`, opacity: 0 }], { duration: 130, easing: 'ease-in', fill: 'forwards' }));
+  outs[0].onfinish = () => {
+    outs.forEach(a => a.cancel());
+    cfg.go(dir);
+    cfg.els().filter(Boolean).forEach(el => el.animate([{ transform: `translateX(${k * 56}px) scale(.96)`, opacity: 0.3 }, { transform: 'none', opacity: 1 }], { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' }));
+    Cards.busy = false;
+  };
 }
-function readerStep(box, dir) {
-  const b = box.querySelectorAll('.reader-nav .btn')[dir === 'next' ? 1 : 0];
-  if (b && !b.disabled) { if (typeof Native !== 'undefined' && Native.tap) Native.tap(); b.click(); }
-  else { const c = box.querySelector('.note'); if (c) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }   // the first or last one: a small nudge
-}
-onSwipe($('notes'), dir => readerStep($('notesReader'), dir), () => !$('notesReader').hidden);
+// a small preview card for what comes next
+const peekOpts = list => `<ol class="peek-opts">${list.map((o, k) => `<li><b>${'ABCDEFGH'[k]}</b>${rich(o)}</li>`).join('')}</ol>`;
+
+/* notes reader */
+const noteNb = dir => { const b = $('notesReader').querySelectorAll('.reader-nav .btn')[dir === 'next' ? 1 : 0]; return b && !b.disabled && b.dataset.note ? b.dataset.note : ''; };
+const NoteCards = liveCards({
+  host: $('notes'), on: () => !$('notesReader').hidden,
+  els: () => [$('notesReader').querySelector('.reader-note'), $('notesReader').querySelector('.reader-foot')],
+  can: dir => !!noteNb(dir),
+  peek: dir => { const id = noteNb(dir), n = (NotesUI.list || []).find(x => x.id === id); return n ? `<div class="reader-note">${noteHTML(n)}</div>` : ''; },
+  go: dir => { const id = noteNb(dir); if (id) openNote(id); },
+});
 $('notes').addEventListener('click', e => {
   const t = e.target.closest('[data-note]');
+  if (t && t.dataset.note && t.closest('#notesReader')) { const nx = noteNb('next') === t.dataset.note ? 'next' : noteNb('prev') === t.dataset.note ? 'prev' : ''; if (nx) return cardStep(NoteCards, nx); }
   if (t && t.dataset.note) return openNote(t.dataset.note);
   if (e.target.closest('[data-nback]')) return notesBack();
   if (e.target.closest('[data-readall]')) { featUse('readall'); NotesUI.listY = scrollY; NotesUI.all = true; NotesUI.open = null; renderNotes(); readerFocus($('notesList')); return; }
@@ -1160,8 +1260,7 @@ $('notesSearch').addEventListener('input', () => { NotesUI.q = $('notesSearch').
 $('notesFilter').addEventListener('change', () => { NotesUI.open = null; renderNotes(); });
 document.addEventListener('keydown', e => {
   if ($('notes').hidden || $('notesReader').hidden || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-  const b = e.key === 'ArrowLeft' ? $('notesReader').querySelector('.reader-nav [data-note]') : e.key === 'ArrowRight' ? $('notesReader').querySelectorAll('.reader-nav [data-note]')[1] : null;
-  if (b && b.dataset.note) openNote(b.dataset.note);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); cardStep(NoteCards, e.key === 'ArrowRight' ? 'next' : 'prev'); }
 });
 
 /* ---------- preps screen ---------- */

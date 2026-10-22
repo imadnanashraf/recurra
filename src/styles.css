@@ -2633,3 +2633,14 @@ body:has(#speakBar:not([hidden])) .toast { margin-bottom: 64px; }
 }
 .rough-paper.holding { cursor: grabbing; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 #notesReader:not([hidden]), #bankReader:not([hidden]) { min-height: calc(100vh - var(--stick-top, 57px) - 8px); }   /* a short note still lands at the top */
+
+/* ---------- living cards: the next one peeking in while you swipe ---------- */
+.card-peek { position: absolute; z-index: 3; pointer-events: none; opacity: 0; transform-origin: 50% 30%; will-change: transform, opacity; }
+.card-peek .reader-note { margin-top: 0; }
+.card-peek > .crumb { color: var(--muted); font-size: .86rem; margin-bottom: 10px; }
+.card-peek > .qtext { margin: 0 0 14px; }
+.peek-opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.peek-opts li { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 12px; align-items: center; background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-height: 56px; font-size: 1.05rem; }
+.peek-opts b { font-family: var(--f-mono); width: 2.2rem; height: 2.2rem; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.peek-end { display: grid; justify-items: center; gap: 10px; padding: 60px 16px; border-radius: var(--r); background: var(--surface); border: 1.5px solid var(--line); text-align: center; font-size: 1.1rem; }
+.peek-end .ic { width: 40px; height: 40px; color: var(--accent); }

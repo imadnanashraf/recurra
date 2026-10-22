@@ -83,7 +83,6 @@ function renderBank() {
   }
   U.list = hits ? hits.map(h => h.e) : list;            // what the reader steps through with ‹ ›
   if (reader) return renderBankReader(book);
-  delete SlideLast.bq;
   const none = U.sort === 'weak' && !U.newOnly && U.date === 'all'
     ? `<div class="empty-state small">${ART.empty}<strong>Nothing weak right now</strong><p>Questions you get wrong will gather here, worst first.</p></div>`
     : `<div class="empty-state small">${ART.empty}<strong>No questions here</strong><p>Nothing matches these filters. Try All dates, or turn off New only or Flagged.</p></div>`;
@@ -130,9 +129,18 @@ function renderBankReader(book) {
       <div class="btns"><button class="btn" type="button" data-bqpractice="${esc(q.code)}|one">Practise this topic</button><button class="btn qflag" type="button" data-bqflag="${esc(q.id)}" aria-pressed="${Progress.flagged(q.id)}">${FLAG_IC}<span>${Progress.flagged(q.id) ? 'Flagged' : 'Flag'}</span></button>${typeof speakBtnHTML === 'function' ? speakBtnHTML('bank', true) : ''}</div>
     </article>
     <div class="reader-foot">${prev ? `<button type="button" class="reader-link" data-bq="${esc(prev.q.id)}"><small>Previous</small><span class="rl-t">${esc(prev.num)} ${esc(prev.q.question)}</span></button>` : '<span></span>'}${next ? `<button type="button" class="reader-link next" data-bq="${esc(next.q.id)}"><small>Next</small><span class="rl-t">${esc(next.num)} ${esc(next.q.question)}</span></button>` : ''}</div>`;
-  readerSlide('bq', i, $('bankReader').querySelector('.bq-card'));
 }
-onSwipe($('bank'), dir => readerStep($('bankReader'), dir), () => !$('bankReader').hidden);
+const bqNb = dir => { const b = $('bankReader').querySelectorAll('.reader-nav .btn')[dir === 'next' ? 1 : 0]; return b && !b.disabled && b.dataset.bq ? b.dataset.bq : ''; };
+const BankCards = liveCards({
+  host: $('bank'), on: () => !$('bankReader').hidden,
+  els: () => [$('bankReader').querySelector('.bq-card'), $('bankReader').querySelector('.reader-foot')],
+  can: dir => !!bqNb(dir),
+  peek: dir => {
+    const e = (BankUI.list || []).find(x => x.q.id === bqNb(dir)); if (!e) return '';
+    return `<article class="note bq-card"><div class="note-meta"><span class="note-num">${esc(e.num)}</span><span>${esc(subjName(e.q.code))} · ${esc(e.topic)}</span></div><h3>${rich(e.q.question)}</h3><ol class="bq-opts">${e.q.options.map(o => `<li class="${o === e.q.answer ? 'right' : ''}"><span>${rich(o)}</span>${o === e.q.answer ? '<b>Answer</b>' : ''}</li>`).join('')}</ol></article>`;
+  },
+  go: dir => { const id = bqNb(dir); if (id) openBankQ(id); },
+});
 function openBankQ(id) {
   if (!BankUI.open) BankUI.listY = scrollY;
   BankUI.open = id; renderBank(); readerFocus($('bankReader'));
@@ -164,6 +172,7 @@ function bankPractice(arg) {
 }
 $('bank').addEventListener('click', e => {
   const t = e.target.closest('[data-bq]');
+  if (t && t.dataset.bq && t.closest('#bankReader')) { const nx = bqNb('next') === t.dataset.bq ? 'next' : bqNb('prev') === t.dataset.bq ? 'prev' : ''; if (nx) return cardStep(BankCards, nx); }
   if (t && t.dataset.bq) return openBankQ(t.dataset.bq);
   if (e.target.closest('[data-bqback]')) return bankBack();
   const p = e.target.closest('[data-bqpractice]'); if (p) return bankPractice(p.dataset.bqpractice);
@@ -177,6 +186,5 @@ $('bankSearch').addEventListener('input', () => { BankUI.q = $('bankSearch').val
 $('bankFilter').addEventListener('change', () => { BankUI.open = null; renderBank(); });
 document.addEventListener('keydown', e => {
   if ($('bank').hidden || $('bankReader').hidden || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-  const b = e.key === 'ArrowLeft' ? $('bankReader').querySelector('.reader-nav [data-bq]') : e.key === 'ArrowRight' ? $('bankReader').querySelectorAll('.reader-nav [data-bq]')[1] : null;
-  if (b && b.dataset.bq) openBankQ(b.dataset.bq);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); cardStep(BankCards, e.key === 'ArrowRight' ? 'next' : 'prev'); }
 });
