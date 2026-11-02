@@ -2644,3 +2644,28 @@ body:has(#speakBar:not([hidden])) .toast { margin-bottom: 64px; }
 .peek-opts b { font-family: var(--f-mono); width: 2.2rem; height: 2.2rem; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
 .peek-end { display: grid; justify-items: center; gap: 10px; padding: 60px 16px; border-radius: var(--r); background: var(--surface); border: 1.5px solid var(--line); text-align: center; font-size: 1.1rem; }
 .peek-end .ic { width: 40px; height: 40px; color: var(--accent); }
+
+/* quick check for strong questions */
+.quick { display: grid; gap: 12px; justify-items: start; padding: 16px; border-radius: var(--r); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border: 1.5px dashed color-mix(in srgb, var(--accent) 35%, var(--line)); animation: fadeIn .25s both; }
+.quick[hidden] { display: none; }
+.quick-tip { margin: 0; color: var(--muted); font-size: .92rem; }
+.quick-ans { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); width: 100%; box-sizing: border-box; animation: fadeIn .2s both; }
+.quick-ans[hidden] { display: none; }
+.quick-ans strong { font-size: 1.15rem; color: var(--good, var(--accent)); }
+.quick-ans small { color: var(--muted); }
+.quick-btns { width: 100%; }
+.quick-btns .btn { flex: 1 1 0; min-height: 48px; }
+.quick-opts { font-size: .85rem; }
+.load-card { display: grid; gap: 10px; }
+.load-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.load-head h3 { margin: 0 0 2px; }
+.load-head p { margin: 0; }
+.load-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: var(--line); }
+.load-dot.good { background: var(--good, #1a9e6a); } .load-dot.high { background: var(--accent); } .load-dot.mid { background: var(--sun, #f5a300); } .load-dot.low { background: var(--danger); }
+.load-l { margin: 4px 0 0; }
+.load-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 120px; }
+.load-d { display: grid; grid-template-rows: 1fr auto auto; justify-items: center; height: 100%; gap: 2px; font-size: .74rem; }
+.load-d i { align-self: end; width: 70%; max-width: 34px; height: var(--h); border-radius: 8px 8px 4px 4px; background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.load-d.over i { background: var(--accent); }
+.load-d b { font-family: var(--f-num); font-size: .78rem; }
+.load-d small { color: var(--muted); }

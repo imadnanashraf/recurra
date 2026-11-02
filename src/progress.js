@@ -73,7 +73,11 @@ const Progress = {
 
   // practice = outside Today's review (topics, Question bank, Extra practice): early right answers don't move a question on
   record(q, result, retry, conf, practice) {
-    this.map[q.id] = (practice ? applyPractice : applyResult)(this.map[q.id], result, q.code, Date.now(), examMsFrom(App.prep && App.prep.examDate), retry, conf);
+    const prev = this.map[q.id], now = Date.now();
+    // the self-check: was a review that was due remembered? (not new ones, not repeats, not early practice)
+    if (!retry && prev && prev.t && prev.lv >= 1 && (prev.due || 0) < addDays(now, 1)) this.remember(result === 'correct' && conf !== 'guess');
+    const opts = { factor: this.meta.gf || 1, load: d => this.dueOn(d, q.id) };
+    this.map[q.id] = (practice ? applyPractice : applyResult)(prev, result, q.code, now, examMsFrom(App.prep && App.prep.examDate), retry, conf, opts);
     if (!retry) {
       const d = this.today(), mine = d.by[DEVICE] || (d.by[DEVICE] = { n: 0, c: 0 });
       mine.n++; if (result === 'correct') mine.c++;
@@ -117,6 +121,21 @@ const Progress = {
     (this.meta.fl = this.meta.fl || {})[id] = { on: !!on, t: Date.now() };
     this.later('_days');
   },
+  // questions due on a day (to spread new reviews onto the lightest days)
+  dueOn(day, except) {
+    let n = 0; const end = addDays(day, 1);
+    for (const [id, st] of Object.entries(this.map)) if (id !== except && st.due >= day && st.due < end) n++;
+    return n;
+  },
+  // the last 120 due reviews ("1" remembered, "0" not) and the gap multiplier they set (once a day)
+  remember(ok) {
+    this.meta.rv = (String(this.meta.rv || '') + (ok ? '1' : '0')).slice(-120);
+    const k = dayKey(Date.now());
+    if (this.meta.gfDay !== k) { this.meta.gf = gapFactor(this.meta.gf || 1, this.meta.rv); this.meta.gfDay = k; }
+    this.meta.gft = Date.now();
+    this.dirty.add('_days');
+  },
+  retention() { const r = String(this.meta.rv || ''); return r.length >= 20 ? Math.round(100 * r.split('').filter(c => c === '1').length / r.length) : null; },
   pace(seconds) {
     const s = Math.min(180, Math.max(5, seconds));
     this.meta.spq = this.meta.spq ? Math.round(this.meta.spq * 0.85 + s * 0.15) : Math.round(s);
@@ -143,7 +162,7 @@ const Progress = {
     const remote = {};
     for (const { id, data } of docs) {
       if ((data.r || 0) < this.resetAt) continue;              // from before a reset: ignore
-      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; remoteNs = data.ns || {}; remoteFl = data.fl || {}; }
+      if (id === '_days') { remoteDays = data.d || {}; remoteNext = data.next || null; remoteSpq = data.spq || 0; remoteNs = data.ns || {}; remoteFl = data.fl || {}; if ((data.gft || 0) > (this.meta.gft || 0)) { this.meta.rv = data.rv || ''; this.meta.gf = data.gf || 1; this.meta.gfDay = data.gfDay || ''; this.meta.gft = data.gft; changed = true; } }
       else Object.assign(remote, data.q || {});
     }
     for (const [id, st] of Object.entries(remote)) {
@@ -182,7 +201,7 @@ const Progress = {
       if (!code) continue;
       this.chains[code] = (this.chains[code] || Promise.resolve()).then(() => {
         if (this.resetAt !== r || this.discarded === cloud) return;   // reset or prep deleted meanwhile: don't upload old data
-        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, ns: this.meta.ns || {}, fl: this.meta.fl || {}, r, updated: Date.now() });
+        if (code === '_days') return cloud.save('_days', { d: this.days, spq: this.meta.spq || 0, next: this.meta.next || null, ns: this.meta.ns || {}, fl: this.meta.fl || {}, rv: this.meta.rv || '', gf: this.meta.gf || 1, gfDay: this.meta.gfDay || '', gft: this.meta.gft || 0, r, updated: Date.now() });
         const q = {};
         for (const [id, st] of Object.entries(this.map)) if (st.k === code) q[id] = st;
         return cloud.save(code, { q, r, updated: Date.now() });

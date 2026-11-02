@@ -77,8 +77,9 @@ async function copyText(text, okMsg) {
   catch (e) { toast('Could not copy automatically. Select the text and copy it.'); }
 }
 const examMs = () => examMsFrom(App.prep && App.prep.examDate);
-const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code),
-  null, { minutes: Number(prefs().dailyMin) || 0, secsPerQ: Progress.meta.spq || 0 });
+const dailyMinutes = () => clampMinutes(prefs().dailyMin);         // 75 unless you change it, never over 90
+const planOpts = () => ({ minutes: dailyMinutes(), secsPerQ: Progress.meta.spq || 0 });
+const plan = () => todayPlan(App.questions, getState, Date.now(), examMs(), App.subjects.map(s => s.code), null, planOpts());
 
 /* ---------- prep loading ---------- */
 function rebuild() {
@@ -283,8 +284,6 @@ function renderHome() {
 
   if (!App.loaded) { $('todayCard').innerHTML = `<div class="skeleton" aria-label="Loading"><i class="big"></i><i></i><i style="width:70%"></i><i class="btnph"></i></div>`; return; }
   const p = syncDay(), d = Progress.today(), n = d.done ? 0 : p.due.length + p.fresh.length, pct = dayPct(d);
-  // questions you added today and haven't tried yet (after finishing, they wait for tomorrow unless you want them now)
-  const addedNew = d.done ? App.questions.filter(q => q.added === todayKey() && !(getState(q.id) || {}).t) : [];
   let card;
   if (!App.questions.length) {
     card = `<div class="today"><div class="empty-state">${ART.empty}<strong>No questions yet</strong>
@@ -296,7 +295,7 @@ function renderHome() {
       <button class="go soft" type="button" id="resumeBtn">Resume now</button></div>`;
   } else if (n) {
     card = `<div class="today"><div class="top"><span class="big">${n}</span>
-      <div class="what"><strong>${d.n ? 'Left today' : 'Today’s review'}</strong><span>${timeText(n)}</span></div></div>
+      <div class="what"><strong>${d.n ? 'Left today' : 'Today’s review'}</strong><span>${timeText(n, p.estMinutes)}</span></div></div>
       <div class="split"><span>${p.due.length} to revise</span><span>${p.fresh.length} new</span>${d.n ? `<span>${d.n} done today · ${pct}% right</span>` : ''}</div>
       ${planNote(p)}
       <div class="row2"><button class="go" type="button" id="goBtn">${icon('play')}${d.n ? 'Continue' : 'Start'}</button>
@@ -305,15 +304,15 @@ function renderHome() {
     const nx = Progress.meta.next;
     card = `<div class="today done"><div class="top">${ART.done}<span class="big">${pct === null ? '' : pct + '%'}</span>
       <div class="what"><strong>Done for today</strong><span>${plural(d.n || 0, 'question')} answered${pct === null ? '' : `, ${pct}% right first time`}.${nx && nx.count ? ` Tomorrow: about ${plural(nx.count, 'question')}, ${nx.mins} min.` : ''}</span></div></div>
-      ${addedNew.length ? `<p class="plan-note">${plural(addedNew.length, 'new question')} added today. They start tomorrow, or practise them now (optional).</p>` : ''}
-      <div class="row2">${addedNew.length ? `<button class="go" type="button" id="addedBtn">${icon('play')}Practise new (${Math.min(20, addedNew.length)})</button>` : ''}<button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div></div>`;
+      ${p.unseenLeft ? `<p class="plan-note">Have time? Learn more new questions (optional). They come back in a day or two to confirm, and tomorrow makes room for them.</p>` : ''}
+      <div class="row2">${p.unseenLeft ? `<button class="go" type="button" id="learnBtn">${icon('plus')}Learn new (${Math.min(10, p.unseenLeft)} of ${p.unseenLeft} left)</button>` : ''}<button class="go soft" type="button" id="extraBtn">Extra practice (10)</button></div></div>`;
   }
   $('todayCard').innerHTML = card;
   countUp($('todayCard').querySelector('.big'));
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-  on('goBtn', () => startSession('Today’s review', [...p.due, ...p.fresh], true));
+  on('goBtn', () => startSession('Today’s review', p.queue));                  // a few new first, then mixed in
+  on('learnBtn', () => learnNew());
   on('extraBtn', startExtra);
-  on('addedBtn', () => practiseAdded(addedNew.map(q => q.id), 'Added today'));
   on('addBtn', () => openImport('active', 'mcq'));
   on('pauseBtn', () => { Progress.setToday({ paused: true }); renderHome(); Reminders.refreshSoon(0); toast('Paused for today. It starts again tomorrow.'); Activity.log('day_paused', { paused: true, prep: App.prep.name }); });
   on('resumeBtn', () => { Progress.setToday({ paused: false }); renderHome(); Reminders.refreshSoon(0); Activity.log('day_paused', { paused: false, prep: App.prep.name }); });
@@ -347,18 +346,20 @@ function countUp(el) {
 
 const DEFAULT_SPQ = 40;
 const minutesFor = n => Math.max(1, Math.ceil(n * (Progress.meta.spq || DEFAULT_SPQ) / 60));
-function timeText(n) {
-  const m = minutesFor(n), h = Math.floor(m / 60), mm = m % 60;
+function timeText(n, est) {
+  const m = est || minutesFor(n), h = Math.floor(m / 60), mm = m % 60;
   const dur = h ? `${h} h ${mm} min` : `${m} min`;
   return `About ${dur}${Progress.meta.spq ? '' : ' (first estimate)'}. You can stop any time and continue later.`;
 }
 function syncDay() {
   const p = plan(), d = Progress.today(), n = d.done ? 0 : p.due.length + p.fresh.length;   // a finished day stays finished
-  const fields = { left: n, mins: n ? minutesFor(n) : 0 };
+  const fields = { left: n, mins: n ? p.estMinutes || minutesFor(n) : 0 };
   if (!n && d.n) fields.done = true;
   Progress.setToday(fields);
-  const count = Math.min(SCHEDULE.dueCapPerDay + p.newPerDay, n + p.dueTomorrow + p.newPerDay);
-  Progress.setNext({ day: dayKey(addDays(Date.now(), 1)), count, mins: count ? minutesFor(count) : 0 });
+  // tomorrow: what is due then (plus what is left today) and some new ones, never more than your daily time
+  const f = forecastDays(App.questions, getState, Date.now(), planOpts(), 1)[0], newT = p.finalWeek ? 0 : Math.min(p.unseenLeft, p.newPerDay);
+  const count = f.n + n + newT, mins = Math.min(dailyMinutes(), Math.ceil((f.secs + n * (Progress.meta.spq || DEFAULT_SPQ) + newT * (Progress.meta.spq || DEFAULT_SPQ) * 1.25) / 60));
+  Progress.setNext({ day: dayKey(addDays(Date.now(), 1)), count, mins: count ? Math.max(1, mins) : 0 });
   return p;
 }
 // Extra practice (after today's review): about 5 weak ones (not the ones you just did), 3 new, 2 coming up soon
@@ -371,12 +372,21 @@ function practiseAdded(ids, title) {
 }
 // why today looks the way it does (only when something changed the usual plan)
 function planNote(p) {
-  const mins = Number(prefs().dailyMin) || 0;
-  const t = p.finalWeek ? `Final week: revision only. For new questions use Practice → New questions.`
-    : p.catchingUp === 'stop' ? `Catching up: no new questions until your ${p.dueAll} revisions are done.`
-    : p.catchingUp === 'slow' ? `Catching up on revision: fewer new questions today.`
-    : p.fitted ? `Sized to your ${mins} minutes a day${p.dueAll > p.due.length ? `; ${p.dueAll - p.due.length} more revisions wait for tomorrow` : ''}.` : '';
-  return t ? `<p class="plan-note">${esc(t)}</p>` : '';
+  const mins = p.minutes, notes = [];
+  if (p.finalWeek) notes.push(`Final week: revision only. For new questions use Practice → New questions.`);
+  else if (p.deferred) notes.push(`Sized to your ${mins} minutes: the questions most at risk come first; ${plural(p.deferred, 'safer revision')} move${p.deferred === 1 ? 's' : ''} to the next days.`);
+  else if (p.fitted && p.fresh.length < p.newPerDay) notes.push(`Sized to your ${mins} minutes: ${plural(p.fresh.length, 'new question')} today.`);
+  if (p.behind && !p.finalWeek) notes.push(`At ${mins} minutes a day, about ${plural(p.behind, 'question')} won’t be seen before the exam. Use Learn new after your review, raise Daily time in Settings, or add fewer.`);
+  return notes.map(t => `<p class="plan-note">${esc(t)}</p>`).join('');
+}
+// "Learn new" after the day's review: 10 at a time, in the same order Today's review would pick them
+function learnNew() {
+  const unseen = App.questions.filter(q => { const s = getState(q.id); return !s || !s.t; });
+  if (!unseen.length) return toast('No new questions left. Add more, or try Extra practice.');
+  const rank = c => { const i = App.subjects.findIndex(s => s.code === c); return i < 0 ? 99 : i; };
+  unseen.sort((x, y) => (y.added || '').localeCompare(x.added || '') || rank(x.code) - rank(y.code) || x.order - y.order);
+  featUse('learnnew');
+  startSession('New questions', mixNewOld(unseen, 10));
 }
 function startExtra() {
   const now = Date.now(), recent = s => s && s.t && now - s.t < 3600e3;
@@ -509,6 +519,9 @@ function renderQuestion() {
   it.result = null; it.picked = null;
   it.shown = Date.now();
   it.phase = pf.recall ? 'recall' : 'options';
+  // a strong question in Today's review: a quick "Knew it / Didn't" instead of reading every option
+  it.quick = !!(z.today && !it.retry && s && s.t && s.lv >= SCHEDULE.quickLevel);
+  if (it.quick) it.phase = 'quick';
   const left = z.queue.length - z.i;
   $('qCount').textContent = `${z.title} · ${left === 1 ? 'last one' : left + ' left'}`;
   $('qBar').style.width = (100 * z.i / z.queue.length) + '%';
@@ -526,11 +539,14 @@ function renderQuestion() {
   $('qOpts').innerHTML = it.opts.map((o, k) => `
     <button class="opt" type="button" data-k="${k}" style="--i:${k}"><span class="key">${'ABCDEFGH'[k]}</span><span>${rich(o)}</span></button>`).join('');
   $('qRecall').hidden = it.phase !== 'recall';
-  $('qOpts').hidden = it.phase === 'recall';
+  $('qOpts').hidden = it.phase === 'recall' || it.phase === 'quick';
+  $('qQuick').hidden = it.phase !== 'quick';
+  $('quickShow').hidden = false; $('quickAns').hidden = true; $('quickBtns').hidden = true; $('quickOpts').hidden = false;
   $('qConf').hidden = true; $('qCheck').hidden = true;
   $('qFeedback').innerHTML = '';
-  $('skipBtn').hidden = false; $('nextBtn').hidden = true;
+  $('skipBtn').hidden = it.phase === 'quick'; $('nextBtn').hidden = true;
   setKeyHint();
+  if (it.phase === 'quick') $('quickShow').focus({ preventScroll: true });
   if (it.phase === 'recall') $('showOpts').focus({ preventScroll: true });
 }
 // the small buttons beside the question: flag 🚩 and read aloud 🔊
@@ -602,7 +618,7 @@ function setKeyHint() {
   const it = App.session.queue[App.session.i];
   const chosen = prefs().confidence ? 'Enter: sure · N: not sure · G: guessed · 1–4: change' : 'Enter: check · 1–4: change';
   if (typeof Calc !== 'undefined' && Calc.open && !Calc.min && Calc.tab === 'calc' && !it.result) { $('keyHint').textContent = 'Typing goes to the calculator · Esc closes it'; return; }
-  $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: choose · S: don\'t know', chosen, done: 'Enter: next' }[it.result ? 'done' : it.phase] || '';
+  $('keyHint').textContent = { recall: 'Space: show options · S: don\'t know', options: 'Keys 1–4: choose · S: don\'t know', chosen, done: 'Enter: next', quick: 'Space: show answer', quickShown: 'K: knew it · D: didn’t' }[it.result ? 'done' : it.phase] || '';
 }
 function showOptions() {
   const it = App.session.queue[App.session.i];
@@ -659,7 +675,7 @@ function finish(k, conf) {
     z.queue.splice(at, 0, { q, retry: true });
     again = true;
   }
-  $('qConf').hidden = true; $('qCheck').hidden = true; $('qOpts').hidden = false; $('qRecall').hidden = true;
+  $('qConf').hidden = true; $('qCheck').hidden = true; $('qOpts').hidden = false; $('qRecall').hidden = true; $('qQuick').hidden = true;
   [...$('qOpts').children].forEach((b, idx) => {
     b.disabled = true; b.classList.remove('picked'); b.removeAttribute('aria-pressed');
     const o = it.opts[idx];
@@ -701,6 +717,22 @@ function next() {
   z.i++; renderQuestion(); window.scrollTo(0, 0);
 }
 $('showOpts').addEventListener('click', showOptions);
+// quick check
+function quickShow() {
+  const it = App.session.queue[App.session.i]; if (it.phase !== 'quick') return;
+  it.phase = 'quickShown';
+  $('quickAns').innerHTML = `<span class="label">Answer</span><strong>${rich(it.q.answer)}</strong>${it.q.hint ? `<small>${rich(it.q.hint)}</small>` : ''}`;
+  $('quickShow').hidden = true; $('quickAns').hidden = false; $('quickBtns').hidden = false; $('quickOpts').hidden = true;
+  setKeyHint(); Native.tap();
+}
+function quickAnswer(knew) {
+  const it = App.session.queue[App.session.i]; if (it.phase !== 'quickShown' || it.result) return;
+  featUse('quick');
+  finish(knew ? it.opts.indexOf(it.q.answer) : null, knew ? 'sure' : '');
+}
+$('quickShow').addEventListener('click', quickShow);
+$('quickBtns').addEventListener('click', e => { const b = e.target.closest('[data-quick]'); if (b) quickAnswer(b.dataset.quick === 'knew'); });
+$('quickOpts').addEventListener('click', () => { const it = App.session.queue[App.session.i]; it.phase = 'options'; $('qQuick').hidden = true; $('qOpts').hidden = false; $('skipBtn').hidden = false; setKeyHint(); });
 $('qOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (Date.now() - Strike.done < 700) return; if (b && !b.disabled) pick(Number(b.dataset.k)); });   // not the tap that ended a long-press
 $('qConf').addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) confirmPick(b.dataset.conf); });
 $('qCheck').addEventListener('click', () => confirmPick(''));
@@ -739,6 +771,8 @@ document.addEventListener('keydown', e => {
   const it = App.session.queue[App.session.i];
   if (it.result) { if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); if (!Cards.busy) quizNext(); } return; }
   if (it.phase === 'recall' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); return showOptions(); }
+  if (it.phase === 'quick') { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); quickShow(); } return; }
+  if (it.phase === 'quickShown') { const k = e.key.toLowerCase(); if (k === 'k' || k === '1' || k === 'enter') { e.preventDefault(); quickAnswer(true); } else if (k === 'd' || k === '2') { e.preventDefault(); quickAnswer(false); } return; }
   if (it.phase === 'chosen') {
     const conf = prefs().confidence;
     if (e.key === 'Enter') { e.preventDefault(); return confirmPick(conf ? 'sure' : ''); }
@@ -827,6 +861,22 @@ function renderResult() {
   show('result');
 }
 
+// how well you remember (the self-check) and the next 7 days of revision time
+function renderLoad() {
+  const box = $('pLoad'); if (!box) return;
+  const r = Progress.retention(), gf = Progress.meta.gf || 1, mins = dailyMinutes();
+  const state = r === null ? ['', 'Answer reviews for a few days and this shows how well you remember.']
+    : r < 75 ? ['low', 'Low: reviews come back sooner until this improves.']
+    : r < SCHEDULE.retentionLow * 100 ? ['mid', 'A little low: gaps are being shortened a bit.']
+    : r > SCHEDULE.retentionHigh * 100 ? ['high', 'Very high: gaps are being stretched to save you time.']
+    : ['good', 'On track.'];
+  const f = forecastDays(App.questions, getState, Date.now(), planOpts(), 7);
+  box.innerHTML = `<div class="load-head"><div><h3>Remembering ${r === null ? '–' : r + '%'}</h3><p class="muted small">Of your due reviews lately. ${esc(state[1])}${gf !== 1 ? ` Gaps now ${gf > 1 ? 'longer' : 'shorter'} by ${Math.round(Math.abs(gf - 1) * 100)}%.` : ''}</p></div><span class="load-dot ${state[0]}" aria-hidden="true"></span></div>
+    <p class="label load-l">Next 7 days</p>
+    <div class="load-bars" role="list">${f.map(d => `<div class="load-d${d.over ? ' over' : ''}" role="listitem" title="${d.n} revisions"><i style="--h:${Math.max(4, Math.round(100 * d.mins / mins))}%"></i><b>${d.mins ? d.mins + 'm' : '–'}</b><small>${new Date(d.day).toLocaleDateString(undefined, { weekday: 'short' })}</small></div>`).join('')}</div>
+    <p class="muted small">Revision already planned (new questions fill the rest). Each day stays within your ${mins} minutes${f.some(d => d.over) ? '; on the busier days the safest revisions move on a day' : ''}.</p>`;
+}
+
 /* ---------- progress table ---------- */
 function renderProgress() {
   const all = summary(App.questions), p = plan();
@@ -836,6 +886,7 @@ function renderProgress() {
     <div class="stat"><b>${all.acc === null ? '–' : all.acc + '%'}</b><small>Accuracy</small></div>
     <div class="stat"><b>${p.dueTomorrow}</b><small>Due tomorrow</small></div>`;
   renderProgressCharts();
+  renderLoad();
   // one card per subject (works as the table view of the memory chart)
   $('pSubjects').innerHTML = App.subjects.map(s => {
     const o = summary(App.questions.filter(q => q.code === s.code)), pct = o.total ? Math.round(100 * o.strong / o.total) : 0;
@@ -1839,7 +1890,7 @@ function renderSettings() {
   if (!$('adminOpen').hidden) renderAdminKey();
   paintAvatars();
   const pf = prefs(), rm = Reminders.settings(), theme = applyTheme();
-  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false; $('optDaily').value = String(pf.dailyMin || 0);
+  $('optRecall').checked = pf.recall; $('optConf').checked = pf.confidence; $('optCalc').checked = pf.calc !== false; $('optTips').checked = pf.tips !== false; $('optDaily').value = String([30, 45, 60, 75, 90].reduce((a, b) => Math.abs(b - dailyMinutes()) < Math.abs(a - dailyMinutes()) ? b : a));
   $('optHaptic').checked = pf.haptics !== false; $('optSound').checked = pf.sounds !== false; $('optFocus').value = pf.focusSound || 'off'; $('optHapticRow').hidden = !NATIVE;
   if (typeof speakSettingsPaint === 'function') speakSettingsPaint();
   $('remOn').checked = !!rm.on;
