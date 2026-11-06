@@ -1502,17 +1502,17 @@ function renderPick() {
       <div class="pick-grid">${App.subjects.map(s => {
         const nq = App.questions.filter(q => q.code === s.code).length, nn = App.notes.filter(n => n.code === s.code).length;
         const done = subjCompleted(s.code);
-        return `<div class="pick-wrap${done ? ' complete' : ''}"><button class="pick" type="button" data-pick="${esc(s.code)}"><b>${esc(s.code)}</b><span>${esc(s.name)}</span><small>${done ? '<em>✓ Completed</em> · ' : ''}${plural(nq, 'question')} · ${plural(nn, 'note')}</small></button>${doneBtn(s.code, done, s.name)}</div>`;
+        return `<button class="pick${done ? ' complete' : ''}" type="button" data-pick="${esc(s.code)}"><b>${esc(s.code)}${done ? '<em class="pick-done">✓ Completed</em>' : ''}</b><span>${esc(s.name)}</span><small>${plural(nq, 'question')} · ${plural(nn, 'note')}</small></button>`;
       }).join('')}</div>
-      <p class="muted small pick-hint">Tap ✓ on a subject to mark it completed. It shows on the Syllabus tab too.</p>
       <button class="linkbtn" type="button" data-pickmanage>+ New subject</button>`;
     return;
   }
   box.classList.add('chosen');
   const topics = sub.topics || [], done = subjCompleted(sub.code), td = doneMap(), nDone = topics.filter(t => td[topicKey(sub.code, t)]).length;
   box.classList.toggle('complete', done);
-  box.innerHTML = `<div class="pick-chosen"><span class="pick-badge">${esc(sub.code)}</span><div><small class="muted">${KIND_LABEL[kind] === 'Revision notes' ? 'Notes' : KIND_LABEL[kind]} for</small><strong>${esc(sub.name)}</strong>${done ? '<small class="done-tag">✓ Completed</small>' : ''}</div>
-      ${doneBtn(sub.code, done, sub.name)}<button class="btn ghost" type="button" data-pickchange>Change</button></div>
+  box.innerHTML = `<div class="pick-chosen"><span class="pick-badge">${esc(sub.code)}</span><div><small class="muted">${KIND_LABEL[kind] === 'Revision notes' ? 'Notes' : KIND_LABEL[kind]} for</small><strong>${esc(sub.name)}</strong></div>
+      <button class="btn ghost" type="button" data-pickchange>Change</button></div>
+    <div class="pick-done-row">${doneBtn(sub.code, done, sub.name)}</div>
     ${topics.length ? `<details class="pick-studied"><summary><span>Studied topics</span><b>${nDone} of ${topics.length}</b>${icon('next')}</summary>
       <div class="pick-tlist">${topics.map((t, i) => { const on = !!td[topicKey(sub.code, t)]; return `<button type="button" class="pick-t${on ? ' on' : ''}" data-ttick="${esc(sub.code)}|${i}" aria-pressed="${on}"><i aria-hidden="true">${on ? '✓' : ''}</i><span>${esc(t)}</span></button>`; }).join('')}</div></details>` : ''}
     ${topics.length ? `<label class="pick-topic">Topic

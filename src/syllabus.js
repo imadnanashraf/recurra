@@ -62,10 +62,14 @@ function completedPaint() {
   if (visible('syllabus')) renderSyllabus();
   if (visible('import') && typeof renderPick === 'function') { const o = document.querySelector('#impPick .pick-studied'); const open = o && o.open; renderPick(); const n = document.querySelector('#impPick .pick-studied'); if (n && open) n.open = true; }
 }
-const doneBtn = (code, on, name) => `<button class="subj-done${on ? ' on' : ''}" type="button" data-sdone="${esc(code)}" aria-pressed="${on}" aria-label="${on ? 'Completed' : 'Mark as completed'}: ${esc(name)}" title="${on ? 'Completed (tap to undo)' : 'Mark subject as completed'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>`;
+// the "Mark completed" button: an outlined action that becomes a green "✓ Completed" badge (tap again to undo)
+const DonePop = { code: '' };
+const doneBtn = (code, on, name) => `<button class="done-pill${on ? ' on' : ''}${DonePop.code === code ? ' pop' : ''}" type="button" data-sdone="${esc(code)}" aria-pressed="${on}" aria-label="${on ? `${esc(name)} is completed. Tap to undo` : `Mark ${esc(name)} as completed`}">${on
+  ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg><span>Completed</span><small>Undo</small>'
+  : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span>Mark subject completed</span>'}</button>`;
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-sdone]');
-  if (b) { e.preventDefault(); e.stopPropagation(); b.classList.add('pop'); return setSubjCompleted(b.dataset.sdone, !subjCompleted(b.dataset.sdone)); }
+  if (b) { e.preventDefault(); e.stopPropagation(); DonePop.code = b.dataset.sdone; setTimeout(() => { DonePop.code = ''; }, 600); return setSubjCompleted(b.dataset.sdone, !subjCompleted(b.dataset.sdone)); }
   const t = e.target.closest('[data-ttick]');
   if (t) { const [code, i] = t.dataset.ttick.split('|'); return toggleTopicDone(code, i); }
 }, true);
@@ -131,7 +135,7 @@ function renderSyllabus() {
           <p class="syl-key"><i class="key k-i"></i>${strong} strong in memory</p>
         </div>
       </div>
-      <p class="syl-tip muted small">Tap the circle next to a topic when you've studied it, or the ✓ on a subject when it is completed.</p>
+      <p class="syl-tip muted small">Tap the circle next to a topic when you've studied it, or Mark subject completed when you have finished a whole subject.</p>
       <div class="syl-btns">${gaps ? `<button class="btn primary" type="button" data-sgaps="">Fill ${plural(gaps, 'empty topic')}</button>` : ''}<button class="btn" type="button" data-mode="import">Add questions or notes</button></div>
       ${nav ? `<nav class="syl-nav" aria-label="Subjects">${nav}</nav>` : ''}
     </div>`
@@ -158,7 +162,6 @@ function sylCard(x) {
   const head = `<header class="syl-head">
       ${n ? sylRing(x.doneN / n, x.strongN / n, 48, `${x.doneN} of ${n} topics studied`) : '<span class="syl-code">' + esc(s.code) + '</span>'}
       <button class="syl-title" type="button" data-sfold="${esc(s.code)}" aria-expanded="${!shut}"><strong>${esc(s.name)}</strong><small>${x.complete ? '<span class="done-tag">✓ Completed</span> · ' : ''}${meta || esc(s.code)}${n ? ` · <b>${x.doneN}/${n}</b> studied` : ''}</small></button>
-      ${doneBtn(s.code, x.complete, s.name)}
       <button class="btn ghost small" type="button" data-sedit="${esc(s.code)}">${n ? 'Edit' : 'Add topics'}</button>
       <button class="fold" type="button" data-sfold="${esc(s.code)}" aria-label="${shut ? 'Open' : 'Fold'} ${esc(s.name)}" aria-expanded="${!shut}">${icon('next')}</button></header>`;
   if (Syl.edit === s.code) {
@@ -178,6 +181,7 @@ function sylCard(x) {
   };
   return `<section class="syl-card${shut ? ' shut' : ''}${x.complete ? ' complete' : ''}" data-code="${esc(s.code)}">${head}
     ${n ? `<div class="syl-bar" role="img" aria-label="${x.doneN} of ${n} studied">${topics.map(t => `<i class="s-${t.state}${t.done ? ' done' : ''}"></i>`).join('')}</div>` : ''}
+    <div class="syl-done-row">${doneBtn(s.code, x.complete, s.name)}</div>
     ${shut ? '' : `
     ${n ? `<ol class="tlist">${topics.map(row).join('')}</ol>` : `<p class="muted small">No topics yet. Add them to see coverage for ${esc(s.name)}.</p>`}
     ${x.other.length ? `<div class="others-head"><span>Others</span><small>${plural(x.other.length, 'name')} not in the syllabus · ${plural(x.other.reduce((a, t) => a + t.q, 0), 'Q')}</small></div><ol class="tlist others">${x.other.map(row).join('')}</ol>` : ''}

@@ -1144,7 +1144,7 @@ mark { background: color-mix(in srgb, var(--sun) 35%, transparent); color: inher
 }
 .syl-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 16px 12px; display: grid; gap: 12px; box-shadow: var(--shadow); scroll-margin-top: 140px; }
 .syl-card.shut { padding-bottom: 16px; }
-.syl-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; }
+.syl-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
 .syl-head .syl-ring text { font-size: 23px; }
 .syl-title { display: grid; min-width: 0; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
 .syl-title strong { font-size: 1.04rem; line-height: 1.3; }
@@ -2671,36 +2671,35 @@ body:has(#speakBar:not([hidden])) .toast { margin-bottom: 64px; }
 .load-d small { color: var(--muted); }
 
 /* ---------- subjects completed (Syllabus and Add) ---------- */
-.subj-done { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--good) 45%, var(--line)); background: var(--surface); color: transparent; display: grid; place-items: center; cursor: pointer; padding: 0; transition: background .18s, border-color .18s, color .18s, transform .15s; }
-.subj-done svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.subj-done:hover { border-color: var(--good); color: color-mix(in srgb, var(--good) 45%, transparent); }
-.subj-done.on { background: var(--good); border-color: var(--good); color: #fff; }
-.subj-done.pop svg { animation: donePop .35s cubic-bezier(.2,.9,.3,1.4); }
-@keyframes donePop { 0% { transform: scale(.4); } 70% { transform: scale(1.2); } 100% { transform: none; } }
-.subj-done:focus-visible { outline: 3px solid color-mix(in srgb, var(--good) 45%, transparent); outline-offset: 2px; }
+/* an outlined action ("Mark subject completed") that turns into a green badge ("✓ Completed · Undo") */
+.done-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 14px 6px 11px; border-radius: 99px; border: 1.5px dashed color-mix(in srgb, var(--good) 55%, var(--line)); background: transparent; color: color-mix(in srgb, var(--good) 80%, var(--ink)); font: inherit; font-size: .88rem; font-weight: 750; cursor: pointer; transition: background .2s, border-color .2s, color .2s, box-shadow .2s; }
+.done-pill svg { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.done-pill:hover { background: color-mix(in srgb, var(--good) 9%, transparent); border-style: solid; }
+.done-pill.on { border: 1.5px solid var(--good); background: var(--good); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--good) 30%, transparent); }
+.done-pill.on svg { stroke-width: 3; }
+.done-pill.on small { font-size: .74rem; font-weight: 700; opacity: .8; padding-left: 8px; margin-left: 2px; border-left: 1px solid rgba(255,255,255,.4); }
+.done-pill.on:hover small { opacity: 1; text-decoration: underline; }
+.done-pill.pop { animation: pillPop .4s cubic-bezier(.2,.9,.3,1.3); }
+.done-pill.pop.on svg path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: drawTick .35s .08s ease-out forwards; }
+@keyframes pillPop { 0% { transform: scale(.94); } 60% { transform: scale(1.05); } 100% { transform: none; } }
+@keyframes drawTick { to { stroke-dashoffset: 0; } }
+.done-pill:focus-visible { outline: 3px solid color-mix(in srgb, var(--good) 45%, transparent); outline-offset: 2px; }
 .done-tag { color: var(--good); font-weight: 800; font-style: normal; }
 /* syllabus */
+.syl-done-row { display: flex; margin-top: 10px; }
 .syl-card.complete { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 7%, var(--surface)); }
 .syl-card.complete .syl-title strong { color: color-mix(in srgb, var(--good) 75%, var(--ink)); }
-.syl-head .subj-done { width: 32px; height: 32px; }
-.syl-head .subj-done + .btn { margin-left: 0; }
 .syl-subj { margin: 2px 0 6px; font-size: .92rem; color: var(--muted); }
 .syl-subj b { color: var(--good); font-family: var(--f-num); font-size: 1.05rem; }
 .syl-subj.solo { margin: 0 0 10px; }
 .nav-done { font-style: normal; color: var(--good); font-weight: 900; margin-right: 6px; }
-/* add: subject chips */
-.pick-wrap { position: relative; min-width: 0; }
-.pick-wrap .pick { width: 100%; height: 100%; padding-right: 48px; }
-.pick-wrap .subj-done { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; }
-.pick-wrap.complete .pick { border-color: color-mix(in srgb, var(--good) 60%, var(--line)); background: color-mix(in srgb, var(--good) 9%, var(--bg)); }
-.pick-wrap.complete .pick b { color: var(--good); }
-.pick small em { font-style: normal; color: var(--good); font-weight: 800; }
-.pick-hint { margin: 0; }
+/* add: subject chips show the status only (picking a subject is the only thing they do) */
+.pick.complete { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 8%, var(--bg)); }
+.pick b { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pick .pick-done { font-family: var(--f-body, inherit); font-style: normal; font-size: .7rem; font-weight: 800; color: #fff; background: var(--good); border-radius: 99px; padding: 1px 8px; letter-spacing: 0; }
 .pickcard.chosen.complete { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 6%, var(--surface)); }
 .pickcard.complete .pick-badge { background: var(--good); }
-.pick-chosen .subj-done { margin-left: auto; }
-.pick-chosen .subj-done + .btn { margin-left: 0; }
-.pick-chosen .done-tag { display: block; font-size: .78rem; }
+.pick-done-row { display: flex; }
 /* add: studied topics */
 .pick-studied { border-top: 1px solid var(--line); padding-top: 8px; }
 .pick-studied summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: .92rem; padding: 4px 0; }
