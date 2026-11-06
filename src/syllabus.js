@@ -7,6 +7,68 @@ const Syl = { open: null, edit: null, shut: new Set() };
 const hasSyllabus = () => App.subjects.some(s => (s.topics || []).length);
 const topicKey = (code, name) => `${code}::${normTopic(name)}`;
 const doneMap = () => (App.prep && App.prep.topicDone) || {};
+/* ---------- "Completed": one tap on a subject (in Syllabus or in Add), saved in the prep so both show it ----------
+   Marking a subject completed also ticks its topics as studied; undoing puts back only the ticks it added.
+   A subject whose topics are all ticked counts as completed too. */
+const subjDoneMap = () => (App.prep && App.prep.subjDone) || {};
+function subjCompleted(code) {
+  if (subjDoneMap()[code]) return true;
+  const s = App.subjects.find(x => x.code === code), t = (s && s.topics) || [], d = doneMap();
+  return t.length > 0 && t.every(n => d[topicKey(code, n)]);
+}
+const completedCount = () => App.subjects.filter(s => subjCompleted(s.code)).length;
+async function setSubjCompleted(code, on, quiet) {
+  const s = App.subjects.find(x => x.code === code); if (!s || !App.prep) return;
+  const td = { ...doneMap() }, sd = { ...subjDoneMap() }, before = { td: doneMap(), sd: subjDoneMap() };
+  if (on) {
+    const added = (s.topics || []).map(n => topicKey(code, n)).filter(k => !td[k]);
+    added.forEach(k => { td[k] = Date.now(); });
+    sd[code] = { t: Date.now(), keys: added };
+  } else {
+    const rec = sd[code];
+    (rec ? rec.keys || [] : (s.topics || []).map(n => topicKey(code, n))).forEach(k => { td[k] = 0; });
+    delete sd[code];
+  }
+  App.prep.topicDone = td; App.prep.subjDone = sd;
+  completedPaint();
+  if (!quiet) {
+    if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+    Sound.play(on ? 'win' : 'tick');
+    if (on) Activity.log('subject_completed', { prep: App.prep.name, subject: s.name });
+    selUndoOffer(on ? `${s.name} marked completed` : `${s.name} no longer completed`, async () => { App.prep.topicDone = before.td; App.prep.subjDone = before.sd; completedPaint(); await Store.setPrep(App.prepId, { topicDone: before.td, subjDone: before.sd }).catch(() => {}); });
+  }
+  try { await Store.setPrep(App.prepId, { topicDone: td, subjDone: sd }); } catch (e) { toast('Not saved. Check your internet and try again.'); }
+}
+// one topic ticked or unticked (Syllabus or Add); unticking one of a completed subject makes it "not completed"
+async function toggleTopicDone(code, i) {
+  const s = App.subjects.find(x => x.code === code); if (!s) return;
+  const key = topicKey(code, s.topics[Number(i)]), now = doneMap()[key] ? 0 : Date.now();
+  const wasDone = subjCompleted(code);
+  App.prep.topicDone = { ...doneMap(), [key]: now };
+  if (!now && subjDoneMap()[code]) { const sd = { ...subjDoneMap() }; delete sd[code]; App.prep.subjDone = sd; }
+  if (now) Sound.play('check');
+  if (typeof Native !== 'undefined' && Native.tap) Native.tap();
+  completedPaint();
+  if (now && !wasDone && subjCompleted(code)) {
+    Sound.play('win');
+    const card = $('sylList') && $('sylList').querySelector(`[data-code="${code}"]`);
+    if (card && visible('syllabus')) celebrate(card); else toast(`${s.name}: every topic studied. Completed!`);
+    Activity.log('subject_completed', { prep: App.prep.name, subject: s.name });
+  }
+  await Store.setPrep(App.prepId, { topicDone: App.prep.topicDone, subjDone: subjDoneMap() });
+}
+// both places show it at once
+function completedPaint() {
+  if (visible('syllabus')) renderSyllabus();
+  if (visible('import') && typeof renderPick === 'function') { const o = document.querySelector('#impPick .pick-studied'); const open = o && o.open; renderPick(); const n = document.querySelector('#impPick .pick-studied'); if (n && open) n.open = true; }
+}
+const doneBtn = (code, on, name) => `<button class="subj-done${on ? ' on' : ''}" type="button" data-sdone="${esc(code)}" aria-pressed="${on}" aria-label="${on ? 'Completed' : 'Mark as completed'}: ${esc(name)}" title="${on ? 'Completed (tap to undo)' : 'Mark subject as completed'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>`;
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-sdone]');
+  if (b) { e.preventDefault(); e.stopPropagation(); b.classList.add('pop'); return setSubjCompleted(b.dataset.sdone, !subjCompleted(b.dataset.sdone)); }
+  const t = e.target.closest('[data-ttick]');
+  if (t) { const [code, i] = t.dataset.ttick.split('|'); return toggleTopicDone(code, i); }
+}, true);
 // subjects folded shut are remembered on this device
 const shutKey = () => 'rc-sylshut-' + (App.prepId || '');
 function loadShut() { try { Syl.shut = new Set(JSON.parse(localStorage.getItem(shutKey()) || '[]')); } catch (e) { Syl.shut = new Set(); } }
@@ -37,7 +99,7 @@ function sylStats() {
     T.forEach(t => { t.state = st(t); });
     const O = topics.length ? Object.values(other).sort((a, b) => a.name.localeCompare(b.name)) : [];
     O.forEach(t => { t.state = st(t); });
-    return { s, topics: T, other: O, doneN: T.filter(t => t.done).length, strongN: T.filter(t => t.state === 'strong').length, gaps: T.filter(t => !t.q) };
+    return { s, topics: T, other: O, complete: subjCompleted(s.code), doneN: T.filter(t => t.done).length, strongN: T.filter(t => t.state === 'strong').length, gaps: T.filter(t => !t.q) };
   });
 }
 // two rings: outer = studied (ticked), inner = strong in memory
@@ -57,24 +119,26 @@ function renderSyllabus() {
     $('sylList').innerHTML = ''; return;
   }
   const nav = all.filter(x => x.topics.length).map(x => `<button type="button" class="syl-nav-row" data-sjump="${esc(x.s.code)}">
-      <span class="syl-nav-name">${esc(x.s.name)}</span><span class="syl-nav-n">${x.doneN}/${x.topics.length}</span>
+      <span class="syl-nav-name">${x.complete ? '<i class="nav-done" aria-label="Completed">✓</i>' : ''}${esc(x.s.name)}</span><span class="syl-nav-n">${x.doneN}/${x.topics.length}</span>
       <span class="syl-nav-bar" aria-hidden="true"><i style="width:${Math.round(100 * x.doneN / x.topics.length)}%"></i></span></button>`).join('');
   $('sylHero').innerHTML = total ? `<div class="syl-hero">
       <div class="syl-hero-top">
         ${sylRing(done / total, strong / total, 104, `${Math.round(100 * done / total)}% studied`)}
         <div class="syl-facts">
           <p class="syl-big"><b>${done}</b> of ${total} topics studied</p>
+          <p class="syl-subj"><b>${completedCount()}</b> of ${App.subjects.length} subjects completed</p>
           <p class="syl-key"><i class="key k-o"></i>Studied</p>
           <p class="syl-key"><i class="key k-i"></i>${strong} strong in memory</p>
         </div>
       </div>
-      <p class="syl-tip muted small">Tap the circle next to a topic when you've studied it.</p>
+      <p class="syl-tip muted small">Tap the circle next to a topic when you've studied it, or the ✓ on a subject when it is completed.</p>
       <div class="syl-btns">${gaps ? `<button class="btn primary" type="button" data-sgaps="">Fill ${plural(gaps, 'empty topic')}</button>` : ''}<button class="btn" type="button" data-mode="import">Add questions or notes</button></div>
       ${nav ? `<nav class="syl-nav" aria-label="Subjects">${nav}</nav>` : ''}
     </div>`
     : `<div class="card syl-start"><strong>Make it a full syllabus (optional)</strong>
         <p class="muted">Add the topics of each subject, as your official syllabus lists them. You'll see what you've covered, what's strong, and what still has no questions. Adding MCQs and notes stays exactly the same.</p>
         <div class="btns"><button class="btn primary" type="button" data-simport>Import my syllabus with AI</button><button class="btn" type="button" data-sedit="${esc(App.subjects[0].code)}">Type the topics</button></div></div>`;
+  if (!total) $('sylHero').insertAdjacentHTML('afterbegin', `<p class="syl-subj solo"><b>${completedCount()}</b> of ${App.subjects.length} subjects completed</p>`);
   $('sylList').innerHTML = all.map(x => sylCard(x)).join('');
   if (Syl.edit && $('sylText')) $('sylText').focus();
 }
@@ -93,7 +157,8 @@ function sylCard(x) {
   const meta = s.part ? esc(`Part ${s.part}`) : '';
   const head = `<header class="syl-head">
       ${n ? sylRing(x.doneN / n, x.strongN / n, 48, `${x.doneN} of ${n} topics studied`) : '<span class="syl-code">' + esc(s.code) + '</span>'}
-      <button class="syl-title" type="button" data-sfold="${esc(s.code)}" aria-expanded="${!shut}"><strong>${esc(s.name)}</strong><small>${meta || esc(s.code)}${n ? ` · <b>${x.doneN}/${n}</b> studied` : ''}</small></button>
+      <button class="syl-title" type="button" data-sfold="${esc(s.code)}" aria-expanded="${!shut}"><strong>${esc(s.name)}</strong><small>${x.complete ? '<span class="done-tag">✓ Completed</span> · ' : ''}${meta || esc(s.code)}${n ? ` · <b>${x.doneN}/${n}</b> studied` : ''}</small></button>
+      ${doneBtn(s.code, x.complete, s.name)}
       <button class="btn ghost small" type="button" data-sedit="${esc(s.code)}">${n ? 'Edit' : 'Add topics'}</button>
       <button class="fold" type="button" data-sfold="${esc(s.code)}" aria-label="${shut ? 'Open' : 'Fold'} ${esc(s.name)}" aria-expanded="${!shut}">${icon('next')}</button></header>`;
   if (Syl.edit === s.code) {
@@ -111,7 +176,7 @@ function sylCard(x) {
       <span class="pill p-${t.state}">${STATE_PILL[t.state]}</span>
       ${open ? topicPanel(s, t) : ''}</li>`;
   };
-  return `<section class="syl-card${shut ? ' shut' : ''}" data-code="${esc(s.code)}">${head}
+  return `<section class="syl-card${shut ? ' shut' : ''}${x.complete ? ' complete' : ''}" data-code="${esc(s.code)}">${head}
     ${n ? `<div class="syl-bar" role="img" aria-label="${x.doneN} of ${n} studied">${topics.map(t => `<i class="s-${t.state}${t.done ? ' done' : ''}"></i>`).join('')}</div>` : ''}
     ${shut ? '' : `
     ${n ? `<ol class="tlist">${topics.map(row).join('')}</ol>` : `<p class="muted small">No topics yet. Add them to see coverage for ${esc(s.name)}.</p>`}
@@ -139,17 +204,7 @@ $('syllabus').addEventListener('click', async e => {
   const t = e.target.closest('button'); if (!t) return;
   const d = t.dataset;
   try {
-    if ('tick' in d) {
-      const [code, i] = d.tick.split('|'), s = App.subjects.find(x => x.code === code), name = s.topics[Number(i)], key = topicKey(code, name);
-      const now = doneMap()[key] ? 0 : Date.now();
-      App.prep.topicDone = { ...doneMap(), [key]: now };
-      if (now) Sound.play('check');
-      renderSyllabus();
-      const st = sylStats().find(x => x.s.code === code);
-      if (now && st.doneN === st.topics.length) { Sound.play('win'); celebrate($('sylList').querySelector(`[data-code="${code}"]`)); Activity.log('subject_completed', { prep: App.prep.name, subject: s.name }); }
-      await Store.setPrep(App.prepId, { topicDone: App.prep.topicDone });
-      return;
-    }
+    if ('tick' in d) { const [code, i] = d.tick.split('|'); return toggleTopicDone(code, i); }
     if ('sfold' in d) { const c = d.sfold; Syl.shut.has(c) ? Syl.shut.delete(c) : Syl.shut.add(c); saveShut(); Syl.open = null; return renderSyllabus(); }
     if ('sjump' in d) { Syl.shut.delete(d.sjump); saveShut(); renderSyllabus(); const el = $('sylList').querySelector(`[data-code="${d.sjump}"]`); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: prefersReduced() ? 'auto' : 'smooth', block: 'start' }); return; }
     if ('topen' in d) { Syl.open = Syl.open === d.topen ? null : d.topen; return renderSyllabus(); }
